@@ -300,28 +300,8 @@ int main(){
   {
     int dims[]={(int)round(sqrt(nrec)), (int)round(sqrt(nrec)), ntsteps};
     float spacing[]={h, h, dt};
-    opesci_dump_field_vts("receivers", dims, spacing, uss);
+    opesci_dump_receivers_vts("receivers", dims, spacing, uss, vss, wss, pss);
   }
-
-  std::ofstream ussfh;
-  ussfh.open ("useis.raw", std::ios::out | std::ios::trunc | std::ios::binary); 
-  ussfh.write((char *)uss.data(), uss.size()*sizeof(float));
-  ussfh.close();
-
-  std::ofstream vssfh;
-  vssfh.open ("vseis.raw", std::ios::out | std::ios::trunc | std::ios::binary); 
-  vssfh.write((char *)vss.data(), vss.size()*sizeof(float));
-  vssfh.close();
-
-  std::ofstream wssfh;
-  wssfh.open ("wseis.raw", std::ios::out | std::ios::trunc | std::ios::binary); 
-  wssfh.write((char *)wss.data(), wss.size()*sizeof(float));
-  wssfh.close();
-
-  std::ofstream pssfh;
-  pssfh.open ("pseis.raw", std::ios::out | std::ios::trunc | std::ios::binary); 
-  pssfh.write((char *)pss.data(), pss.size()*sizeof(float));
-  pssfh.close();
 
   return 0;
 }

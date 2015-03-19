@@ -183,6 +183,103 @@ void opesci_dump_field_vts(std::string name, const int dims[], const float spaci
 #endif
 }
 
+void opesci_dump_receivers_vts(std::string name, const int dims[], const float spacing[],
+			       std::vector<float> &uss, std::vector<float> &vss, std::vector<float> &wss, std::vector<float> &pss){
+#ifdef VTK_FOUND
+  assert(dims[0]*dims[1]*dims[2]==field.size());
+
+  vtkSmartPointer<vtkStructuredGrid> sg = vtkSmartPointer<vtkStructuredGrid>::New();
+  sg->SetDimensions(dims[0], dims[1], dims[2]);
+  
+  {
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();  
+    for(int k=0;k<dims[2];k++){
+      float z = k*spacing[2];
+      for(int j=0;j<dims[1];j++){
+	float y = j*spacing[1];
+	for(int i=0;i<dims[0];i++){
+	  float x = i*spacing[0];
+	  points->InsertNextPoint(x, y, z);
+	}
+      }
+    }
+    sg->SetPoints(points);
+  }
+
+  {
+    vtkSmartPointer<vtkFloatArray> vtkfield = vtkSmartPointer<vtkFloatArray>::New();  
+    vtkfield->SetName("vss");
+    vtkfield->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
+    for(int k=0;k<dims[2];k++){
+      for(int j=0;j<dims[1];j++){
+	for(int i=0;i<dims[0];i++){
+	  int index = k*dims[0]*dims[1]+j*dims[1]+i;
+	  vtkfield->SetTuple1(index, vss[index]);
+	}
+      }
+    }
+    sg->GetPointData()->AddArray(vtkfield);
+  }
+
+  {
+    vtkSmartPointer<vtkFloatArray> vtkfield = vtkSmartPointer<vtkFloatArray>::New();  
+    vtkfield->SetName("wss");
+    vtkfield->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
+    for(int k=0;k<dims[2];k++){
+      for(int j=0;j<dims[1];j++){
+	for(int i=0;i<dims[0];i++){
+	  int index = k*dims[0]*dims[1]+j*dims[1]+i;
+	  vtkfield->SetTuple1(index, wss[index]);
+	}
+      }
+    }
+    sg->GetPointData()->AddArray(vtkfield);
+  }
+
+  {
+    vtkSmartPointer<vtkFloatArray> vtkfield = vtkSmartPointer<vtkFloatArray>::New();  
+    vtkfield->SetName("pss");
+    vtkfield->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
+    for(int k=0;k<dims[2];k++){
+      for(int j=0;j<dims[1];j++){
+	for(int i=0;i<dims[0];i++){
+	  int index = k*dims[0]*dims[1]+j*dims[1]+i;
+	  vtkfield->SetTuple1(index, pss[index]);
+	}
+      }
+    }
+    sg->GetPointData()->AddArray(vtkfield);
+  }
+
+  {
+    vtkSmartPointer<vtkFloatArray> vtkfield = vtkSmartPointer<vtkFloatArray>::New();  
+    vtkfield->SetName("uss");
+    vtkfield->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
+    for(int k=0;k<dims[2];k++){
+      for(int j=0;j<dims[1];j++){
+	for(int i=0;i<dims[0];i++){
+	  int index = k*dims[0]*dims[1]+j*dims[1]+i;
+	  vtkfield->SetTuple1(index, uss[index]);
+	}
+      }
+    }
+    sg->GetPointData()->AddArray(vtkfield);
+  }
+
+  vtkSmartPointer<vtkXMLStructuredGridWriter> writer = vtkSmartPointer<vtkXMLStructuredGridWriter>::New();
+  writer->SetFileName(std::string(name+".vts").c_str());
+  
+  vtkSmartPointer<vtkZLibDataCompressor> compressor = vtkSmartPointer<vtkZLibDataCompressor>::New();
+  compressor->SetCompressionLevel(9);
+  writer->SetCompressor(compressor);
+
+  writer->SetInput(sg);
+  writer->Write();
+#else
+  opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");
+#endif
+}
+
 int opesci_read_simple_binary(const char *filename, std::vector<float> &array){
   std::ifstream infile(filename, std::ios::in | std::ios::binary);
   if(!infile.good()){

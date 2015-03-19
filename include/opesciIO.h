@@ -44,6 +44,8 @@ void opesci_dump_solution_vts(std::string name, const int dims[], const float sp
 			      std::vector<float> &u, std::vector<float> &v, std::vector<float> &w,
 			      std::vector<float> &txx, std::vector<float> &tyy, std::vector<float> &tzz);
 void opesci_dump_field_vts(std::string name, const int dims[], const float spacing[], std::vector<float> &field);
+void opesci_dump_receivers_vts(std::string name, const int dims[], const float spacing[],
+			       std::vector<float> &uss, std::vector<float> &vss, std::vector<float> &wss, std::vector<float> &pss);
 int opesci_read_simple_binary(const char *filename, std::vector<float> &array);
 int opesci_read_souces(const char *xyz_filename, const char *xsrc_filename, const char *ysrc_filename, const char *zsrc_filename,
 		       std::vector<float> &xyz_array, std::vector<float> &xsrc_array, std::vector<float> &ysrc_array, std::vector<float> &zsrc_array);
