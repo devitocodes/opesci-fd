@@ -76,7 +76,7 @@ int main(){
     opesci_abort("Missing input file\n");
   }
   assert(vp.size()==dimx*dimy*dimz);
-
+ 
   // Read Vs
   std::vector<float> vs;
   if(opesci_read_simple_binary(vsfile.c_str(), vs)){
@@ -181,7 +181,7 @@ int main(){
     for(int ti=0;ti<ntsteps;ti++){
       
       // Compute stresses
-#pragma omp for
+#pragma omp for schedule(guided)
       for(int k=2;k<dimz-2;k++){
 	for(int j=2;j<dimy-2;j++){
 	  for(int i=2;i<dimx-2;i++){
@@ -199,21 +199,12 @@ int main(){
 	    Txz[k][j][i] += dt*(Mu[k][j][i]*(c0*(U[k+1][j][i]-U[k][j][i] + W[k][j][i+1]-W[k][j][i]) - c1*(U[k+2][j][i]-U[k-1][j][i] + W[k][j][i+2]-W[k][j][i-1])))/h;
 	    
 	    Txy[k][j][i] += dt*(Mu[k][j][i]*(c0*(U[k][j+1][i]-U[k][j][i] + V[k][j][i+1]-V[k][j][i]) - c1*(U[k][j+2][i]-U[k][j-1][i] + V[k][j][i+2]-V[k][j][i-1])))/h;
-
-	    if(!std::isfinite(Tyz[k][j][i])){
-	      
-	      std::cerr<<"a="<<(c0*(V[k+1][j][i]-V[k][j][i] + W[k][j+1][i]-W[k][j][i])
-				-c1*(V[k+2][j][i]-V[k-1][j][i] + W[k][j+2][i]-W[k][j-1][i]))<<std::endl
-		       <<V[k+1][j][i]<<", "<<V[k][j][i]<<", "<<W[k][j+1][i]<<", "<<W[k][j][i]<<std::endl
-		       <<V[k+2][j][i]<<", "<<V[k-1][j][i]<<", "<<W[k][j+2][i]<<", "<<W[k][j-1][i]<<std::endl;
-	      std::cerr<<"b="<<dt*Mu[k][j][i]<<std::endl;
-	    }
 	  }
 	}
       }
 
       // Compute velocities
-#pragma omp for
+#pragma omp for schedule(guided)
       for(int k=2;k<dimz-2;k++){
 	for(int j=2;j<dimy-2;j++){
 	  for(int i=2;i<dimx-2;i++){
