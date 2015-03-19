@@ -42,364 +42,17 @@
 
 */
 
+#include "opesciIO.h"
+#include "opesciHandy.h"
+
 #include <cassert>
 #include <cstdlib>
 #include <cmath>
 
-#include <fstream>
 #include <iostream>
-#include <iterator>
-#include <limits>
-#include <string>
-#include <sstream>
-#include <vector>
-
-#include <vtkXMLStructuredGridWriter.h>
-#include <vtkSmartPointer.h>
-#include <vtkStructuredGrid.h>
-#include <vtkZLibDataCompressor.h>
-#include <vtkPoints.h>
-#include <vtkFloatArray.h>
-#include <vtkPointData.h>
-
-// Abort execution.
-void opesci_abort(std::string msg){
-  std::cerr<<msg<<std::endl;
-  exit(-1);
-}
-
-// Compute the field of Lame constants from subsurface model - i.e. the p-wave velocity, s-wave velocity and density fields.
-// See http://scienceworld.wolfram.com/physics/LameConstants.html
-void opesci_calculate_lame_costants(const std::vector<float> &vp, const std::vector<float> &vs, const std::vector<float> &rho,
-				    std::vector<float> &mu, std::vector<float> &lam){
-  size_t size=vp.size();
-  assert(size==vs.size());
-  assert(size==rho.size());
-  mu.resize(size);
-  lam.resize(size);
-  
-#pragma omp parallel for
-  for(size_t i=0;i<size;i++){
-    mu[i] = rho[i]*vs[i]*vs[i];
-    lam[i] = rho[i]*(vp[i]*vp[i]-2.0*vs[i]*vs[i]);
-  }
-}
-
-void opesci_dump_field_raw(std::string name, std::vector<float> &field){
-  std::ofstream fh;
-  fh.open (name+".raw", std::ios::out | std::ios::trunc | std::ios::binary); 
-  fh.write((char *)field.data(), field.size()*sizeof(float));
-  fh.close();
-}
-
-void opesci_dump_solution_vts(std::string name, const int dims[], const float spacing[],
-			      std::vector<float> &u, std::vector<float> &v, std::vector<float> &w,
-			      std::vector<float> &txx, std::vector<float> &tyy, std::vector<float> &tzz){
-
-  vtkSmartPointer<vtkStructuredGrid> sg = vtkSmartPointer<vtkStructuredGrid>::New();
-  sg->SetDimensions(dims[0], dims[1], dims[2]);
-
-  {
-    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
-    for(int k=0;k<dims[2];k++){
-      float z = k*spacing[2];
-      for(int j=0;j<dims[1];j++){
-	float y = j*spacing[1];
-	for(int i=0;i<dims[0];i++){
-	  float x = i*spacing[0];
-	  points->InsertNextPoint(x, y, z);
-	}
-      }
-    }
-    sg->SetPoints(points);
-  }
-
-  {
-    vtkSmartPointer<vtkFloatArray> velocity = vtkSmartPointer<vtkFloatArray>::New();  
-    velocity->SetName("velocity");
-    velocity->SetNumberOfComponents(3);
-    velocity->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
-
-    for(int k=0;k<dims[2];k++){
-      for(int j=0;j<dims[1];j++){
-	for(int i=0;i<dims[0];i++){
-	  int index = k*dims[0]*dims[1]+j*dims[1]+i;
-	  velocity->SetTuple3(index, u[index], v[index], w[index]);
-	}
-      }
-    }
-    sg->GetPointData()->AddArray(velocity);
-  }
-
-  {
-    vtkSmartPointer<vtkFloatArray> pressure = vtkSmartPointer<vtkFloatArray>::New();  
-    pressure->SetName("pressure");
-    pressure->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
-    pressure->SetNumberOfComponents(1);
-    
-    for(int k=0;k<dims[2];k++){
-      for(int j=0;j<dims[1];j++){
-	for(int i=0;i<dims[0];i++){
-	  int index = k*dims[0]*dims[1]+j*dims[1]+i;
-	  pressure->SetTuple1(index, (txx[index]+tyy[index]+tzz[index])/3);
-	}
-      }
-    }
-    sg->GetPointData()->AddArray(pressure);
-  }
-
-  vtkSmartPointer<vtkXMLStructuredGridWriter> writer = vtkSmartPointer<vtkXMLStructuredGridWriter>::New();
-  writer->SetFileName(std::string(name+".vts").c_str());
-  
-  vtkSmartPointer<vtkZLibDataCompressor> compressor = vtkSmartPointer<vtkZLibDataCompressor>::New();
-  compressor->SetCompressionLevel(9);
-  writer->SetCompressor(compressor);
-
-  writer->SetInput(sg);
-  writer->Write();
-}
-
-void opesci_dump_field_vts(std::string name, const int dims[], const float spacing[], std::vector<float> &field){
-  assert(dims[0]*dims[1]*dims[2]==field.size());
-
-  vtkSmartPointer<vtkStructuredGrid> sg = vtkSmartPointer<vtkStructuredGrid>::New();
-  sg->SetDimensions(dims[0], dims[1], dims[2]);
-  
-  {
-    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();  
-    for(int k=0;k<dims[2];k++){
-      float z = k*spacing[2];
-      for(int j=0;j<dims[1];j++){
-	float y = j*spacing[1];
-	for(int i=0;i<dims[0];i++){
-	  float x = i*spacing[0];
-	  points->InsertNextPoint(x, y, z);
-	}
-      }
-    }
-    sg->SetPoints(points);
-  }
-
-  {
-    vtkSmartPointer<vtkFloatArray> vtkfield = vtkSmartPointer<vtkFloatArray>::New();  
-    vtkfield->SetName("field");
-    vtkfield->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
-    for(int k=0;k<dims[2];k++){
-      for(int j=0;j<dims[1];j++){
-	for(int i=0;i<dims[0];i++){
-	  int index = k*dims[0]*dims[1]+j*dims[1]+i;
-	  vtkfield->SetTuple1(index, field[index]);
-	}
-      }
-    }
-    sg->GetPointData()->AddArray(vtkfield);
-  }
-
-  vtkSmartPointer<vtkXMLStructuredGridWriter> writer = vtkSmartPointer<vtkXMLStructuredGridWriter>::New();
-  writer->SetFileName(std::string(name+".vts").c_str());
-  
-  vtkSmartPointer<vtkZLibDataCompressor> compressor = vtkSmartPointer<vtkZLibDataCompressor>::New();
-  compressor->SetCompressionLevel(9);
-  writer->SetCompressor(compressor);
-
-  writer->SetInput(sg);
-  writer->Write();
-}
-
-int opesci_read_simple_binary(const char *filename, std::vector<float> &array){
-  std::ifstream infile(filename, std::ios::in | std::ios::binary);
-  if(!infile.good()){
-    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open binary file "<<filename<<std::endl;
-    return -1;
-  }
-  
-  std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(infile)),
-				    std::istreambuf_iterator<char>());
-    
-  size_t size = buffer.size()/4;
-  array.resize(size);
-#pragma omp parallel for if (size >= 10000)
-  for(size_t i=0;i<size;i++){
-    array[i] = *((float*)&buffer[i*4]);
-  }
-  
-  infile.close();
-  
-  return 0;
-}
-
-int opesci_get_souces(const char *xyz_filename, const char *xsrc_filename, const char *ysrc_filename, const char *zsrc_filename,
-		      std::vector<float> &xyz_array, std::vector<float> &xsrc_array, std::vector<float> &ysrc_array, std::vector<float> &zsrc_array){
- std::ifstream infile(xyz_filename);
-  if(!infile.good()){
-    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open source file "<<xyz_filename<<std::endl;
-    return -1;
-  }
-  
-  std::string line;
-  std::getline(infile, line); // Read and ditch the header.
-  while(!infile.eof()){
-    std::getline(infile, line);
-    if(line.empty())
-      continue;
-    
-    std::stringstream ss(line);
-    std::vector<float> xyz(3);
-    ss>>xyz[0]>>xyz[1]>>xyz[2];
-    xyz_array.insert(xyz_array.end(), xyz.begin(), xyz.end());
-  }
-
-  opesci_read_simple_binary(xsrc_filename, xsrc_array);
-  opesci_read_simple_binary(ysrc_filename, ysrc_array);
-  opesci_read_simple_binary(zsrc_filename, zsrc_array);
-  
-  return 0;
-}
-
-int opesci_get_receivers(const char *filename, std::vector<float> &array){
- std::ifstream infile(filename);
-  if(!infile.good()){
-    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open receivers file "<<filename<<std::endl;
-    return -1;
-  }
-  
-  std::string line;
-  std::getline(infile, line); // Read and ditch the header.
-  while(!infile.eof()){
-    std::getline(infile, line);
-    if(line.empty())
-      continue;
-    
-    std::stringstream ss(line);
-    std::vector<float> xyz(3);
-    ss>>xyz[0]>>xyz[1]>>xyz[2];
-    array.insert(array.end(), xyz.begin(), xyz.end());
-  }
-  
-  return 0;
-}
-
-float opesci_get_dt(const std::vector<float> &vp, float h){
-  float maxv = 0;
-  size_t size = vp.size();
-#pragma omp parallel for reduction(max:maxv)
-  for(size_t i=0;i<size;++i){
-    if(vp[i]>maxv){
-      maxv = vp[i];
-    }
-  }
-
-  return (6.0/7.0)*(1./sqrt(3.0))*(h/maxv);
-}
-
-/* 
- * Discrete Fourier transform
- * by Project Nayuki, 2014. Public domain.
- * http://www.nayuki.io/page/how-to-implement-the-discrete-fourier-transform
- * 
- * Computes the discrete Fourier transform (DFT) of the given vector.
- * All the array arguments must have the same length.
- */
-
-void compute_dft(const float inreal[], const float inimag[], float outreal[], float outimag[], int n){
-#pragma omp parallel for
-  for(int k=0;k<n;++k) {  /* For each output element */
-    float sumreal = 0;
-    float sumimag = 0;
-    for(int t=0;t<n;++t) {  /* For each input element */
-      float angle = 2 * M_PI * t * k / n;
-      sumreal +=  inreal[t] * cos(angle) + inimag[t] * sin(angle);
-      sumimag += -inreal[t] * sin(angle) + inimag[t] * cos(angle);
-    }
-    outreal[k] = sumreal;
-    outimag[k] = sumimag;
-  }
-}
-
-/* 
- * If dt < sdt, the source is resampled by perfoming a discrete
- * fourier transfor, filling the resulting spectrum with as many
- * zeroes as needed and inverse fourier transforming to get the
- * desired sampling without changing the frequency content.
- *
- * If sdt < dt, the source is resampled as above but removing samples
- * of the spectrum until the desired sample rate is desired.
- */
-void resample(const std::vector<float> &src, float dt, double sdt, std::vector<float> &resampled_src){
-  // Break out early if necessary.
-  if(fabs(dt-sdt)<std::numeric_limits<float>::epsilon()*(dt+sdt)){
-    resampled_src = src;
-    return;
-  }
-  
-  // Calculate new source size.
-  int snt = src.size();
-  int snt2 = (int)round(snt*sdt/dt);
-
-  std::vector<float> imsrc(snt, 0.0);
-  
-  std::vector<float> ft_resrc(snt);
-  std::vector<float> ft_imsrc(snt);
-
-  compute_dft(src.data(), imsrc.data(), ft_resrc.data(), ft_imsrc.data(), snt);
-  
-  // Normalize
-  float nrm = 1./sqrt(snt);
-  for(auto &i : ft_resrc)
-    i*=nrm;
-  for(auto &i : ft_imsrc)
-    i*=nrm;
-
-  std::vector<float> ft_resrc2(snt2, 0.0);
-  std::vector<float> ft_imsrc2(snt2, 0.0);
-  
-  if(dt<sdt){
-    // Add zeroes in the middle of the real and imaginary part of the
-    // transform. This is the same as adding zeroes at the end of the
-    // spectrum.
-    int midpoint = snt/2;
-    for(int i=0;i<midpoint;i++){
-      ft_resrc2[i] = ft_resrc[i];
-      ft_imsrc2[i] = ft_imsrc[i];
-    }
-    int offset = (snt2-snt);
-    for(int i=midpoint;i<snt;i++){
-      ft_resrc2[offset+i] = ft_resrc[i];
-      ft_imsrc2[offset+i] = ft_imsrc[i];
-    }
-  }else if(dt>sdt){
-    // Substract the middle of the real and imaginary part of the transform.
-    int midpoint = snt2/2;
-    for(int i=0;i<midpoint;i++){
-      ft_resrc2[i] = ft_resrc[i];
-      ft_imsrc2[i] = ft_imsrc[i];
-    }
-    int offset = (snt-snt2);
-    for(int i=midpoint;i<snt2;i++){
-      ft_resrc2[i] = ft_resrc[offset+i];
-      ft_imsrc2[i] = ft_imsrc[offset+i];
-    }
-  }
-
-  // Inverse fourier transform.
-  for(auto &i : ft_imsrc2)
-    i*=-1;
-  
-  resampled_src.resize(snt2);
-  std::vector<float> imsrc2(snt2);
-  
-  compute_dft(ft_resrc2.data(), ft_imsrc2.data(), resampled_src.data(), imsrc2.data(), snt2);
-  
-  // Normalise
-  float nrm2 = 1.0/sqrt((float)snt2);
-  for(auto &i : resampled_src)
-    i*=nrm2;
-}
-// #include <fenv.h> 
+#include <fstream>
 
 int main(){
-  // feenableexcept(FE_INVALID | FE_OVERFLOW);
-
   std::string vpfile("VPhomogx200");       // Vp file in binary (in m/s)
   std::string vsfile("VShomogx200");       // Vs file: Vs file in binary (in m/s)
   std::string rhofile("RHOhomogx200");     // rhofile: densities file in binary (in kg/m**3)
@@ -445,31 +98,31 @@ int main(){
 
   // Get sources.
   std::vector<float> coorsrc, xsrc, ysrc, zsrc;
-  if(opesci_get_souces(geomsrc.c_str(), xsrcname.c_str(), ysrcname.c_str(), zsrcname.c_str(), coorsrc, xsrc, ysrc, zsrc)){
+  if(opesci_read_souces(geomsrc.c_str(), xsrcname.c_str(), ysrcname.c_str(), zsrcname.c_str(), coorsrc, xsrc, ysrc, zsrc)){
     opesci_abort("Cannot read sources.\n");
   }
   int nsrc = coorsrc.size()/3;
 
   // Get receivers.
   std::vector<float> coorrec;
-  if(opesci_get_receivers(geomrec.c_str(), coorrec)){
+  if(opesci_read_receivers(geomrec.c_str(), coorrec)){
     opesci_abort("Cannot read receivers.\n");
   }
   int nrec = coorrec.size()/3;
 
-  float dt = opesci_get_dt(vp, h);
+  float dt = opesci_calculate_dt(vp, h);
   int ntsteps = (int)(maxt/dt);
   
   // Resample sources if required.
   assert(nsrc==1);
   std::vector<float> resampled_src;
-  resample(xsrc, dt, sdt, resampled_src);
+  opesci_resample_timeseries(xsrc, dt, sdt, resampled_src);
   xsrc.swap(resampled_src);
 
-  resample(ysrc, dt, sdt, resampled_src);
+  opesci_resample_timeseries(ysrc, dt, sdt, resampled_src);
   ysrc.swap(resampled_src);
 
-  resample(zsrc, dt, sdt, resampled_src);
+  opesci_resample_timeseries(zsrc, dt, sdt, resampled_src);
   zsrc.swap(resampled_src);
 
   int snt = xsrc.size()/nsrc;
