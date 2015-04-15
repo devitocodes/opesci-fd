@@ -11,7 +11,17 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+include(CTest)
+enable_testing()
+
 enable_language(CXX)
+
+find_program(POCHOIR pochoir PATHS)
+if(POCHOIR)
+  MESSAGE(STATUS "Found the Pochoir Stencil Compiler: ${POCHOIR}")
+else()
+  MESSAGE(WARNING "WARNING: Cannot find the Pochoir Stencil Compiler. Pochoir source will not be built.")
+endif()
 
 set (OPESCI_LIBRARIES)
 FIND_PACKAGE(VTK NO_MODULE)
@@ -60,3 +70,5 @@ add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 install(DIRECTORY include/ DESTINATION include/opesci FILES_MATCHING PATTERN *.h)
 install(FILES libopesci.so DESTINATION lib)
+
+

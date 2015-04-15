@@ -10,6 +10,12 @@ script:
   - cd build
   - cmake ..
   - make
+  - git clone https://github.com/opesci/data.git  
   - cd tests/
+  - for file in ../data/*.gz
+    do
+      gunzip -ck $file > $(basename $file .gz)
+    done
   - make
+  - make test
 

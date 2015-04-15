@@ -186,8 +186,6 @@ void opesci_dump_field_vts(std::string name, const int dims[], const float spaci
 void opesci_dump_receivers_vts(std::string name, const int dims[], const float spacing[],
 			       std::vector<float> &uss, std::vector<float> &vss, std::vector<float> &wss, std::vector<float> &pss){
 #ifdef VTK_FOUND
-  assert(dims[0]*dims[1]*dims[2]==field.size());
-
   vtkSmartPointer<vtkStructuredGrid> sg = vtkSmartPointer<vtkStructuredGrid>::New();
   sg->SetDimensions(dims[0], dims[1], dims[2]);
   
