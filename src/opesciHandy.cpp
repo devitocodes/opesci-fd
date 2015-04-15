@@ -67,12 +67,20 @@ void opesci_calculate_lame_costants(const std::vector<float> &vp, const std::vec
 float opesci_calculate_dt(const std::vector<float> &vp, float h){
   float maxv = 0;
   size_t size = vp.size();
+#if defined _OPENMP && _OPENMP >= 200711
 #pragma omp parallel for reduction(max:maxv)
   for(size_t i=0;i<size;++i){
     if(vp[i]>maxv){
       maxv = vp[i];
     }
   }
+#else
+  for(size_t i=0;i<size;++i){
+    if(vp[i]>maxv){
+      maxv = vp[i];
+    }
+  }
+#endif
 
   return (6.0/7.0)*(1./sqrt(3.0))*(h/maxv);
 }
