@@ -10,6 +10,15 @@ compiler:
   - gcc
 # Change this to your needs
 script:
+  - export SOURCE_ROOT=$PWD
+  - git clone https://github.com/opesci/Pochoir.git
+  - pushd Pochoir
+  - mkdir build
+  - pushd build
+  - cmake -DCMAKE_INSTALL_PREFIX=$SOURCE_ROOT/pochoir-install ../
+  - make install
+  - export PATH=$SOURCE_ROOT/pochoir-install:$PATH
+  - popd; popd
   - mkdir build
   - cd build
   - cmake ..
