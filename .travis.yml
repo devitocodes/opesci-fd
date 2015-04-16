@@ -6,10 +6,18 @@ install:
   - sudo apt-get install -y libvtk5-dev libvtk5.8
   - sudo apt-get install -qq gcc-4.8 g++-4.8
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
+  - sudo apt-get install -y ghc ghc-prof libghc-parsec3-dev
+  - sudo apt-get install -y gcc-multilib
+  - wget https://www.cilkplus.org/sites/default/files/cilk-gcc-compiler/cilkplus-4_8-install.tar_0.bz2
+  - tar jxf cilkplus-4_8-install.tar_0.bz2
 compiler:
-  - gcc
+  - gcc ghc
 # Change this to your needs
 script:
+  - export CXX=g++
+  - export LD_LIBRARY_PATH=$(pwd)/cilkplus-4_8-install/lib64:$(pwd)/cilkplus-4_8-install/lib:$LD_LIBRARY_PATH
+  - export LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LIBRARY_PATH
+  - export PATH=$(pwd)/cilkplus-4_8-install/bin:$PATH
   - export SOURCE_ROOT=$PWD
   - git clone https://github.com/opesci/Pochoir.git
   - pushd Pochoir
