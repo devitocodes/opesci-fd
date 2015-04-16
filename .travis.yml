@@ -13,10 +13,10 @@ script:
   - mkdir build
   - cd build
   - cmake ..
-  - make
+  - make VERBOSE=1
   - git clone https://github.com/opesci/data.git  
   - cd tests/
   - for file in ../data/*.gz ; do gunzip -c $file > $(basename $file .gz) ; done
-  - make
+  - make VERBOSE=1
   - make test
 
