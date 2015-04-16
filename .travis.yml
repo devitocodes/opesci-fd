@@ -21,8 +21,7 @@ script:
   - export SOURCE_ROOT=$PWD
   - git clone https://github.com/opesci/Pochoir.git
   - pushd Pochoir
-  - mkdir build
-  - pushd build
+  - mkdir build; pushd build
   - cmake -DCMAKE_INSTALL_PREFIX=$SOURCE_ROOT/pochoir-install ../
   - make install
   - export PATH=$SOURCE_ROOT/pochoir-install:$PATH
@@ -31,6 +30,7 @@ script:
   - cd build
   - cmake ..
   - make VERBOSE=1
+  - export LD_LIBRARY_PATH=$SOURCE_ROOT/lib:$LD_LIBRARY_PATH
   - git clone https://github.com/opesci/data.git  
   - cd tests/
   - for file in ../data/*.gz ; do gunzip -c $file > $(basename $file .gz) ; done
