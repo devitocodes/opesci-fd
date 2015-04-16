@@ -1,9 +1,20 @@
 #!/bin/sh
 
-pochoir $* &> /dev/null
+dir="."
+for arg in $* ; do
+  if test -f "$arg" ; then
+    cp "$arg" .
+    dir=`dirname "$arg"`
+    gen=`basename "$arg" .cpp`.i
+  fi
+done
+tmp=`mktemp`
+pochoir $* &> $tmp
 
-# If it fails then run the compiler again and let the stdout/stderr go to screen.
 if test $? != 0 ; then
-  pochoir $*
+  cp $gen $dir/
+  pochoir $* &> $tmp
+  cat $tmp
 fi
+rm $tmp
 
