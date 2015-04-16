@@ -64,7 +64,7 @@ file(GLOB CXX_SOURCES src/*.cpp)
 
 # target_link_library
 add_library(opesci SHARED ${CXX_SOURCES})
-target_link_libraries(opesci)
+target_link_libraries(opesci ${OPESCI_LIBRARIES})
 
 add_subdirectory(tests EXCLUDE_FROM_ALL)
 
