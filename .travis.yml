@@ -34,6 +34,7 @@ script:
   - git clone https://github.com/opesci/data.git  
   - cd tests/
   - for file in ../data/*.gz ; do gunzip -c $file > $(basename $file .gz) ; done
-  - CPATH=$SOURCE_ROOT/include ; make VERBOSE=1
+  - export CPATH=$SOURCE_ROOT/include
+  - make VERBOSE=1
   - make test
 
