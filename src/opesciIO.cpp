@@ -34,6 +34,7 @@
  *  SUCH DAMAGE.
  */
 
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 
@@ -161,7 +162,7 @@ void opesci_dump_field_vts(std::string name, const int dims[], const float spaci
     for(int k=0;k<dims[2];k++){
       for(int j=0;j<dims[1];j++){
 	for(int i=0;i<dims[0];i++){
-	  int index = k*dims[0]*dims[1]+j*dims[1]+i;
+	  int index = k*dims[0]*dims[1]+j*dims[0]+i;
 	  vtkfield->SetTuple1(index, field[index]);
 	}
       }
@@ -329,7 +330,7 @@ int opesci_read_souces(const char *xyz_filename, const char *xsrc_filename, cons
 }
 
 int opesci_read_receivers(const char *filename, std::vector<float> &array){
- std::ifstream infile(filename);
+  std::ifstream infile(filename);
   if(!infile.good()){
     std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open receivers file "<<filename<<std::endl;
     return -1;
@@ -348,5 +349,63 @@ int opesci_read_receivers(const char *filename, std::vector<float> &array){
     array.insert(array.end(), xyz.begin(), xyz.end());
   }
   
+  return 0;
+}
+
+int opesci_read_model_segy(const char *filename, std::vector<float> &array, int dim[], float spacing[]){
+  std::ifstream infile(filename);
+  if(!infile.good()){
+    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open SEG-Y file "<<filename<<std::endl;
+    return -1;
+  }
+
+  // Get the size of the file.
+  infile.seekg (0, infile.end);
+  long filesize = infile.tellg();
+ 
+  // Get the number of depth layers.
+  infile.seekg(3220, std::ios::beg);
+  char ns[2];
+  infile.read(ns, 2);
+  dim[0] = *(int16_t *)(ns);
+  
+  // Calculate number of traces in this file and the other dimensions
+  // of the dataset. Include a heuristic for checking endian.
+  bool swap_endian=false;
+  int tracesize = 240+4*dim[0];
+  int ntraces = (filesize-3600)/tracesize + 0.5;
+  dim[1] = (int)(sqrt(ntraces)+0.5);
+  dim[2] = dim[1];
+  if(dim[1]*dim[2]!=ntraces){
+    swap_endian=true;
+    std::swap(ns[0], ns[1]);
+    dim[0] = *(int16_t *)(ns);
+    
+    tracesize = 240+4*dim[0];
+    ntraces = (filesize-3600)/tracesize + 0.5;
+    dim[1] = (int)(sqrt(ntraces)+0.5);
+    dim[2] = dim[1];
+  }
+
+  array.resize(dim[0]*dim[1]*dim[2]);  
+  if(swap_endian){
+    char buffer[dim[0]*4];
+    for(int i=0;i<ntraces;i++){
+      infile.seekg(3600+i*tracesize+240, std::ios::beg);
+      infile.read(buffer, dim[0]*4);
+      
+      for(int j=0;j<dim[0];j++){
+	std::swap(buffer[j*4], buffer[j*4+3]);
+	std::swap(buffer[j*4+1], buffer[j*4+2]);
+      }
+      memcpy(array.data()+i*dim[0], buffer, dim[0]*4);
+    }
+  }else{
+    for(int i=0;i<ntraces;i++){
+      infile.seekg(3600+i*tracesize+240, std::ios::beg);
+      infile.read((char *)(array.data()+i*dim[0]), dim[0]*4);
+    }
+  }
+
   return 0;
 }

@@ -34,23 +34,39 @@
  *  SUCH DAMAGE.
  */
 
-#ifndef OPESCIIO_H
-#define OPESCIIO_H
-#include <string>
-#include <vector>
+#include <iostream>
+#include <algorithm>
 
-void opesci_dump_field_raw(std::string name, std::vector<float> &field);
-void opesci_dump_solution_vts(std::string name, const int dims[], const float spacing[],
-			      std::vector<float> &u, std::vector<float> &v, std::vector<float> &w,
-			      std::vector<float> &txx, std::vector<float> &tyy, std::vector<float> &tzz);
-void opesci_dump_field_vts(std::string name, const int dims[], const float spacing[], std::vector<float> &field);
-void opesci_dump_receivers_vts(std::string name, const int dims[], const float spacing[],
-			       std::vector<float> &uss, std::vector<float> &vss, std::vector<float> &wss, std::vector<float> &pss);
+#include "opesciIO.h"
+#include "opesciHandy.h"
 
-int opesci_read_simple_binary(const char *filename, std::vector<float> &array);
-int opesci_read_souces(const char *xyz_filename, const char *xsrc_filename, const char *ysrc_filename, const char *zsrc_filename,
-		       std::vector<float> &xyz_array, std::vector<float> &xsrc_array, std::vector<float> &ysrc_array, std::vector<float> &zsrc_array);
-int opesci_read_receivers(const char *filename, std::vector<float> &array);
-int opesci_read_model_segy(const char *filename, std::vector<float> &array, int dim[], float spacing[]);
+int main(int argc, char *argv[]){  
+  std::string filename("elastmarm-TrueVp.sgy");
 
-#endif
+  std::string basename;
+  {
+    size_t pos = filename.rfind(".sgy");
+    if(pos==std::string::npos){
+      pos = filename.rfind(".segy");
+    }
+    if(pos==std::string::npos){
+      pos = filename.rfind(".SGY");
+    }
+    if(pos==std::string::npos){
+      pos = filename.rfind(".SEGY");
+    }
+    if(pos==std::string::npos){
+      opesci_abort("Do not recognise file extension. Expecting either .segy or .sgy");
+    }
+    basename = filename.substr(0, pos);
+  }
+
+  std::vector<float> array;
+  int dim[] = {1, 1, 1};
+  float spacing[] = {1.0, 1.0, 1.0};
+  
+  opesci_read_model_segy(filename.c_str(), array, dim, spacing);
+  opesci_dump_field_vts(basename, dim, spacing, array);
+
+  return 0;
+}

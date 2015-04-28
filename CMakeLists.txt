@@ -71,4 +71,6 @@ add_subdirectory(tests EXCLUDE_FROM_ALL)
 install(DIRECTORY include/ DESTINATION include/opesci FILES_MATCHING PATTERN *.h)
 install(FILES libopesci.so DESTINATION lib)
 
+ADD_EXECUTABLE(segy2vts src/segy2vts.cpp)
+TARGET_LINK_LIBRARIES(segy2vts ${OPESCI_LIBRARIES} opesci)
 
