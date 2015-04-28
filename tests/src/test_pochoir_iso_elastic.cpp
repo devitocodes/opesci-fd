@@ -76,6 +76,8 @@ int main(){
   std::string vseis("seisv");
   std::string wseis("seisw");
   std::string pseis("seisp");              // Seismogram files for pressure.
+
+  int index = 0;
   
   // Read Vp
   std::vector<float> vp;
@@ -217,39 +219,7 @@ int main(){
     }
   }
   
-  /*
-  Pochoir_Kernel_3D(fd_3D_staggered, t, k, j, i)
-    // Update velocity
-    u(t+1,k,j,i) = u(t,k,j,i) +
-                   dt*Buoyancy(t,k,j,i)*(c0*(txx(t,k,j,i+1)-txx(t,k,j,i) + txy(t,k,j,i)-txy(t,k,j-1,i) + txz(t,k,j,i)-txz(t,k-1,j,i))
-                   -c1*(txx(t,k,j,i+2)-txx(t,k,j,i-1) + txy(t,k,j+1,i)-txy(t,k,j-2,i) + txz(t,k+1,j,i)-txz(t,k-2,j,i)))/h;
-
-    v(t+1,k,j,i) = v(t,k,j,i) +
-                   dt*Buoyancy(t,k,j,i)*(c0*(txy(t,k,j,i)-txy(t,k,j,i-1) + tyy(t,k,j+1,i)-tyy(t,k,j,i) + tyz(t,k,j,i)-tyz(t,k-1,j,i))
-                   -c1*(txy(t,k,j,i+1)-txy(t,k,j,i-2) + tyy(t,k,j+2,i)-tyy(t,k,j-1,i) + tyz(t,k+1,j,i)-tyz(t,k-2,j,i)))/h;
-
-    w(t+1,k,j,i) = w(t,k,j,i) +
-                   dt*Buoyancy(t,k,j,i)*(c0*(txz(t,k,j,i)-txz(t,k,j,i-1) + tyz(t,k,j,i)-tyz(t,k,j-1,i) + tzz(t,k+1,j,i)-tzz(t,k,j,i))
-                   -c1*(txz(t,k,j,i+1)-txz(t,k,j,i-2) + tyz(t,k,j+1,i)-tyz(t,k,j-2,i) + tzz(t,k+2,j,i)-tzz(t,k-1,j,i)))/h;
-
-
-    // Update stress
-    txx(t+1,k,j,i) = txx(t,k,j,i) + dt*((Lambda(t,k,j,i)+2.*Mu(t,k,j,i))*(c0*(u(t+1,k,j,i)-u(t+1,k,j,i-1))-c1*(u(t+1,k,j,i+1)-u(t+1,k,j,i-2)))
-				      + Lambda(t,k,j,i)*(c0*(v(t+1,k,j,i)-v(t+1,k,j-1,i) + w(t+1,k,j,i)-w(t+1,k-1,j,i)) - c1*(v(t+1,k,j+1,i)-v(t+1,k,j-2,i) + w(t+1,k+1,j,i)-w(t+1,k-2,j,i))))/h;
   
-    tyy(t+1,k,j,i) = tyy(t,k,j,i) + dt*((Lambda(t,k,j,i)+2.*Mu(t,k,j,i))*(c0*(v(t+1,k,j,i)-v(t+1,k,j-1,i))-c1*(v(t+1,k,j+1,i)-v(t+1,k,j-2,i)))
-				      + Lambda(t,k,j,i)*(c0*(u(t+1,k,j,i)-u(t+1,k,j,i-1) + w(t+1,k,j,i)-w(t+1,k-1,j,i)) - c1*(u(t+1,k,j,i+1)-u(t+1,k,j,i-2) + w(t+1,k+1,j,i)-w(t+1,k-2,j,i))))/h;
-  
-    tzz(t+1,k,j,i) = tzz(t,k,j,i) + dt*((Lambda(t,k,j,i)+2.*Mu(t,k,j,i))*(c0*(w(t+1,k,j,i)-w(t+1,k-1,j,i))-c1*(w(t+1,k+1,j,i)-w(t+1,k-2,j,i)))
-				      + Lambda(t,k,j,i)*(c0*(u(t+1,k,j,i)-u(t+1,k,j,i-1) + v(t+1,k,j,i)-v(t+1,k,j-1,i)) - c1*(u(t+1,k,j,i+1)-u(t+1,k,j,i-2) + v(t+1,k,j+1,i)-v(t+1,k,j-2,i))))/h;
-  
-    tyz(t+1,k,j,i) = tyz(t,k,j,i) + dt*(Mu(t,k,j,i)*(c0*(v(t+1,k+1,j,i)-v(t+1,k,j,i) + w(t+1,k,j+1,i)-w(t+1,k,j,i)) - c1*(v(t+1,k+2,j,i)-v(t+1,k-1,j,i) + w(t+1,k,j+2,i)-w(t+1,k,j-1,i))))/h;
-  
-    txz(t+1,k,j,i) = txz(t,k,j,i) + dt*(Mu(t,k,j,i)*(c0*(u(t+1,k+1,j,i)-u(t+1,k,j,i) + w(t+1,k,j,i+1)-w(t+1,k,j,i)) - c1*(u(t+1,k+2,j,i)-u(t+1,k-1,j,i) + w(t+1,k,j,i+2)-w(t+1,k,j,i-1))))/h;
-  
-    txy(t+1,k,j,i) = txy(t,k,j,i) + dt*(Mu(t,k,j,i)*(c0*(u(t+1,k,j+1,i)-u(t+1,k,j,i) + v(t+1,k,j,i+1)-v(t+1,k,j,i)) - c1*(u(t+1,k,j+2,i)-u(t+1,k,j-1,i) + v(t+1,k,j,i+2)-v(t+1,k,j,i-1))))/h;
-  Pochoir_Kernel_End
-  */
   Pochoir_Kernel_3D(fd_3D_velocity, t, k, j, i)
     // Update velocity
     u(t+1,k,j,i) = u(t,k,j,i) +
@@ -263,6 +233,7 @@ int main(){
     w(t+1,k,j,i) = w(t,k,j,i) +
                    dt*Buoyancy(t,k,j,i)*(c0*(txz(t,k,j,i)-txz(t,k,j,i-1) + tyz(t,k,j,i)-tyz(t,k,j-1,i) + tzz(t,k+1,j,i)-tzz(t,k,j,i))
                    -c1*(txz(t,k,j,i+1)-txz(t,k,j,i-2) + tyz(t,k,j+1,i)-tyz(t,k,j-2,i) + tzz(t,k+2,j,i)-tzz(t,k-1,j,i)))/h;
+           
   Pochoir_Kernel_End
 
   Pochoir_Kernel_3D(fd_3D_stress, t, k, j, i)
@@ -281,24 +252,148 @@ int main(){
     txz(t+1,k,j,i) = txz(t,k,j,i) + dt*(Mu(t,k,j,i)*(c0*(u(t,k+1,j,i)-u(t,k,j,i) + w(t,k,j,i+1)-w(t,k,j,i)) - c1*(u(t,k+2,j,i)-u(t,k-1,j,i) + w(t,k,j,i+2)-w(t,k,j,i-1))))/h;
   
     txy(t+1,k,j,i) = txy(t,k,j,i) + dt*(Mu(t,k,j,i)*(c0*(u(t,k,j+1,i)-u(t,k,j,i) + v(t,k,j,i+1)-v(t,k,j,i)) - c1*(u(t,k,j+2,i)-u(t,k,j-1,i) + v(t,k,j,i+2)-v(t,k,j,i-1))))/h;
+    
+  Pochoir_Kernel_End
+  
+  Pochoir_Kernel_3D(fd_3D_velocity_swap, t, k, j, i)
+    // swap velocity result   
+    u(t,k,j,i) = u(t+1,k,j,i);                   
+    v(t,k,j,i) = v(t+1,k,j,i);
+    w(t,k,j,i) = w(t+1,k,j,i);
+    
+  Pochoir_Kernel_End
+
+  Pochoir_Kernel_3D(fd_3D_stress_swap, t, k, j, i)
+    // swap stress result
+    txx(t,k,j,i) = txx(t+1,k,j,i);
+    tyy(t,k,j,i) = tyy(t+1,k,j,i);
+    tzz(t,k,j,i) = tzz(t+1,k,j,i);
+    tyz(t,k,j,i) = tyz(t+1,k,j,i);
+    txz(t,k,j,i) = txz(t+1,k,j,i);
+    txy(t,k,j,i) = txy(t+1,k,j,i);
+    
   Pochoir_Kernel_End
 
   // Location of source.
   int sx=(int)round(coorsrc[0]/h);
   int sy=(int)round(coorsrc[1]/h);
   int sz=(int)round(coorsrc[2]/h);
+   // Set up solution fields.
+  std::vector<float> u_ref(dimx*dimy*dimz), v_ref(dimx*dimy*dimz), w_ref(dimx*dimy*dimz),
+    txx_ref(dimx*dimy*dimz), tyy_ref(dimx*dimy*dimz), tzz_ref(dimx*dimy*dimz);
+    //,tyz_ref(dimx*dimy*dimz), txz_ref(dimx*dimy*dimz), txy_ref(dimx*dimy*dimz);
+    
+  std::vector<float> uss, vss, wss, pss;
+  uss.reserve(nrec*ntsteps);
+  vss.reserve(nrec*ntsteps);
+  wss.reserve(nrec*ntsteps);
+  pss.reserve(nrec*ntsteps);
+
+  
 
   for(int times=0; times<2*ntsteps;++times){
     if(times%2==0){
-      fd_3D.Run(1, fd_3D_stress);
-      if(times/2<snt){ // Add source
-        txx(times/2,sz,sy,sx) -= xsrc[times/2]/3;
-        tyy(times/2,sz,sy,sx) -= xsrc[times/2]/3;
-        tzz(times/2,sz,sy,sx) -= xsrc[times/2]/3;
-      }
+    
+      	fd_3D.Run(1, fd_3D_stress);      
+        fd_3D.Run(1, fd_3D_stress_swap);      
+     
     }else{
-      fd_3D.Run(1, fd_3D_velocity);
+     
+        fd_3D.Run(1, fd_3D_velocity);      
+      	fd_3D.Run(1, fd_3D_velocity_swap);
+      	
+  #pragma omp parallel
+  {       	
+      #pragma omp single nowait
+      {
+	for(int i=0;i<nrec;i++){
+	  int xi = (int)round(coorrec[i*3]/h);
+	  int yi = (int)round(coorrec[i*3+1]/h);
+	  int zi = (int)round(coorrec[i*3+2]/h);
+
+	 uss.push_back(u(1,zi,yi,xi));
+	}
+      }
+
+      #pragma omp single nowait
+      {
+	for(int i=0;i<nrec;i++){
+	  int xi = (int)round(coorrec[i*3]/h);
+	  int yi = (int)round(coorrec[i*3+1]/h);
+	  int zi = (int)round(coorrec[i*3+2]/h);
+	  
+	  vss.push_back(v(1,zi,yi,xi));
+	}
+      }
+
+      #pragma omp single nowait
+      {
+	for(int i=0;i<nrec;i++){
+	  int xi = (int)round(coorrec[i*3]/h);
+	  int yi = (int)round(coorrec[i*3+1]/h);
+	  int zi = (int)round(coorrec[i*3+2]/h);
+	  
+	  wss.push_back(w(1,zi,yi,xi));
+	}
+      }
+      
+      #pragma omp single
+      {
+	for(int i=0;i<nrec;i++){
+	  int xi = (int)round(coorrec[i*3]/h);
+	  int yi = (int)round(coorrec[i*3+1]/h);
+	  int zi = (int)round(coorrec[i*3+2]/h);
+
+	  pss.push_back((txx(1,zi,yi,xi)+
+			 tyy(1,zi,yi,xi)+
+			 tzz(1,zi,yi,xi))/3);
+	}
+      }
+      
+      #pragma omp single
+      {
+        if(times/2<snt){ // Add source        
+	   txx(0,sz,sy,sx) = txx(1,sz,sy,sx) -= xsrc[times/2]/3;
+	   tyy(0,sz,sy,sx) = tyy(1,sz,sy,sx) -= ysrc[times/2]/3;
+	   tzz(0,sz,sy,sx) = tzz(1,sz,sy,sx) -= zsrc[times/2]/3;
+        }
+      }    
+      
+     }//end of parallel region          
     }
+  }
+  
+  for(int k=0;k<dimz;++k){
+    for(int j=0;j<dimy;++j){
+      for(int i=0;i<dimx;++i){
+       
+        index = k*dimx*dimy+j*dimz+i;
+        
+        u_ref[index] = u.interior(1,k,j,i);
+        v_ref[index] = v.interior(1,k,j,i);
+        w_ref[index] = w.interior(1,k,j,i);
+        
+        txx_ref[index] = txx.interior(1,k,j,i);
+        tyy_ref[index] = tyy.interior(1,k,j,i);
+        tzz_ref[index] = tzz.interior(1,k,j,i);
+        //tyz_ref[index] = tyz.interior(1,k,j,i);
+        //txz_ref[index] = txz.interior(1,k,j,i);
+        //txy_ref[index] = txy.interior(1,k,j,i);
+         
+    }
+   }
+  }
+  
+  {
+    int dims[]={dimx, dimy, dimz};
+    float spacing[]={h, h, h};
+    opesci_dump_solution_vts("solution_pochoir", dims, spacing, u_ref,v_ref,w_ref,txx_ref,tyy_ref,tzz_ref);
+  }
+  
+  {
+    int dims[]={(int)round(sqrt(nrec)), (int)round(sqrt(nrec)), ntsteps};
+    float spacing[]={h, h, dt};
+    opesci_dump_receivers_vts("receivers_pochoir", dims, spacing, uss, vss, wss, pss);
   }
 
   return 0;
