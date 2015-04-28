@@ -26,4 +26,5 @@ add_executable(test_ref_iso_elastic ${OPESCI_TEST_SRC}/test_ref_iso_elastic.cpp)
 target_link_libraries(test_ref_iso_elastic ${OPESCI_LIBRARIES} opesci)
 
 add_test(test_ref_iso_elastic ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_ref_iso_elastic)
+add_test(test_segy2vts ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_segy2vts)
 
