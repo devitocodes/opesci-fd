@@ -30,12 +30,17 @@ script:
   - cd build
   - cmake ..
   - make VERBOSE=1
-  - export LD_LIBRARY_PATH=$SOURCE_ROOT/lib:$LD_LIBRARY_PATH
+  - export LD_LIBRARY_PATH=$SOURCE_ROOT/build/lib:$LD_LIBRARY_PATH
   - git clone https://github.com/opesci/data.git  
   - cd tests/
   - for file in ../data/*.gz ; do gunzip -c $file > $(basename $file .gz) ; done
   - for file in ../data/marmousi3D/*.gz ; do gunzip -c $file > $(basename $file .gz) ; done
   - export CPATH=$SOURCE_ROOT/include
   - make VERBOSE=1
-  - make test
+  - travis_wait ctest -R test_pochoir_iso_elastic
+  - travis_wait ctest -R test_ref_iso_elastic
+  - ctest -R test_segy2vts
+  - cmp solution.vts solution_pochoir.vts
+  - cmp receivers.vts receivers_pochoir.vts
+
 
