@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 dir="."
 for arg in $* ; do
