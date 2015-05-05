@@ -11,7 +11,7 @@ if(POCHOIR)
 
   set(pochoir_args -o bin/test_pochoir_iso_elastic -I${CMAKE_SOURCE_DIR}/include ${OPESCI_TEST_SRC}/test_pochoir_iso_elastic.cpp ${LINK_LIBS})
   add_custom_target(test_pochoir_iso_elastic ALL
-                    COMMAND ${CMAKE_SOURCE_DIR}/tools/pochoir_compiler.sh ${pochoir_args}
+                    COMMAND pochoir ${pochoir_args}
                     SOURCES ${OPESCI_TEST_SRC}/test_pochoir_iso_elastic.cpp
                     VERBATIM)
   add_dependencies(test_pochoir_iso_elastic ${OPESCI_TEST_SRC}/test_pochoir_iso_elastic.cpp)
