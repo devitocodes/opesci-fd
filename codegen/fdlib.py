@@ -1,4 +1,4 @@
-from sympy import factorial, Symbol, symbols, Matrix, IndexedBase, Idx, Eq, solve
+from sympy import factorial, Symbol, symbols, Matrix, IndexedBase, Idx, Eq, solve, simplify, Rational
 from sympy.printing.ccode import CCodePrinter
 from matplotlib import animation
 import numpy as np
@@ -27,6 +27,16 @@ def Taylor(dx, n):
     	l.append(ll)
     return Matrix(l)
 
+def Taylor_half(dx, n):
+    # return Matrix of Taylor Coefficients M, such that M * D = R
+    # where D is list of derivatives at x [f, f', f'' ..]
+    # R is value at neighbour grid point [.. f(x-dx/2), f(x), f(x+dx/2), f(x+3/2*dx) ..]
+    l = []
+    for i in range(-n*2+1,n*2,2):
+    	ll = [tc((i*dx/2),j) for j in range(2*n)]
+    	l.append(ll)
+    return Matrix(l)
+
 def Deriv(U, i, k, d, n):
 	# get the FD approximation for nth derivative in terms of grid U
 	# i is list of indices of U, e.g. [x,y,z,t] for 3D
@@ -48,9 +58,45 @@ def Deriv(U, i, k, d, n):
 
 	return M.inv() * RX
 
+def Deriv_half(U, i, k, d, n):
+	# get the FD approximation for nth derivative in terms of grid U
+	# i is list of indices of U, e.g. [x,y,z,t] for 3D
+	# k = which dimension to expand, k=0 for x, k=1 for t etc
+	M = Taylor_half(d, n)
+	s = [0]*len(i)
+	s[k] = 1 # switch on kth dimension
+	hf = Rational(1,2) # 1/2
+	# generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
+	if len(i)==1:
+		RX = Matrix([U[i[0]+s[0]*x*hf] for x in range(-n*2+1,n*2,2)])
+	elif len(i)==2:
+		RX = Matrix([U[i[0]+s[0]*x*hf,i[1]+s[1]*x*hf] for x in range(-n*2+1,n*2,2)])
+	elif len(i)==3:
+		RX = Matrix([U[i[0]+s[0]*x*hf,i[1]+s[1]*x*hf,i[2]+s[2]*x*hf] for x in range(-n*2+1,n*2,2)])
+	elif len(i)==4:
+		RX = Matrix([U[i[0]+s[0]*x*hf,i[1]+s[1]*x*hf,i[2]+s[2]*x*hf,i[3]+s[3]*x*hf] for x in range(-n*2+1,n*2,2)])
+	else:
+		raise NotImplementedError(">4 dimensions, need to fix")
+
+	return M.inv() * RX
+
 def print_myccode(expr, assign_to=None, **settings):
 
     return MyCPrinter(settings).doprint(expr, assign_to)
+
+def print_assignment(eq, s):
+	s1 = print_myccode(s)
+	s2 = print_myccode(simplify(solve(eq,s)[0]))
+	return s1 + '=' + s2
+
+def print_increment(eq, s, s0):
+	s1 = print_myccode(s)
+	s2 = print_myccode(simplify(solve(eq,s)[0] - s0))
+	return s1 + '+=' + s2
+def IndexedBases(s):
+	l = s.split();
+	bases = [IndexedBase(x) for x in l]
+	return tuple(bases)
 
 def main():
 	dx, dt, x, y, z, t, c = symbols('dx dt x y z t c')
