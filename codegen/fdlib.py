@@ -1,4 +1,4 @@
-from sympy import factorial, Symbol, symbols, Matrix, IndexedBase, Idx, Eq, solve, simplify, Rational
+from sympy import *
 from sympy.printing.ccode import CCodePrinter
 from matplotlib import animation
 import numpy as np
@@ -58,7 +58,7 @@ def Deriv(U, i, k, d, n):
 
 	return M.inv() * RX
 
-def Deriv_half(U, i, k, d, n):
+def Deriv_half(U, i, k, d, n, shift_forward=True):
 	# get the FD approximation for nth derivative in terms of grid U
 	# i is list of indices of U, e.g. [x,y,z,t] for 3D
 	# k = which dimension to expand, k=0 for x, k=1 for t etc
@@ -78,7 +78,11 @@ def Deriv_half(U, i, k, d, n):
 	else:
 		raise NotImplementedError(">4 dimensions, need to fix")
 
-	return M.inv() * RX
+	result = M.inv() * RX
+	if shift_forward:
+		return result.subs(i[k],i[k]+hf)
+	else:
+		return result
 
 def print_myccode(expr, assign_to=None, **settings):
 
@@ -90,13 +94,25 @@ def print_assignment(eq, s):
 	return s1 + '=' + s2
 
 def print_increment(eq, s, s0):
-	s1 = print_myccode(s)
-	s2 = print_myccode(simplify(solve(eq,s)[0] - s0))
+	# express s as increment of s0, and drop the index
+	s1 = print_myccode(drop_time(s))
+	s2 = print_myccode(drop_time(simplify(solve(eq,s)[0] - s0)))
 	return s1 + '+=' + s2
+
+def drop_time(expr):
+	# a bit ugly implementation
+	s = srepr(expr);
+	s = s.replace(", Symbol('t')","")
+	s = s.replace(", Add(Symbol('t'), Integer(1))","")
+	return eval(s)
+
 def IndexedBases(s):
 	l = s.split();
 	bases = [IndexedBase(x) for x in l]
 	return tuple(bases)
+
+def reverse_xyz(expr):
+	return
 
 def main():
 	dx, dt, x, y, z, t, c = symbols('dx dt x y z t c')
