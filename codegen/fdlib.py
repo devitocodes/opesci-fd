@@ -1,4 +1,4 @@
-from sympy import *
+from sympy import factorial, symbols, IndexedBase, solve, Matrix, Rational, Eq, simplify
 from sympy.printing.ccode import CCodePrinter
 from matplotlib import animation
 import numpy as np
@@ -88,23 +88,26 @@ def print_myccode(expr, assign_to=None, **settings):
 
     return MyCPrinter(settings).doprint(expr, assign_to)
 
-def print_assignment(eq, s):
+def print_assignment(eq, s, s0=0):
 	s1 = print_myccode(s)
-	s2 = print_myccode(simplify(solve(eq,s)[0]))
+	if(s0==0):
+		s2 = print_myccode(simplify(solve(eq,s)[0]))
+	else:
+		s2 = print_myccode(simplify(solve(eq,s)[0] - s0) + s0)
 	return s1 + '=' + s2
 
-def print_increment(eq, s, s0):
-	# express s as increment of s0, and drop the index
-	s1 = print_myccode(drop_time(s))
-	s2 = print_myccode(drop_time(simplify(solve(eq,s)[0] - s0)))
-	return s1 + '+=' + s2
+# def print_increment(eq, s, s0):
+# 	# express s as increment of s0, and drop the index
+# 	s1 = print_myccode(drop_time(s))
+# 	s2 = print_myccode(drop_time(simplify(solve(eq,s)[0] - s0)))
+# 	return s1 + '+=' + s2
 
-def drop_time(expr):
-	# a bit ugly implementation
-	s = srepr(expr);
-	s = s.replace(", Symbol('t')","")
-	s = s.replace(", Add(Symbol('t'), Integer(1))","")
-	return eval(s)
+# def drop_time(expr):
+# 	# a bit ugly implementation
+# 	s = srepr(expr);
+# 	s = s.replace(", Symbol('t')","")
+# 	s = s.replace(", Add(Symbol('t'), Integer(1))","")
+# 	return eval(s)
 
 def IndexedBases(s):
 	l = s.split();
