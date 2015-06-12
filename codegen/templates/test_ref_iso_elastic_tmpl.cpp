@@ -29,30 +29,30 @@ int main(){
   std::string pseis("seisp");              // Seismogram files for pressure.
   
   // Read Vp
-  std::vector<float> vp;
-  if(opesci_read_simple_binary(vpfile.c_str(), vp)){
+  std::vector<float> _vp;
+  if(opesci_read_simple_binary(vpfile.c_str(), _vp)){
     opesci_abort("Missing input file\n");
   }
-  assert(vp.size()==dimx*dimy*dimz);
+  assert(_vp.size()==dimx*dimy*dimz);
  
   // Read Vs
-  std::vector<float> vs;
-  if(opesci_read_simple_binary(vsfile.c_str(), vs)){
+  std::vector<float> _vs;
+  if(opesci_read_simple_binary(vsfile.c_str(), _vs)){
     opesci_abort("Missing input file\n");
   }
-  assert(vs.size()==dimx*dimy*dimz);
+  assert(_vs.size()==dimx*dimy*dimz);
 
   // Read rho (density).
   std::vector<float> _rho;
   if(opesci_read_simple_binary(rhofile.c_str(), _rho)){
     opesci_abort("Missing input file\n");
   }
-  assert(rho.size()==dimx*dimy*dimz);
-  std::vector<float> _buoyancy(rho.size());
+  assert(_rho.size()==dimx*dimy*dimz);
+  std::vector<float> _buoyancy(_rho.size());
 
   // Calculate Lame constents.
   std::vector<float> _mu, _lam;
-  opesci_calculate_lame_costants(vp, vs, rho, _mu, _lam);
+  opesci_calculate_lame_costants(_vp, _vs, _rho, _mu, _lam);
 
   // Get sources.
   std::vector<float> coorsrc, xsrc, ysrc, zsrc;
@@ -68,7 +68,7 @@ int main(){
   }
   int nrec = coorrec.size()/3;
 
-  float dt = opesci_calculate_dt(vp, h);
+  float dt = opesci_calculate_dt(_vp, h);
   int ntsteps = (int)(maxt/dt);
   
   // Resample sources if required.
@@ -87,7 +87,7 @@ int main(){
   sdt = dt;
 
   // time periodicity for update
-  int _tp = ${time_period}
+  const int _tp = ${time_period};
 
   // Set up solution fields.
   std::vector<float> _u(dimx*dimy*dimz*_tp), _v(dimx*dimy*dimz*_tp), _w(dimx*dimy*dimz*_tp),
@@ -126,32 +126,29 @@ int main(){
     float (*mu)[dimy][dimz] = (float (*)[dimy][dimz]) _mu.data(); // need to correct to use the effective media parameters
     float (*beta)[dimy][dimz] = (float (*)[dimy][dimz]) _buoyancy.data(); // need to correct to use the effective media parameters
 
-    float (*U)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _u.data();
-    float (*V)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _v.data();
-    float (*W)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _w.data();
+    float (*U)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _u.data();
+    float (*V)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _v.data();
+    float (*W)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _w.data();
 
-    float (*Txx)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _txx.data();
-    float (*Tyy)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _tyy.data();
-    float (*Tzz)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _tzz.data();
-    float (*Tyz)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _tyz.data();
-    float (*Txz)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _txz.data();
-    float (*Txy)[dimy][dimz][_tp] = (float (*)[dimy][dimz]) _txy.data();
+    float (*Txx)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _txx.data();
+    float (*Tyy)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _tyy.data();
+    float (*Tzz)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _tzz.data();
+    float (*Tyz)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _tyz.data();
+    float (*Txz)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _txz.data();
+    float (*Txy)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _txy.data();
 
     // main time loop
     for(int _ti=0;_ti<ntsteps;_ti++){
 
       // shared variables
-    #pragma omp single
-      {
-        int t = _ti % _tp; // array index of current time step
-        int t1 = (t+1) % _tp // array index of the grid to be updated
-      }
+      int t = _ti % _tp; // array index of current time step
+      int t1 = (t+1) % _tp; // array index of the grid to be updated
 
       // Compute stresses
     #pragma omp for schedule(guided)
       for(int x=2;x<dimx-2;x++){
-      	for(int y=2;j<dimy-2;y++){
-      	  for(int z=2;i<dimz-2;z++){
+      	for(int y=2;y<dimy-2;y++){
+      	  for(int z=2;z<dimz-2;z++){
       	    ${Txx};
       	    ${Tyy};
       	    ${Tzz};
@@ -165,8 +162,8 @@ int main(){
       // Compute velocities
     #pragma omp for schedule(guided)
       for(int x=2;x<dimx-2;x++){
-        for(int y=2;j<dimy-2;y++){
-          for(int z=2;i<dimz-2;z++){
+        for(int y=2;y<dimy-2;y++){
+          for(int z=2;z<dimz-2;z++){
             ${U};
             ${V};
             ${W};
@@ -174,7 +171,7 @@ int main(){
         }
       }
    
-#pragma omp single nowait
+    #pragma omp single nowait
       {
       	for(int i=0;i<nrec;i++){
       	  int xi = (int)round(coorrec[i*3]/h);
@@ -185,7 +182,7 @@ int main(){
       	}
       }
 
-#pragma omp single nowait
+    #pragma omp single nowait
       {
       	for(int i=0;i<nrec;i++){
       	  int xi = (int)round(coorrec[i*3]/h);
@@ -196,7 +193,7 @@ int main(){
       	}
       }
 
-#pragma omp single nowait
+    #pragma omp single nowait
       {
       	for(int i=0;i<nrec;i++){
       	  int xi = (int)round(coorrec[i*3]/h);
@@ -208,21 +205,21 @@ int main(){
       }
 
       // A barrier is implied here because the next block modifies the stress field.
-#pragma omp single
+    #pragma omp single
       {
       	for(int i=0;i<nrec;i++){
       	  int xi = (int)round(coorrec[i*3]/h);
       	  int yi = (int)round(coorrec[i*3+1]/h);
       	  int zi = (int)round(coorrec[i*3+2]/h);
 
-      	  pss.push_back((Txx[zi][yi][xi][t1] + Tyy[zi][yi][xi][t1] + Tzz[zi][yi][xi][t1])/3);
+      	  pss.push_back((Txx[xi][yi][zi][t1] + Tyy[xi][yi][zi][t1] + Tzz[xi][yi][zi][t1])/3);
       	}
       }
 
       // Insert source
-#pragma omp single
+    #pragma omp single
       {
-      	if(ti<snt){
+      	if(_ti<snt){
       	  int _sx=(int)round(coorsrc[0]/h);
       	  int _sy=(int)round(coorsrc[1]/h);
       	  int _sz=(int)round(coorsrc[2]/h);
@@ -232,8 +229,8 @@ int main(){
       	  assert(_sz<dimz);
 
       	  Txx[_sx][_sy][_sz][t1] -= xsrc[_ti]/3;
-      	  Tyy[_sz][_sy][_sx][t1] -= ysrc[_ti]/3;
-      	  Tzz[_sz][_sy][_sx][t1] -= zsrc[_ti]/3;
+      	  Tyy[_sx][_sy][_sy][t1] -= ysrc[_ti]/3;
+      	  Tzz[_sx][_sy][_sy][t1] -= zsrc[_ti]/3;
       	}
       }
     } // end of time loop
@@ -253,14 +250,18 @@ int main(){
     _tzz_out[i] = _tzz[i*_tp+_last_loop];
   }
 
-  int dims[]={dimx, dimy, dimz};
-  float spacing[]={h, h, h};
-  opesci_dump_solution_vts("solution_tmpl", dims, spacing, _u_out,_v_out,_w_out,_txx_out,_tyy_out,_tzz_out);
-  
+  {
+    int dims[]={dimx, dimy, dimz};
+    float spacing[]={h, h, h};
+    opesci_dump_solution_vts("solution_tmpl", dims, spacing, _u_out,_v_out,_w_out,_txx_out,_tyy_out,_tzz_out);
+  }
+
   // output receiver reading
-  int dims[]={(int)round(sqrt(nrec)), (int)round(sqrt(nrec)), ntsteps};
-  float spacing[]={h, h, dt};
-  opesci_dump_receivers_vts("receivers_tmpl", dims, spacing, uss, vss, wss, pss);
+  {
+    int dims[]={(int)round(sqrt(nrec)), (int)round(sqrt(nrec)), ntsteps};
+    float spacing[]={h, h, dt};
+    opesci_dump_receivers_vts("receivers_tmpl", dims, spacing, uss, vss, wss, pss);    
+  }
 
   return 0;
 }
