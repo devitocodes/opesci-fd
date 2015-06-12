@@ -25,6 +25,9 @@ endif()
 add_executable(test_ref_iso_elastic ${OPESCI_TEST_SRC}/test_ref_iso_elastic.cpp)
 target_link_libraries(test_ref_iso_elastic ${OPESCI_LIBRARIES} opesci)
 
+add_executable(mytest1 ${OPESCI_TEST_SRC}/mytest1.cpp)
+target_link_libraries(mytest1 ${OPESCI_LIBRARIES} opesci)
+
 add_executable(test_segy2vts ${OPESCI_TEST_SRC}/test_segy2vts.cpp)
 target_link_libraries(test_segy2vts ${OPESCI_LIBRARIES} opesci)
 

@@ -13,6 +13,10 @@ class MyCPrinter(CCodePrinter):
 		output = self._print(expr.base.label) + ''.join(['[' + self._print(x) + ']' for x in expr.indices])
 		return output
 
+	def _print_Rational(self, expr):
+		p, q = int(expr.p), int(expr.q)
+		return '%d.0F/%d.0F' % (p, q) # float precision by default
+
 def tc(dx, n):
     # return coefficient of power n Taylor series term
     return (dx**n)/factorial(n)
@@ -82,7 +86,7 @@ def Deriv_half(U, i, k, d, n, shift_forward=True):
 	if shift_forward:
 		return result.subs(i[k],i[k]+hf)
 	else:
-		return result
+		return result.subs(i[k],i[k]-hf)
 
 def print_myccode(expr, assign_to=None, **settings):
 
@@ -114,8 +118,8 @@ def IndexedBases(s):
 	bases = [IndexedBase(x) for x in l]
 	return tuple(bases)
 
-def reverse_xyz(expr):
-	return
+def advance_time(expr,d):
+	return Eq(expr.lhs, expr.rhs.xreplace(d))
 
 def main():
 	dx, dt, x, y, z, t, c = symbols('dx dt x y z t c')
