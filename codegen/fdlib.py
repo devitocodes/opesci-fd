@@ -28,7 +28,7 @@ class MyPochoirPrinter(CCodePrinter):
 
 	def _print_Rational(self, expr):
 		p, q = int(expr.p), int(expr.q)
-		return '%d.0F/%d.0F' % (p, q) # float precision by default
+		return '%d.0/%d.0' % (p, q) # float precision by default
 
 def tc(dx, n):
     # return coefficient of power n Taylor series term

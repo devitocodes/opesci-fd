@@ -17,7 +17,6 @@ int main(){
   
   Pochoir_Shape_3D fd_shape_3D[] = {
     {1,0,0,0},
-    {0,0,0,0}
     {0,1,0,0},
     {0,0,1,0},
     {0,0,0,1},
@@ -41,7 +40,7 @@ int main(){
   
   Pochoir_3D fd_3D(fd_shape_3D);
   int ds=2;
-  Pochoir_Domain I(0+ds, dimx-ds), J(0+ds, dimy-ds), K(0+ds, dimz-ds);
+  Pochoir_Domain X(0+ds, dimx-ds), Y(0+ds, dimy-ds), Z(0+ds, dimz-ds);
   
   U.Register_Boundary(fd_bv_3D);
   V.Register_Boundary(fd_bv_3D);
@@ -66,7 +65,7 @@ int main(){
   fd_3D.Register_Array(mu);
   fd_3D.Register_Array(beta);
 
-  fd_3D.Register_Domain(I, J, K);
+  fd_3D.Register_Domain(X, Y, Z);
   U.Register_Shape(fd_shape_3D);
   V.Register_Shape(fd_shape_3D);
   W.Register_Shape(fd_shape_3D);
@@ -74,7 +73,7 @@ int main(){
   // Initialization of prognostic fields
   for(int x=0;x<dimx;++x){
     for(int y=0;y<dimy;++y){
-      for(int z=0;z<dimx;++z){
+      for(int z=0;z<dimz;++z){
         U(0,x,y,z) = 0.0;
         V(0,x,y,z) = 0.0;
         W(0,x,y,z) = 0.0;
@@ -87,9 +86,9 @@ int main(){
         Txz(0,x,y,z) = 0.0;
         Txy(0,x,y,z) = 0.0;
 	  
-        beta(0,x,y,z) = 1.0/((float (*)[dimy][dimz])rho.data())[x][y][z];
-        lambda(0,x,y,z) = ((float (*)[dimy][dimz])lam.data())[x][y][z];
-        mu(0,x,y,z) = ((float (*)[dimy][dimz])mu.data())[x][y][z];
+        beta(0,x,y,z) = 1.0/((float (*)[dimy][dimz])_rho.data())[x][y][z];
+        lambda(0,x,y,z) = ((float (*)[dimy][dimz])_lam.data())[x][y][z];
+        mu(0,x,y,z) = ((float (*)[dimy][dimz])_mu.data())[x][y][z];
       }
     }
   }
@@ -97,20 +96,20 @@ int main(){
   
   Pochoir_Kernel_3D(fd_3D_velocity, t, x, y, z)
     // Update velocity
-    ${U}
-    ${V}
-    ${W}
+    ${U};
+    ${V};
+    ${W};
            
   Pochoir_Kernel_End
 
-  Pochoir_Kernel_3D(fd_3D_stress, t, k, j, i)
+  Pochoir_Kernel_3D(fd_3D_stress, t, x, y, z)
     // Update stress
-    ${Txx}
-    ${Tyy}
-    ${Tzz}
-    ${Tyz}
-    ${Txz}
-    ${Txy}
+    ${Txx};
+    ${Tyy};
+    ${Tzz};
+    ${Tyz};
+    ${Txz};
+    ${Txy};
 
   Pochoir_Kernel_End
   
@@ -210,9 +209,9 @@ int main(){
         #pragma omp single
         {
           if(_t/2<snt){
-            Txx(0,sx,sy,sz) = Txx(1,sx,sy,sz) -= xsrc[_t/2]/3;
-            Tyy(0,sx,sy,sz) = Tyy(1,sx,sy,sz) -= ysrc[_t/2]/3;
-            Tzz(0,sx,sy,sz) = Tzz(1,sx,sy,sz) -= zsrc[_t/2]/3;
+            Txx(0,_sx,_sy,_sz) = Txx(1,_sx,_sy,_sz) -= xsrc[_t/2]/3;
+            Tyy(0,_sx,_sy,_sz) = Tyy(1,_sx,_sy,_sz) -= ysrc[_t/2]/3;
+            Tzz(0,_sx,_sy,_sz) = Tzz(1,_sx,_sy,_sz) -= zsrc[_t/2]/3;
           }
         }
       } //end of parallel region
@@ -223,7 +222,7 @@ int main(){
     for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
        
-        index = x*dimy*dimz+y*dimz+z;
+        int index = x*dimy*dimz+y*dimz+z;
         
         _u_out[index] = U.interior(1,x,y,z);
         _v_out[index] = V.interior(1,x,y,z);
@@ -240,13 +239,13 @@ int main(){
   {
     int dims[]={dimx, dimy, dimz};
     float spacing[]={h, h, h};
-    opesci_dump_solution_vts("solution_pochoir", dims, spacing, _u_out,_v_out,_w_out,_txx_out,_tyy_out,_tzz_out);
+    opesci_dump_solution_vts("solution_pochoir_tmpl", dims, spacing, _u_out,_v_out,_w_out,_txx_out,_tyy_out,_tzz_out);
   }
   
   {
     int dims[]={(int)round(sqrt(nrec)), (int)round(sqrt(nrec)), ntsteps};
     float spacing[]={h, h, dt};
-    opesci_dump_receivers_vts("receivers_pochoir", dims, spacing, uss, vss, wss, pss);
+    opesci_dump_receivers_vts("receivers_pochoir_tmpl", dims, spacing, uss, vss, wss, pss);
   }
 
   return 0;

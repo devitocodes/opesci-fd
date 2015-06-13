@@ -9,13 +9,19 @@ if(POCHOIR)
     set(LINK_LIBS "${LINK_LIBS};-l${LIB}")
   endforeach(LIB)
 
-  set(pochoir_args -o bin/test_pochoir_iso_elastic -I${CMAKE_SOURCE_DIR}/include ${OPESCI_TEST_SRC}/test_pochoir_iso_elastic.cpp ${LINK_LIBS})
+  set(pochoir_args -o bin/test_pochoir_iso_elastic -Wno-unused-variable -Wno-unused-but-set-variable -I${CMAKE_SOURCE_DIR}/include ${OPESCI_TEST_SRC}/test_pochoir_iso_elastic.cpp ${LINK_LIBS})
+  set(pochoir_args_2 -o bin/mytest_pochoir -Wno-unused-variable -Wno-unused-but-set-variable -I${CMAKE_SOURCE_DIR}/include ${OPESCI_TEST_SRC}/mytest_pochoir.cpp ${LINK_LIBS})
   add_custom_target(test_pochoir_iso_elastic ALL
                     COMMAND pochoir ${pochoir_args}
                     SOURCES ${OPESCI_TEST_SRC}/test_pochoir_iso_elastic.cpp
                     VERBATIM)
+  add_custom_target(mytest_pochoir ALL
+                    COMMAND pochoir ${pochoir_args_2}
+                    SOURCES ${OPESCI_TEST_SRC}/mytest_pochoir.cpp
+                    VERBATIM)
   add_dependencies(test_pochoir_iso_elastic ${OPESCI_TEST_SRC}/test_pochoir_iso_elastic.cpp)
-
+  add_dependencies(mytest_pochoir ${OPESCI_TEST_SRC}/mytest_pochoir.cpp)
+  
   add_test(test_pochoir_iso_elastic ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_pochoir_iso_elastic)
 
   set_tests_properties(test_pochoir_iso_elastic PROPERTIES 
