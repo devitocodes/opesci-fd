@@ -140,14 +140,6 @@ int main(){
     #pragma omp single
       {
       	if(_ti<snt){
-      	  int _sx=(int)round(coorsrc[0]/h);
-      	  int _sy=(int)round(coorsrc[1]/h);
-      	  int _sz=(int)round(coorsrc[2]/h);
-
-      	  assert(_sx<dimx);
-      	  assert(_sy<dimy);
-      	  assert(_sz<dimz);
-
       	  Txx[_sx][_sy][_sz][t1] -= xsrc[_ti]/3;
       	  Tyy[_sx][_sy][_sy][t1] -= ysrc[_ti]/3;
       	  Tzz[_sx][_sy][_sy][t1] -= zsrc[_ti]/3;

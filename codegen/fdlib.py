@@ -17,6 +17,19 @@ class MyCPrinter(CCodePrinter):
 		p, q = int(expr.p), int(expr.q)
 		return '%d.0F/%d.0F' % (p, q) # float precision by default
 
+class MyPochoirPrinter(CCodePrinter):
+	def __init__(self, settings={}):
+		CCodePrinter.__init__(self, settings)
+
+	def _print_Indexed(self, expr):
+		# Array base and append indices
+		output = self._print(expr.base.label) + '(' + ','.join(self._print(x) for x in expr.indices) + ')'
+		return output
+
+	def _print_Rational(self, expr):
+		p, q = int(expr.p), int(expr.q)
+		return '%d.0F/%d.0F' % (p, q) # float precision by default
+
 def tc(dx, n):
     # return coefficient of power n Taylor series term
     return (dx**n)/factorial(n)
@@ -88,16 +101,18 @@ def Deriv_half(U, i, k, d, n, shift_forward=True):
 	else:
 		return result.subs(i[k],i[k]-hf)
 
-def print_myccode(expr, assign_to=None, **settings):
-
-    return MyCPrinter(settings).doprint(expr, assign_to)
-
-def print_assignment(eq, s, s0=0):
-	s1 = print_myccode(s)
-	if(s0==0):
-		s2 = print_myccode(simplify(solve(eq,s)[0]))
+def print_myccode(expr, assign_to=None, pochoir=False, **settings):
+	if pochoir:
+		return MyPochoirPrinter(settings).doprint(expr, assign_to)
 	else:
-		s2 = print_myccode(simplify(solve(eq,s)[0] - s0) + s0)
+		return MyCPrinter(settings).doprint(expr, assign_to)
+
+def print_assignment(eq, s, s0=0, pochoir=False):
+	s1 = print_myccode(s, None, pochoir)
+	if(s0==0):
+		s2 = print_myccode(simplify(solve(eq,s)[0]), None, pochoir)
+	else:
+		s2 = print_myccode(simplify(solve(eq,s)[0] - s0) + s0, None, pochoir)
 	return s1 + '=' + s2
 
 # def print_increment(eq, s, s0):
