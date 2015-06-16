@@ -1,0 +1,80 @@
+Pochoir_Boundary_3D(fd_bv_3D_U, arr, t, x, y, z)
+  if(x<0) ${bc_U_x0};
+  if(x>=arr.size(2)) ${bc_U_x1};
+  if(y<0) ${bc_U_y0};
+  if(y>=arr.size(1)) ${bc_U_y1};
+  if(z<0) ${bc_U_z0};
+  if(z>=arr.size(0)) ${bc_U_z1};
+Pochoir_Boundary_End
+
+Pochoir_Boundary_3D(fd_bv_3D_V, arr, t, x, y, z)
+  if(x<0) ${bc_V_x0};
+  if(x>=arr.size(2)) ${bc_V_x1};
+  if(y<0) ${bc_V_y0};
+  if(y>=arr.size(1)) ${bc_V_y1};
+  if(z<0) ${bc_V_z0};
+  if(z>=arr.size(0)) ${bc_V_z1};
+Pochoir_Boundary_End
+
+Pochoir_Boundary_3D(fd_bv_3D_W, arr, t, x, y, z)
+  if(x<0) ${bc_W_x0};
+  if(x>=arr.size(2)) ${bc_W_x1};
+  if(y<0) ${bc_W_y0};
+  if(y>=arr.size(1)) ${bc_W_y1};
+  if(z<0) ${bc_W_z0};
+  if(z>=arr.size(0)) ${bc_W_z1};
+Pochoir_Boundary_End
+
+Pochoir_Boundary_3D(fd_bv_3D_Txx, arr, t, x, y, z)
+  if(x<0) ${bc_Txx_x0};
+  if(x>=arr.size(2)) ${bc_Txx_x1};
+  if(y<0) ${bc_Txx_y0};
+  if(y>=arr.size(1)) ${bc_Txx_y1};
+  if(z<0) ${bc_Txx_z0};
+  if(z>=arr.size(0)) ${bc_Txx_z1};
+Pochoir_Boundary_End
+
+Pochoir_Boundary_3D(fd_bv_3D_Tyy, arr, t, x, y, z)
+  if(x<0) ${bc_Tyy_x0};
+  if(x>=arr.size(2)) ${bc_Tyy_x1};
+  if(y<0) ${bc_Tyy_y0};
+  if(y>=arr.size(1)) ${bc_Tyy_y1};
+  if(z<0) ${bc_Tyy_z0};
+  if(z>=arr.size(0)) ${bc_Tyy_z1};
+Pochoir_Boundary_End
+
+Pochoir_Boundary_3D(fd_bv_3D_Tzz, arr, t, x, y, z)
+  if(x<0) ${bc_Tzz_x0};
+  if(x>=arr.size(2)) ${bc_Tzz_x1};
+  if(y<0) ${bc_Tzz_y0};
+  if(y>=arr.size(1)) ${bc_Tzz_y1};
+  if(z<0) ${bc_Tzz_z0};
+  if(z>=arr.size(0)) ${bc_Tzz_z1};
+Pochoir_Boundary_End
+
+Pochoir_Boundary_3D(fd_bv_3D_Txy, arr, t, x, y, z)
+  if(x<0) ${bc_Txy_x0};
+  if(x>=arr.size(2)) ${bc_Txy_x1};
+  if(y<0) ${bc_Txy_y0};
+  if(y>=arr.size(1)) ${bc_Txy_y1};
+  if(z<0) ${bc_Txy_z0};
+  if(z>=arr.size(0)) ${bc_Txy_z1};
+Pochoir_Boundary_End
+
+Pochoir_Boundary_3D(fd_bv_3D_Txz, arr, t, x, y, z)
+  if(x<0) ${bc_Txz_x0};
+  if(x>=arr.size(2)) ${bc_Txz_x1};
+  if(y<0) ${bc_Txz_y0};
+  if(y>=arr.size(1)) ${bc_Txz_y1};
+  if(z<0) ${bc_Txz_z0};
+  if(z>=arr.size(0)) ${bc_Txz_z1};
+Pochoir_Boundary_End
+
+Pochoir_Boundary_3D(fd_bv_3D_Tyz, arr, t, x, y, z)
+  if(x<0) ${bc_Tyz_x0};
+  if(x>=arr.size(2)) ${bc_Tyz_x1};
+  if(y<0) ${bc_Tyz_y0};
+  if(y>=arr.size(1)) ${bc_Tyz_y1};
+  if(z<0) ${bc_Tyz_z0};
+  if(z>=arr.size(0)) ${bc_Tyz_z1};
+Pochoir_Boundary_End
