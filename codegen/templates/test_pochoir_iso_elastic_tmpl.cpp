@@ -4,9 +4,7 @@
 
 #include <pochoir.hpp>
 
-Pochoir_Boundary_3D(fd_bv_3D, arr, t, x, y, z)
-    return 0;
-Pochoir_Boundary_End
+<%include file="pochoir_bc.txt"/>
 
 int main(){
 
@@ -42,15 +40,15 @@ int main(){
   int ds=2;
   Pochoir_Domain X(0+ds, dimx-ds), Y(0+ds, dimy-ds), Z(0+ds, dimz-ds);
   
-  U.Register_Boundary(fd_bv_3D);
-  V.Register_Boundary(fd_bv_3D);
-  W.Register_Boundary(fd_bv_3D);
-  Txx.Register_Boundary(fd_bv_3D);
-  Tyy.Register_Boundary(fd_bv_3D);
-  Tzz.Register_Boundary(fd_bv_3D);
-  Tyz.Register_Boundary(fd_bv_3D);
-  Txz.Register_Boundary(fd_bv_3D);
-  Txy.Register_Boundary(fd_bv_3D);
+  U.Register_Boundary(fd_bv_3D_U);
+  V.Register_Boundary(fd_bv_3D_V);
+  W.Register_Boundary(fd_bv_3D_W);
+  Txx.Register_Boundary(fd_bv_3D_Txx);
+  Tyy.Register_Boundary(fd_bv_3D_Tyy);
+  Tzz.Register_Boundary(fd_bv_3D_Tzz);
+  Tyz.Register_Boundary(fd_bv_3D_Tyz);
+  Txz.Register_Boundary(fd_bv_3D_Txz);
+  Txy.Register_Boundary(fd_bv_3D_Txy);
 
   fd_3D.Register_Array(U);
   fd_3D.Register_Array(V);

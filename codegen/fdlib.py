@@ -136,6 +136,9 @@ def IndexedBases(s):
 def advance_time(expr,d):
 	return Eq(expr.lhs, expr.rhs.xreplace(d))
 
+def assign_pochoir_bc(expr):
+	return "return " + print_myccode(expr,pochoir=True);
+
 def main():
 	dx, dt, x, y, z, t, c = symbols('dx dt x y z t c')
 	U = IndexedBase('U')
