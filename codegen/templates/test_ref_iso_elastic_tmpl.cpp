@@ -9,38 +9,6 @@ int main(){
   // time periodicity for update
   const int _tp = ${time_period};
 
-  // Set up solution fields.
-  std::vector<float> _u(dimx*dimy*dimz*_tp), _v(dimx*dimy*dimz*_tp), _w(dimx*dimy*dimz*_tp),
-    _txx(dimx*dimy*dimz*_tp), _tyy(dimx*dimy*dimz*_tp), _tzz(dimx*dimy*dimz*_tp),
-    _tyz(dimx*dimy*dimz*_tp), _txz(dimx*dimy*dimz*_tp), _txy(dimx*dimy*dimz*_tp);
-
-  // Set up seismic sections
-  std::vector<float> uss, vss, wss, pss;
-  uss.reserve(nrec*ntsteps);
-  vss.reserve(nrec*ntsteps);
-  wss.reserve(nrec*ntsteps);
-  pss.reserve(nrec*ntsteps);
-
-
-#pragma omp parallel
-  {
-    // Initialise fields exploiting first touch.
-#pragma omp for nowait
-    for(int i=0;i<dimx*dimy*dimz;i++){
-      _u[i*_tp] = 0.0;
-      _v[i*_tp] = 0.0;
-      _w[i*_tp] = 0.0;
-
-      _txx[i*_tp] = 0.0;
-      _tyy[i*_tp] = 0.0;
-      _tzz[i*_tp] = 0.0;
-      _tyz[i*_tp] = 0.0;
-      _txz[i*_tp] = 0.0;
-      _txy[i*_tp] = 0.0;
-
-      _buoyancy[i] = 1.0/_rho[i];
-    }
-
     // initialise at t=0
     float (*lambda)[dimy][dimz] = (float (*)[dimy][dimz]) _lam.data();
     float (*mu)[dimy][dimz] = (float (*)[dimy][dimz]) _mu.data(); // need to correct to use the effective media parameters
@@ -56,6 +24,35 @@ int main(){
     float (*Tyz)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _tyz.data();
     float (*Txz)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _txz.data();
     float (*Txy)[dimy][dimz][_tp] = (float (*)[dimy][dimz][_tp]) _txy.data();
+
+  // Set up seismic sections
+  std::vector<float> uss, vss, wss, pss;
+  uss.reserve(nrec*ntsteps);
+  vss.reserve(nrec*ntsteps);
+  wss.reserve(nrec*ntsteps);
+  pss.reserve(nrec*ntsteps);
+
+
+#pragma omp parallel
+  {
+    // Initialise fields exploiting first touch.
+#pragma omp for
+    for(int i=0;i<dimx*dimy*dimz;i++){
+      _u[i*_tp] = 0.0;
+      _v[i*_tp] = 0.0;
+      _w[i*_tp] = 0.0;
+
+      _txx[i*_tp] = 0.0;
+      _tyy[i*_tp] = 0.0;
+      _tzz[i*_tp] = 0.0;
+      _tyz[i*_tp] = 0.0;
+      _txz[i*_tp] = 0.0;
+      _txy[i*_tp] = 0.0;
+
+      _buoyancy[i] = 1.0/_rho[i];
+    }
+
+
 
     // main time loop
     for(int _ti=0;_ti<ntsteps;_ti++){
