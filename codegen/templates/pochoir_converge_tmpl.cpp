@@ -14,6 +14,7 @@ float rho = 1.0; // density
 float _tmax = 5.0; // simulate until
 float dt = 0.5*h /(2*Vp)
 int _ntsteps = (int) _tmax/dt;
+float Vp = sqrt((lambda + 2*mu)/rho)
 
 int main(){
 
