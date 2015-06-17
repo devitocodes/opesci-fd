@@ -61,7 +61,7 @@ int main(){
 
       Txx(0,x,y) = ${Txx_init};
       Tyy(0,x,y) = ${Tyy_init};
-      Txy(0,x,y) = ${Txy_init};	  
+      Txy(0,x,y) = ${Txy_init};
     }
   }
   
