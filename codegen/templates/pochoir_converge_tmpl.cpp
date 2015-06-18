@@ -30,8 +30,7 @@ int main(){
     {0,0,-2}};
   
   // Prognostic fields.
-  Pochoir_Array<float, 3> U(dimx, dimy, dimz), V(dimx, dimy, dimz),
-    Txx(dimx, dimy, dimz), Tyy(dimx, dimy, dimz), Tyz(dimx, dimy, dimz);
+  Pochoir_Array<float, 3> U(dimx, dimy), V(dimx, dimy), Txx(dimx, dimy), Tyy(dimx, dimy), Tyz(dimx, dimy);
 
   Pochoir_2D fd_2D(fd_shape_2D);
   
