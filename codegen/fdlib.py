@@ -101,6 +101,29 @@ def Deriv_half(U, i, k, d, n, shift_forward=True):
 	else:
 		return result.subs(i[k],i[k]-hf)
 
+def Deriv_half_2(U, i, k, d, n):
+	# get the FD approximation for nth derivative in terms of grid U
+	# i is list of indices of U, e.g. [x,y,z,t] for 3D
+	# k = which dimension to expand, k=0 for x, k=1 for t etc
+	M = Taylor_half(d, n)
+	s = [0]*len(i)
+	s[k] = 1 # switch on kth dimension
+	hf = Rational(1,2) # 1/2
+	# generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
+	if len(i)==1:
+		RX = Matrix([U[i[0]+s[0]*x*hf] for x in range(-n*2+1,n*2,2)])
+	elif len(i)==2:
+		RX = Matrix([U[i[0]+s[0]*x*hf,i[1]+s[1]*x*hf] for x in range(-n*2+1,n*2,2)])
+	elif len(i)==3:
+		RX = Matrix([U[i[0]+s[0]*x*hf,i[1]+s[1]*x*hf,i[2]+s[2]*x*hf] for x in range(-n*2+1,n*2,2)])
+	elif len(i)==4:
+		RX = Matrix([U[i[0]+s[0]*x*hf,i[1]+s[1]*x*hf,i[2]+s[2]*x*hf,i[3]+s[3]*x*hf] for x in range(-n*2+1,n*2,2)])
+	else:
+		raise NotImplementedError(">4 dimensions, need to fix")
+
+	result = M.inv() * RX
+	return result
+
 def print_myccode(expr, assign_to=None, pochoir=False, **settings):
 	if pochoir:
 		return MyPochoirPrinter(settings).doprint(expr, assign_to)
