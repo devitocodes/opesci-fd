@@ -124,6 +124,9 @@ def Deriv_half_2(U, i, k, d, n):
 	result = M.inv() * RX
 	return result
 
+def shift_grid(expr):
+	return
+
 def print_myccode(expr, assign_to=None, pochoir=False, **settings):
 	if pochoir:
 		return MyPochoirPrinter(settings).doprint(expr, assign_to)
