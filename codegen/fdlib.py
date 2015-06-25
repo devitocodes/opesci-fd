@@ -4,6 +4,7 @@ from matplotlib import animation
 import numpy as np
 import matplotlib.pyplot as plt
 
+shift_t = ['Txx','Tyy','Txy']
 shift_x = ['U','Txy']
 shift_y = ['V','Txy']
 hf = Rational(1,2) # 1/2
