@@ -1,0 +1,6 @@
+#pragma omp for
+for(int ${i}=${l_i};${i}<${h_i};++${i}){
+    for(int ${j}=${l_j};${i}<${h_j};++${j}){
+    	${body}
+    }
+}
