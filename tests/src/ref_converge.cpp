@@ -43,8 +43,8 @@
 */
 
 
-#include "opesciIO.h"
-#include "opesciHandy.h"
+//#include "opesciIO.h"
+//#include "opesciHandy.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -62,7 +62,7 @@ int main(){
   float mu = 0.5;
   float lambda = 0.5;
   float _tmax = 1.0;
-  float h = 0.1;
+  float h = 0.025;
 
 
   // calculated constatns
@@ -251,13 +251,6 @@ int main(){
       U[t1][dimx - 3][y]=(lambda*(U[t1][dimx - 4][y] - V[t1][dimx - 3][y] + V[t1][dimx - 3][y - 1]) - 2*mu*V[t1][dimx - 3][y] + 2*mu*V[t1][dimx - 3][y - 1])/lambda;
       V[t1][dimx - 2][y]=U[t1][dimx - 4][y] - U[t1][dimx - 4][y + 1] + U[t1][dimx - 3][y] - U[t1][dimx - 3][y + 1] + V[t1][dimx - 4][y];
     }
-      printf("%d\n",_ti);
-  for(int x=0;x<dimx;x++){
-    for(int y=0;y<dimy;y++){
-      printf("%.5f ",Txx[t1][x][y]);
-    }
-    printf("\n");
-  }
   } // end of time loop
   } // end of parallel section
 
