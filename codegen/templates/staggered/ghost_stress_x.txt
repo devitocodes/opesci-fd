@@ -1,0 +1,18 @@
+    // update ghost cells for boundary conditions
+    #pragma omp for
+    for(int x=0;x<${dimx};x++){
+      // boundary y=2
+      Txx[${t}][x][1] = -Txx[${t}][x][3];
+      Txx[${t}][x][2] = 0.0;
+      Tyy[${t}][x][1] = -Tyy[${t}][x][3];
+      Tyy[${t}][x][2] = 0.0;
+      Txy[${t}][x][0] = -Txy[${t}][x][3];
+      Txy[${t}][x][1] = -Txy[${t}][x][2];
+      // boundary y=${dimy}+2
+      Txx[${t}][x][${dimy}-2] = -Txx[${t}][x][${dimy}-4];
+      Txx[${t}][x][${dimy}-3] = 0.0;
+      Tyy[${t}][x][${dimy}-2] = -Tyy[${t}][x][${dimy}-4];
+      Tyy[${t}][x][${dimy}-3] = 0.0;
+      Txy[${t}][x][${dimy}-2] = -Txy[${t}][x][${dimy}-5];
+      Txy[${t}][x][${dimy}-3] = -Txy[${t}][x][${dimy}-4];
+    }

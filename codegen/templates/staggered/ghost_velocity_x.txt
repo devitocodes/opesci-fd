@@ -1,0 +1,10 @@
+    // update ghost cells for boundary conditions
+    #pragma omp for
+    for(int x=0;x<${dimx};x++){
+      // boundary y=2
+      U[${t}][x][1]=0;
+      V[${t}][x][1]=0;
+      // boundary y=dimy+2
+      U[${t}][x][${dimy} - 2]=0;
+      V[${t}][x][${dimy} - 3]=0;
+    }
