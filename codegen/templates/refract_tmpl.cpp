@@ -40,6 +40,25 @@ int main(){
   // Initialise fields
   ${initialise}
 
+  for(int _ti=0;_ti<ntsteps;_ti++){
+    
+    // shared variables
+    #pragma omp single
+    {
+      t = _ti % _tp; // array index of current time step
+      t1 = (t+1) % _tp; // array index of the grid to be updated
+    }
+
+    ${stress_loop}
+
+    ${stress_bc}
+
+    ${velocity_loop}
+
+    ${velocity_bc}    
+
+  } // end of time loop
+
   } // end of parallel section
 
   return 0;

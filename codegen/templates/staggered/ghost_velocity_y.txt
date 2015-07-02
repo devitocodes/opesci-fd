@@ -1,19 +1,9 @@
-    // update ghost cells for boundary conditions
     #pragma omp for
-    for(int x=0;x<dimx;x++){
-      // boundary y=2
-      U[t1][x][1]=U[t1][x][3] - V[t1][x][1] - V[t1][x][2] + V[t1][x + 1][1] + V[t1][x + 1][2];
-      V[t1][x][1]=(lambda*U[t1][x][2] - lambda*U[t1][x - 1][2] + lambda*V[t1][x][2] + 2*mu*V[t1][x][2])/(lambda + 2*mu);
-      // boundary y=dimy+2
-      U[t1][x][dimy - 2]=U[t1][x][dimy - 4] + V[t1][x][dimy - 4] + V[t1][x][dimy - 3] - V[t1][x + 1][dimy - 4] - V[t1][x + 1][dimy - 3];
-      V[t1][x][dimy - 3]=(-lambda*U[t1][x][dimy - 3] + lambda*U[t1][x - 1][dimy - 3] + lambda*V[t1][x][dimy - 4] + 2*mu*V[t1][x][dimy - 4])/(lambda + 2*mu);
-    }
-    #pragma omp for
-    for(int y=0;y<dimy;y++){
+    for(int y=0;y<${dimy};y++){
       // boundary x=2
-      U[t1][1][y]=(lambda*(U[t1][2][y] + V[t1][2][y] - V[t1][2][y - 1]) + 2*mu*V[t1][2][y] - 2*mu*V[t1][2][y - 1])/lambda;
-      V[t1][1][y]=-U[t1][1][y] + U[t1][1][y + 1] - U[t1][2][y] + U[t1][2][y + 1] + V[t1][3][y];
+      U[${t}][1][y]=(lambda*(U[${t}][2][y] + V[${t}][2][y] - V[${t}][2][y - 1]) + 2*mu*V[${t}][2][y] - 2*mu*V[${t}][2][y - 1])/lambda;
+      V[${t}][1][y]=-U[${t}][1][y] + U[${t}][1][y + 1] - U[${t}][2][y] + U[${t}][2][y + 1] + V[${t}][3][y];
       // boundary x=dimy-3
-      U[t1][dimx - 3][y]=(lambda*(U[t1][dimx - 4][y] - V[t1][dimx - 3][y] + V[t1][dimx - 3][y - 1]) - 2*mu*V[t1][dimx - 3][y] + 2*mu*V[t1][dimx - 3][y - 1])/lambda;
-      V[t1][dimx - 2][y]=U[t1][dimx - 4][y] - U[t1][dimx - 4][y + 1] + U[t1][dimx - 3][y] - U[t1][dimx - 3][y + 1] + V[t1][dimx - 4][y];
+      U[${t}][${dimx} - 3][y]=(lambda*(U[${t}][${dimx} - 4][y] - V[${t}][${dimx} - 3][y] + V[${t}][${dimx} - 3][y - 1]) - 2*mu*V[${t}][${dimx} - 3][y] + 2*mu*V[${t}][${dimx} - 3][y - 1])/lambda;
+      V[${t}][${dimx} - 2][y]=U[${t}][${dimx} - 4][y] - U[${t}][${dimx} - 4][y + 1] + U[${t}][${dimx} - 3][y] - U[${t}][${dimx} - 3][y + 1] + V[${t}][${dimx} - 4][y];
     }

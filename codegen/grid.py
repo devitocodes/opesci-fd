@@ -1,4 +1,4 @@
-from sympy import Symbol, symbols, factorial, Matrix, Rational
+from sympy import Symbol, symbols, factorial, Matrix, Rational, Indexed
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
@@ -97,7 +97,23 @@ def Deriv_half(U, i, k, d, n):
 	result = M.inv() * RX
 	return result
 
+def is_half(expr):
+	d = {x:0 for x in expr.free_symbols}
+	return not expr.subs(d).is_Integer
 
+def shift_grid(expr):
+	if expr.is_Symbol:
+		return expr
+	if expr.is_Number:
+		return expr
+	if isinstance(expr,Indexed):
+		b = expr.base
+		idx = [x-hf if is_half(x) else x for x in list(expr.indices)]
+		t = Indexed(b,*idx)
+		return t
+	args = tuple([shift_grid(arg) for arg in expr.args])
+	expr2 = expr.func(*args)
+	return expr2
 
 class StaggeredGrid2D:
 	"""description of staggered grid for finite difference method"""
@@ -109,6 +125,11 @@ class StaggeredGrid2D:
 	Dt = {} # dictionary for mapping fields to their time derivatives
 	Dx = {} # dictionary for mapping fields to their first derivatives
 	Dy = {} # dictionary for mapping fields to their first derivatives
+	Dx_2 = {} # first order spatial derivatives
+	Dy_2 = {} # first order spatial derivatives
+	fd = {} # dictionary for mapping fields to fd expression for t+1
+	fd_shifted = {} # dictionary for mapping code
+	bc = [[{},{}],[{},{}]] # list of list of dictionary
 	index = list(symbols('t x y'))
 
 	def __init__(self):
@@ -138,48 +159,60 @@ class StaggeredGrid2D:
 			self.Dt[field] = Deriv_half(field, self.index, 0, self.dt, self.accuracy_time)[1]
 			self.Dx[field] = Deriv_half(field, self.index, 1, self.h[0], self.accuracy_space)[1]
 			self.Dy[field] = Deriv_half(field, self.index, 2, self.h[1], self.accuracy_space)[1]
+			self.Dx_2[field] = Deriv_half(field, self.index, 1, self.h[0], 1)[1]
+			self.Dy_2[field] = Deriv_half(field, self.index, 2, self.h[1], 1)[1]
 
+	def assign_fd(self, field, fd):
+		self.fd[field] = fd
+		self.fd_shifted[field] = shift_grid(fd)
+
+	def assign_bc(self, field, dim, side, expr):
+		self.bc[dim][side][field] = expr
 
 	def eval_function(self, field, t):
 		return self.functions[field].subs(self.t,t)
 
+	def _update(self):
+		self.margin = 2
+		self.l_x = self.margin
+		self.l_y = self.margin
+		self.h_x_long = print_myccode(self.dim[0]-self.margin)
+		self.h_x_short = print_myccode(self.dim[0]-self.margin-1)
+		self.h_y_long = print_myccode(self.dim[1]-self.margin)
+		self.h_y_short = print_myccode(self.dim[1]-self.margin-1)
+
+
 	def initialise(self):
+		self._update()
 		tmpl = self.lookup.get_template('generic_loop_2d.txt')
 		i, j = symbols('i j')
-		margin = 2
-		l_i = margin
-		l_j = margin
+		m = self.margin
 		t = self.index[0]
 
-		h_i_long = print_myccode(self.dim[0]-margin)
-		h_i_short = print_myccode(self.dim[0]-margin-1)
-		h_j_long = print_myccode(self.dim[1]-margin)
-		h_j_short = print_myccode(self.dim[1]-margin-1)
-
-		x_value_whole = print_myccode((i-margin)*self.h[0])
-		y_value_whole = print_myccode((j-margin)*self.h[1])
-		x_value_half = print_myccode((i-margin+0.5)*self.h[0])
-		y_value_half = print_myccode((j-margin+0.5)*self.h[1])
+		x_value_whole = print_myccode((i-m)*self.h[0])
+		y_value_whole = print_myccode((j-m)*self.h[1])
+		x_value_half = print_myccode((i-m+0.5)*self.h[0])
+		y_value_half = print_myccode((j-m+0.5)*self.h[1])
 
 		# Txx
-		body = print_myccode(self.Txx[0,i,j]) + '=' + print_myccode(self.functions[self.Txx].subs(t,0))
-		dict1 = {'i':'i','j':'j','l_i':l_i,'h_i':h_i_long,'l_j':l_j,'h_j':h_j_long,'x_value':x_value_whole,'y_value':y_value_whole,'body':body}
+		body = print_myccode(self.Txx[0,i,j]) + '=' + print_myccode(self.functions[self.Txx].subs(t,0)) + ';'
+		dict1 = {'i':'i','j':'j','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'x_value':x_value_whole,'y_value':y_value_whole,'body':body}
 		result = render(tmpl, dict1)
 		# Tyy
-		body = print_myccode(self.Tyy[0,i,j]) + '=' + print_myccode(self.functions[self.Tyy].subs(t,0))
+		body = print_myccode(self.Tyy[0,i,j]) + '=' + print_myccode(self.functions[self.Tyy].subs(t,0)) + ';'
 		dict1.update({'body':body})
 		result += render(tmpl, dict1)
 		# Txy
-		body = print_myccode(self.Txy[0,i,j]) + '=' + print_myccode(self.functions[self.Txy].subs(t,0))
-		dict1.update({'h_i':h_i_short,'h_j':h_j_short,'x_value':x_value_half,'y_value':y_value_half,'body':body})
+		body = print_myccode(self.Txy[0,i,j]) + '=' + print_myccode(self.functions[self.Txy].subs(t,0)) + ';'
+		dict1.update({'h_i':self.h_x_short,'h_j':self.h_y_short,'x_value':x_value_half,'y_value':y_value_half,'body':body})
 		result += render(tmpl, dict1)
 		# U
-		body = print_myccode(self.U[0,i,j]) + '=' + print_myccode(self.functions[self.U].subs(t,self.dt/2))
-		dict1.update({'h_i':h_i_short,'h_j':h_j_long,'x_value':x_value_half,'y_value':y_value_whole,'body':body})
+		body = print_myccode(self.U[0,i,j]) + '=' + print_myccode(self.functions[self.U].subs(t,self.dt/2)) + ';'
+		dict1.update({'h_i':self.h_x_short,'h_j':self.h_y_long,'x_value':x_value_half,'y_value':y_value_whole,'body':body})
 		result += render(tmpl, dict1)
 		# V
-		body = print_myccode(self.V[0,i,j]) + '=' + print_myccode(self.functions[self.V].subs(t,self.dt/2))
-		dict1.update({'h_i':h_i_long,'h_j':h_j_short,'x_value':x_value_whole,'y_value':y_value_half,'body':body})
+		body = print_myccode(self.V[0,i,j]) + '=' + print_myccode(self.functions[self.V].subs(t,self.dt/2)) + ';'
+		dict1.update({'h_i':self.h_x_long,'h_j':self.h_y_short,'x_value':x_value_whole,'y_value':y_value_half,'body':body})
 		result += render(tmpl, dict1)
 
 		return result
@@ -190,5 +223,51 @@ class StaggeredGrid2D:
 		result = render(tmpl, dict1)
 
 		tmpl = self.lookup.get_template('ghost_stress_y.txt')
+		result += render(tmpl, dict1)
+		return result
+
+	def stress_loop(self):
+		self._update()
+		tmpl = self.lookup.get_template('update_loop_2d.txt')
+		t, x, y = self.index
+		t1 = Symbol('t1')
+
+		body = print_myccode(self.Txx[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.Txx]) + ';\n\t\t'
+		body += print_myccode(self.Tyy[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.Tyy]) + ';\n\t\t'
+		body += print_myccode(self.Txy[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.Txy]) + ';'
+		dict1 = {'i':'x','j':'y','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'body':body}
+		result = render(tmpl, dict1)
+		return result
+
+	def velocity_loop(self):
+		self._update()
+		tmpl = self.lookup.get_template('update_loop_2d.txt')
+		t, x, y = self.index
+		t1 = Symbol('t1')
+
+		body = print_myccode(self.U[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.U].subs(t,t1)) + ';\n\t\t'
+		body += print_myccode(self.V[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.V].subs(t,t1)) + ';'
+		dict1 = {'i':'x','j':'y','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'body':body}
+		result = render(tmpl, dict1)
+		return result
+
+	def stress_bc(self):
+		tmpl = self.lookup.get_template('ghost_stress_x.txt')
+		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'t':'t1'}
+		result = render(tmpl, dict1)
+
+		tmpl = self.lookup.get_template('ghost_stress_y.txt')
+		result += render(tmpl, dict1)
+		return result
+
+	def velocity_bc(self):
+		tmpl = self.lookup.get_template('ghost_velocity_x.txt')
+		t, x, y = self.index
+		t1 = Symbol('t1')
+		V = print_myccode(self.V[t1,self.margin-1,y]) + '=' + print_myccode(shift_grid(self.bc[0][0][self.V].subs({t:t1,x:1}))) +';'
+		U = print_myccode(self.U[t1,self.margin-1,y]) + '=' + print_myccode(shift_grid(self.bc[0][0][self.U].subs({t:t1,x:1+hf}))) +';'
+		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'U':U,'V':V}
+		result = render(tmpl, dict1)
+		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'U':'test','V':'test'}
 		result += render(tmpl, dict1)
 		return result
