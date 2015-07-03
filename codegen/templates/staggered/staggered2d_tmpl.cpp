@@ -2,6 +2,7 @@
 
 <%include file="common_include.txt"/>
 #include <cmath>
+#include <cstdio>
 
 int main(){
 
@@ -10,7 +11,7 @@ int main(){
   float mu = 0.5;
   float lambda = 0.5;
   float _tmax = 1.0;
-  float h = 0.025;
+  float h = 0.01;
 
   // calculated constatns
   float Vp = sqrt((lambda+2*mu)/rho);
@@ -70,6 +71,8 @@ int main(){
 
   ${converge_test}
 
+  std::cout<<h<<'\n';
+  std::cout<<ntsteps<<'\n';
   std::cout<<Txx_diff<<'\n';
   std::cout<<Tyy_diff<<'\n';
   std::cout<<Txy_diff<<'\n';

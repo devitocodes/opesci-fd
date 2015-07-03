@@ -1,4 +1,4 @@
-from sympy import Symbol, symbols, factorial, Matrix, Rational, Indexed
+from sympy import Symbol, symbols, factorial, Matrix, Rational, Indexed, simplify
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
@@ -247,8 +247,8 @@ class StaggeredGrid2D:
 		t, x, y = self.index
 		t1 = Symbol('t1')
 
-		body = print_myccode(self.U[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.U].subs(t,t1)) + ';\n\t\t\t'
-		body += print_myccode(self.V[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.V].subs(t,t1)) + ';'
+		body = print_myccode(self.U[t1,x,y]) + '=' + print_myccode(simplify(self.fd_shifted[self.U]-self.U[t,x,y]).subs(t,t1)+self.U[t,x,y]) + ';\n\t\t\t'
+		body += print_myccode(self.V[t1,x,y]) + '=' + print_myccode(simplify(self.fd_shifted[self.V]-self.V[t,x,y]).subs(t,t1)+self.V[t,x,y]) + ';'
 		dict1 = {'i':'x','j':'y','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'body':body}
 		result = render(tmpl, dict1)
 		return result
@@ -304,23 +304,23 @@ class StaggeredGrid2D:
 		y_value_half = print_myccode((j-m+0.5)*self.h[1])
 
 		# Txx
-		body = 'Txx_diff += ' + print_myccode(self.Txx[t1,i,j]) + '-' + print_myccode(self.functions[self.Txx].subs(t,tf1)) + ';'
+		body = 'Txx_diff += pow(' + print_myccode(self.Txx[t1,i,j]) + '-(' + print_myccode(self.functions[self.Txx].subs(t,tf1)) + '),2);'
 		dict1 = {'i':'i','j':'j','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'x_value':x_value_whole,'y_value':y_value_whole,'body':body}
 		result = render(tmpl, dict1)
 		# Tyy
-		body = 'Tyy_diff += ' + print_myccode(self.Tyy[t1,i,j]) + '-' + print_myccode(self.functions[self.Tyy].subs(t,tf1)) + ';'
+		body = 'Tyy_diff += pow(' + print_myccode(self.Tyy[t1,i,j]) + '-(' + print_myccode(self.functions[self.Tyy].subs(t,tf1)) + '),2);'
 		dict1.update({'body':body})
 		result += render(tmpl, dict1)
 		# Txy
-		body = 'Txy_diff += ' + print_myccode(self.Txy[t1,i,j]) + '-' + print_myccode(self.functions[self.Txy].subs(t,tf1)) + ';'
+		body = 'Txy_diff += pow(' + print_myccode(self.Txy[t1,i,j]) + '-(' + print_myccode(self.functions[self.Txy].subs(t,tf1)) + '),2);'
 		dict1.update({'h_i':self.h_x_short,'h_j':self.h_y_short,'x_value':x_value_half,'y_value':y_value_half,'body':body})
 		result += render(tmpl, dict1)
 		# U
-		body = 'U_diff += ' + print_myccode(self.U[t1,i,j]) + '-' + print_myccode(self.functions[self.U].subs(t,tf2)) + ';'
+		body = 'U_diff += pow(' + print_myccode(self.U[t1,i,j]) + '-(' + print_myccode(self.functions[self.U].subs(t,tf2)) + '),2);'
 		dict1.update({'h_i':self.h_x_short,'h_j':self.h_y_long,'x_value':x_value_half,'y_value':y_value_whole,'body':body})
 		result += render(tmpl, dict1)
 		# V
-		body = 'V_diff += ' + print_myccode(self.V[t1,i,j]) + '-' + print_myccode(self.functions[self.V].subs(t,tf2)) + ';'
+		body = 'V_diff += pow(' + print_myccode(self.V[t1,i,j]) + '-(' + print_myccode(self.functions[self.V].subs(t,tf2)) + '),2);'
 		dict1.update({'h_i':self.h_x_long,'h_j':self.h_y_short,'x_value':x_value_whole,'y_value':y_value_half,'body':body})
 		result += render(tmpl, dict1)
 
