@@ -1,9 +1,5 @@
+    // update ghost cells for boundary conditions
     #pragma omp for
-    for(int y=0;y<${dimy};y++){
-      // boundary x=2
-      U[${t}][1][y]=(lambda*(U[${t}][2][y] + V[${t}][2][y] - V[${t}][2][y - 1]) + 2*mu*V[${t}][2][y] - 2*mu*V[${t}][2][y - 1])/lambda;
-      V[${t}][1][y]=-U[${t}][1][y] + U[${t}][1][y + 1] - U[${t}][2][y] + U[${t}][2][y + 1] + V[${t}][3][y];
-      // boundary x=dimy-3
-      U[${t}][${dimx} - 3][y]=(lambda*(U[${t}][${dimx} - 4][y] - V[${t}][${dimx} - 3][y] + V[${t}][${dimx} - 3][y - 1]) - 2*mu*V[${t}][${dimx} - 3][y] + 2*mu*V[${t}][${dimx} - 3][y - 1])/lambda;
-      V[${t}][${dimx} - 2][y]=U[${t}][${dimx} - 4][y] - U[${t}][${dimx} - 4][y + 1] + U[${t}][${dimx} - 3][y] - U[${t}][${dimx} - 3][y + 1] + V[${t}][${dimx} - 4][y];
+    for(int x=1;x<${dimx}-1;x++){
+      ${body}
     }

@@ -214,6 +214,7 @@ class StaggeredGrid2D:
 		body = print_myccode(self.V[0,i,j]) + '=' + print_myccode(self.functions[self.V].subs(t,self.dt/2)) + ';'
 		dict1.update({'h_i':self.h_x_long,'h_j':self.h_y_short,'x_value':x_value_whole,'y_value':y_value_half,'body':body})
 		result += render(tmpl, dict1)
+		result += self.initialise_boundary()
 
 		return result
 
@@ -224,6 +225,7 @@ class StaggeredGrid2D:
 
 		tmpl = self.lookup.get_template('ghost_stress_y.txt')
 		result += render(tmpl, dict1)
+		result += self._velocity_bc(0)
 		return result
 
 	def stress_loop(self):
@@ -232,8 +234,8 @@ class StaggeredGrid2D:
 		t, x, y = self.index
 		t1 = Symbol('t1')
 
-		body = print_myccode(self.Txx[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.Txx]) + ';\n\t\t'
-		body += print_myccode(self.Tyy[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.Tyy]) + ';\n\t\t'
+		body = print_myccode(self.Txx[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.Txx]) + ';\n\t\t\t'
+		body += print_myccode(self.Tyy[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.Tyy]) + ';\n\t\t\t'
 		body += print_myccode(self.Txy[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.Txy]) + ';'
 		dict1 = {'i':'x','j':'y','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'body':body}
 		result = render(tmpl, dict1)
@@ -245,7 +247,7 @@ class StaggeredGrid2D:
 		t, x, y = self.index
 		t1 = Symbol('t1')
 
-		body = print_myccode(self.U[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.U].subs(t,t1)) + ';\n\t\t'
+		body = print_myccode(self.U[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.U].subs(t,t1)) + ';\n\t\t\t'
 		body += print_myccode(self.V[t1,x,y]) + '=' + print_myccode(self.fd_shifted[self.V].subs(t,t1)) + ';'
 		dict1 = {'i':'x','j':'y','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'body':body}
 		result = render(tmpl, dict1)
@@ -261,13 +263,30 @@ class StaggeredGrid2D:
 		return result
 
 	def velocity_bc(self):
+		t1 = Symbol('t1')
+		return self._velocity_bc(t1)
+
+	def _velocity_bc(self, t1):
 		tmpl = self.lookup.get_template('ghost_velocity_x.txt')
 		t, x, y = self.index
-		t1 = Symbol('t1')
-		V = print_myccode(self.V[t1,self.margin-1,y]) + '=' + print_myccode(shift_grid(self.bc[0][0][self.V].subs({t:t1,x:1}))) +';'
-		U = print_myccode(self.U[t1,self.margin-1,y]) + '=' + print_myccode(shift_grid(self.bc[0][0][self.U].subs({t:t1,x:1+hf}))) +';'
-		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'U':U,'V':V}
+
+		U0 = print_myccode(self.U[t1,self.margin-1,y]) + '=' + print_myccode(shift_grid(self.bc[0][0][self.U].subs({t:t1,x:1+hf}))) +';\n\t\t\t'
+		U1 = print_myccode(self.U[t1,self.dim[0]-self.margin-1,y]) + '=' + print_myccode(shift_grid(self.bc[0][1][self.U].subs({t:t1,x:self.dim[0]-2-hf}))) +';'
+		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'body':U0+U1}
 		result = render(tmpl, dict1)
-		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'U':'test','V':'test'}
+		V0 = print_myccode(self.V[t1,self.margin-1,y]) + '=' + print_myccode(shift_grid(self.bc[0][0][self.V].subs({t:t1,x:1}))) +';\n\t\t\t'
+		V1 = print_myccode(self.V[t1,self.dim[0]-self.margin,y]) + '=' + print_myccode(shift_grid(self.bc[0][1][self.V].subs({t:t1,x:self.dim[0]-2}))) +';'
+		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'body':V0+V1}
 		result += render(tmpl, dict1)
+
+		tmpl = self.lookup.get_template('ghost_velocity_y.txt')
+		V0 = print_myccode(self.V[t1,x,self.margin-1]) + '=' + print_myccode(shift_grid(self.bc[1][0][self.V].subs({t:t1,y:1+hf}))) +';\n\t\t\t'
+		V1 = print_myccode(self.V[t1,x,self.dim[1]-self.margin-1]) + '=' + print_myccode(shift_grid(self.bc[1][1][self.V].subs({t:t1,y:self.dim[1]-2-hf}))) +';'
+		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'body':V0+V1}
+		result += render(tmpl, dict1)
+		U0 = print_myccode(self.U[t1,x,self.margin-1]) + '=' + print_myccode(shift_grid(self.bc[1][0][self.U].subs({t:t1,y:1}))) +';\n\t\t\t'
+		U1 = print_myccode(self.U[t1,x,self.dim[1]-self.margin]) + '=' + print_myccode(shift_grid(self.bc[1][1][self.U].subs({t:t1,y:self.dim[1]-2}))) +';'
+		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'body':U0+U1}
+		result += render(tmpl, dict1)
+
 		return result
