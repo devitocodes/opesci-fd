@@ -60,5 +60,20 @@ int main(){
   } // end of time loop
   } // end of parallel section
 
+  float Txx_diff = 0.0;
+  float Tyy_diff = 0.0;
+  float Txy_diff = 0.0;
+  float U_diff = 0.0;
+  float V_diff = 0.0;
+  float tf1 = ntsteps*dt;
+  float tf2 = tf1 + dt/2;
+
+  ${converge_test}
+
+  std::cout<<Txx_diff<<'\n';
+  std::cout<<Tyy_diff<<'\n';
+  std::cout<<Txy_diff<<'\n';
+  std::cout<<U_diff<<'\n';
+  std::cout<<V_diff<<'\n';
   return 0;
 }

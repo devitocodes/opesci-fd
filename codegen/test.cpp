@@ -285,5 +285,55 @@ for(int x=2;x<dimx - 2;++x){
   } // end of time loop
   } // end of parallel section
 
+  float Txx_diff = 0.0;
+  float Tyy_diff = 0.0;
+  float Txy_diff = 0.0;
+  float U_diff = 0.0;
+  float V_diff = 0.0;
+  float tf1 = ntsteps*dt;
+  float tf2 = tf1 + dt/2;
+
+  for(int i=2;i<dimx - 2;++i){
+    for(int j=2;j<dimy - 2;++j){
+    	float x = h*(i - 2);
+    	float y = h*(j - 2);
+    	Txx_diff += Txx[t1][i][j]--2*M_PI*mu*sin(M_PI*x)*sin(M_PI*y)*sin(1.4142135623731*M_PI*Vs*tf1);
+    }
+}
+for(int i=2;i<dimx - 2;++i){
+    for(int j=2;j<dimy - 2;++j){
+    	float x = h*(i - 2);
+    	float y = h*(j - 2);
+    	Tyy_diff += Tyy[t1][i][j]-2*M_PI*mu*sin(M_PI*x)*sin(M_PI*y)*sin(1.4142135623731*M_PI*Vs*tf1);
+    }
+}
+for(int i=2;i<dimx - 3;++i){
+    for(int j=2;j<dimy - 3;++j){
+    	float x = h*(i - 1.5);
+    	float y = h*(j - 1.5);
+    	Txy_diff += Txy[t1][i][j]-0.0;
+    }
+}
+for(int i=2;i<dimx - 3;++i){
+    for(int j=2;j<dimy - 2;++j){
+    	float x = h*(i - 1.5);
+    	float y = h*(j - 2);
+    	U_diff += U[t1][i][j]-1.4142135623731*M_PI*Vs*sin(M_PI*y)*cos(M_PI*x)*cos(1.4142135623731*M_PI*Vs*tf2);
+    }
+}
+for(int i=2;i<dimx - 2;++i){
+    for(int j=2;j<dimy - 3;++j){
+    	float x = h*(i - 2);
+    	float y = h*(j - 1.5);
+    	V_diff += V[t1][i][j]--1.4142135623731*M_PI*Vs*sin(M_PI*x)*cos(M_PI*y)*cos(1.4142135623731*M_PI*Vs*tf2);
+    }
+}
+
+
+  std::cout<<Txx_diff<<'\n';
+  std::cout<<Tyy_diff<<'\n';
+  std::cout<<Txy_diff<<'\n';
+  std::cout<<U_diff<<'\n';
+  std::cout<<V_diff<<'\n';
   return 0;
 }

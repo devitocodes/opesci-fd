@@ -290,3 +290,38 @@ class StaggeredGrid2D:
 		result += render(tmpl, dict1)
 
 		return result
+
+	def converge_test(self):
+		tmpl = self.lookup.get_template('generic_loop_2d_2.txt')
+		i, j = symbols('i j')
+		m = self.margin
+		t = self.index[0]
+		t1, tf1, tf2 = symbols('t1, tf1, tf2')
+
+		x_value_whole = print_myccode((i-m)*self.h[0])
+		y_value_whole = print_myccode((j-m)*self.h[1])
+		x_value_half = print_myccode((i-m+0.5)*self.h[0])
+		y_value_half = print_myccode((j-m+0.5)*self.h[1])
+
+		# Txx
+		body = 'Txx_diff += ' + print_myccode(self.Txx[t1,i,j]) + '-' + print_myccode(self.functions[self.Txx].subs(t,tf1)) + ';'
+		dict1 = {'i':'i','j':'j','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'x_value':x_value_whole,'y_value':y_value_whole,'body':body}
+		result = render(tmpl, dict1)
+		# Tyy
+		body = 'Tyy_diff += ' + print_myccode(self.Tyy[t1,i,j]) + '-' + print_myccode(self.functions[self.Tyy].subs(t,tf1)) + ';'
+		dict1.update({'body':body})
+		result += render(tmpl, dict1)
+		# Txy
+		body = 'Txy_diff += ' + print_myccode(self.Txy[t1,i,j]) + '-' + print_myccode(self.functions[self.Txy].subs(t,tf1)) + ';'
+		dict1.update({'h_i':self.h_x_short,'h_j':self.h_y_short,'x_value':x_value_half,'y_value':y_value_half,'body':body})
+		result += render(tmpl, dict1)
+		# U
+		body = 'U_diff += ' + print_myccode(self.U[t1,i,j]) + '-' + print_myccode(self.functions[self.U].subs(t,tf2)) + ';'
+		dict1.update({'h_i':self.h_x_short,'h_j':self.h_y_long,'x_value':x_value_half,'y_value':y_value_whole,'body':body})
+		result += render(tmpl, dict1)
+		# V
+		body = 'V_diff += ' + print_myccode(self.V[t1,i,j]) + '-' + print_myccode(self.functions[self.V].subs(t,tf2)) + ';'
+		dict1.update({'h_i':self.h_x_long,'h_j':self.h_y_short,'x_value':x_value_whole,'y_value':y_value_half,'body':body})
+		result += render(tmpl, dict1)
+
+		return result
