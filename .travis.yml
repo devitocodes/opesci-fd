@@ -1,46 +1,9 @@
-language: cpp
+language: python
+
 before_install:
-  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  - sudo apt-get update -qq
+
 install:
-  - sudo apt-get install -y libvtk5-dev libvtk5.8
-  - sudo apt-get install -qq gcc-4.8 g++-4.8
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
-  - sudo apt-get install -y ghc ghc-prof libghc-parsec3-dev
-  - sudo apt-get install -y gcc-multilib
-  - wget https://www.cilkplus.org/sites/default/files/cilk-gcc-compiler/cilkplus-4_8-install.tar_0.bz2
-  - tar jxf cilkplus-4_8-install.tar_0.bz2
+
 compiler:
-  - gcc ghc
-# Change this to your needs
+
 script:
-  - export CXX=g++
-  - export LD_LIBRARY_PATH=$(pwd)/cilkplus-4_8-install/lib64:$(pwd)/cilkplus-4_8-install/lib:$LD_LIBRARY_PATH
-  - export LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LIBRARY_PATH
-  - export PATH=$(pwd)/cilkplus-4_8-install/bin:$PATH
-  - export SOURCE_ROOT=$PWD
-  - git clone https://github.com/opesci/Pochoir.git
-  - pushd Pochoir
-  - mkdir build; pushd build
-  - cmake -DCMAKE_INSTALL_PREFIX=$SOURCE_ROOT/pochoir-install ../
-  - make install
-  - export PATH=$SOURCE_ROOT/pochoir-install:$PATH
-  - popd; popd
-  - mkdir build
-  - cd build
-  - cmake ..
-  - make VERBOSE=1
-  - export LD_LIBRARY_PATH=$SOURCE_ROOT/build/lib:$LD_LIBRARY_PATH
-  - git clone https://github.com/opesci/data.git  
-  - cd tests/
-  - for file in ../data/*.gz ; do gunzip -c $file > $(basename $file .gz) ; done
-  - for file in ../data/marmousi3D/*.gz ; do gunzip -c $file > $(basename $file .gz) ; done
-  - export CPATH=$SOURCE_ROOT/include
-  - make VERBOSE=1
-  - travis_wait ctest -R test_pochoir_iso_elastic
-  - travis_wait ctest -R test_ref_iso_elastic
-  - ctest -R test_segy2vts
-  - cmp solution.vts solution_pochoir.vts
-  - cmp receivers.vts receivers_pochoir.vts
-
-
