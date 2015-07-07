@@ -342,7 +342,7 @@ class StaggeredGrid3D:
 
 
 	lookup = TemplateLookup(directories=['templates/staggered/'])
-	functions = {} # empty dictionary for mapping fields with functions
+	solution = {} # empty dictionary for mapping fields with functions
 	accuracy_time = 1
 	accuracy_space = 2
 
@@ -379,8 +379,14 @@ class StaggeredGrid3D:
 	def set_domain_size(self, dim):
 		self.dim = dim
 
-	def assign_function(self, field, function):
-		self.functions[field] = function
+	def get_stress_fields(self):
+		return self.sfields
+
+	def get_velocity_fields(self):
+		return self.vfields
+
+	def assign_analytic(self, field, function):
+		self.solution[field] = function
 
 	def calc_derivatives(self):
 		for field in [self.U, self.V, self.Txx, self.Tyy, self.Txy]:
