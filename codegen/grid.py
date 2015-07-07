@@ -333,10 +333,11 @@ class StaggeredGrid2D:
 
 
 class Field:
-	d = [[None]*4]*4 # list of list to store derivative expressions
+	
 	def __init__(self, name, offset):
 		self.name = IndexedBase(name)
 		self.offset = offset
+		self.d = [[None]*4 for x in range(4)] # list of list to store derivative expressions	
 
 	def set_analytic_func(self, function):
 		self.func = function
@@ -345,7 +346,7 @@ class Field:
 		self.d[k][n] = Deriv_half(self.name, l, k, d, n)[1]
 
 	def calc_fd(self, eq):
-		self.fd = 
+		self.fd = solve(eq1,self.name[t+hf,x,y,z])[0].subs({t:t+hf})
 
 class StaggeredGrid3D:
 	"""description of staggered grid for finite difference method"""
@@ -378,13 +379,13 @@ class StaggeredGrid3D:
 	def calc_derivatives(self):
 		l = [self.dt] + list(self.h)
 		for field in self.sfields+self.vfields:
-			for k in range(3):
+			for k in range(4):
 				field.calc_derivative(self.index,k,l[k],1)
 				field.calc_derivative(self.index,k,l[k],2)
 
-	def assign_fd(self, field, fd):
-		self.fd[field] = fd
-		self.fd_shifted[field] = shift_grid(fd)
+	def solve_fd(self,eqs):
+		self.eqs = eqs
+		
 
 	def assign_bc(self, field, dim, side, expr):
 		self.bc[dim][side][field] = expr
