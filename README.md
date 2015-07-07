@@ -1,8 +1,10 @@
 # propagator
 
-good place to start is probably the notebook codegen/refactor.ipynb, running it will generate test.cpp, to be compiled with C++ with OpenMP.
+FD simulation for 3D elastic wave equation
 
-It outputs L2 differences between numerical and analytical solutions for the 5 fields.
+running the python script codegen/grid3d.py (this script is the same as the notebook grid3d.ipynb), this will generate test.cpp, which can be compiled with g++ -fopenmp
 
-the symbolic library is grid.py
-fdlib.py is the old python library, I'm gradually migrating towards grid.py
+The outputs are L2 norms between numerical and analytical solutions for the stress and velocity fields
+
+symbolic subroutines are defined in grid.py
+
