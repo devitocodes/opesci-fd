@@ -1,5 +1,0 @@
-    // update ghost cells for boundary conditions
-    #pragma omp for
-    for(int y=1;y<${dimy}-1;y++){
-      ${body}
-    }

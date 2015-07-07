@@ -6,4 +6,5 @@ install:
     - pip install -r requirements.txt
 
 script:
-    - python travis-test.py
+    - cd codegen
+    - python grid3d.py
