@@ -1,4 +1,4 @@
-from sympy import Symbol, symbols, factorial, Matrix, Rational, Indexed, simplify, IndexedBase
+from sympy import Symbol, symbols, factorial, Matrix, Rational, Indexed, simplify, IndexedBase, solve
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
@@ -348,20 +348,17 @@ class Field:
 	def calc_fd(self, eq):
 		self.fd = solve(eq1,self.name[t+hf,x,y,z])[0].subs({t:t+hf})
 
+	def set_fd(self,fd):
+		self.fd = fd
+
 class StaggeredGrid3D:
 	"""description of staggered grid for finite difference method"""
 
 	lookup = TemplateLookup(directories=['templates/staggered/'])
 	solution = {} # empty dictionary for mapping fields with functions
 	order = [1,2,2,2]
+	margin = 2
 
-	Dt = {} # dictionary for mapping fields to their time derivatives
-	Dx = {} # dictionary for mapping fields to their first derivatives
-	Dy = {} # dictionary for mapping fields to their first derivatives
-	Dx_2 = {} # first order spatial derivatives
-	Dy_2 = {} # first order spatial derivatives
-	fd = {} # dictionary for mapping fields to fd expression for t+1
-	fd_shifted = {} # dictionary for mapping code
 	bc = [[{},{}],[{},{}]] # list of list of dictionary
 	index = list(symbols('t x y z'))
 
@@ -384,8 +381,11 @@ class StaggeredGrid3D:
 				field.calc_derivative(self.index,k,l[k],2)
 
 	def solve_fd(self,eqs):
+		t, x, y, z = self.index
 		self.eqs = eqs
-		
+		for field, eq in zip(self.vfields+self.sfields, eqs):
+			field.set_fd(solve(eq,field.name[t+hf,x,y,z])[0].subs({t:t+hf}))
+
 
 	def assign_bc(self, field, dim, side, expr):
 		self.bc[dim][side][field] = expr
