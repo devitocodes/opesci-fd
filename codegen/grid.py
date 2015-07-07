@@ -332,19 +332,27 @@ class StaggeredGrid2D:
 		return result
 
 
+class Field:
+	d = [[None]*4]*4 # list of list to store derivative expressions
+	def __init__(self, name, offset):
+		self.name = IndexedBase(name)
+		self.offset = offset
+
+	def set_analytic_func(self, function):
+		self.func = function
+
+	def calc_derivative(self, l, k, d, n):
+		self.d[k][n] = Deriv_half(self.name, l, k, d, n)[1]
+
+	def calc_fd(self, eq):
+		self.fd = 
+
 class StaggeredGrid3D:
 	"""description of staggered grid for finite difference method"""
 
-	class Field:
-		def __init__(self, symbol, offset):
-			self.symbol = symbol
-			self.offset = offset
-
-
 	lookup = TemplateLookup(directories=['templates/staggered/'])
 	solution = {} # empty dictionary for mapping fields with functions
-	accuracy_time = 1
-	accuracy_space = 2
+	order = [1,2,2,2]
 
 	Dt = {} # dictionary for mapping fields to their time derivatives
 	Dx = {} # dictionary for mapping fields to their first derivatives
@@ -354,47 +362,25 @@ class StaggeredGrid3D:
 	fd = {} # dictionary for mapping fields to fd expression for t+1
 	fd_shifted = {} # dictionary for mapping code
 	bc = [[{},{}],[{},{}]] # list of list of dictionary
-	index = list(symbols('t x y'))
+	index = list(symbols('t x y z'))
 
-	def __init__(self):
-		Txx, Tyy, Tzz, Txy, Tyz, Txz, U, V, W = IndexedBases('Txx Tyy Tzz Txy Tyz Txz U V W')
-		self.sfields = [Txx, Tyy, Tzz, Txy, Txy, Tyz]
-		self.vfields = [U, V, W]
-		self.Txx = Field(Txx, (False,False,False))
-		self.Tyy = Field(Tyy, (False,False,False))
-		self.Tzz = Field(Tyy, (False,False,False))
-		self.Txy = Field(Tyy, (True,True,False))
-		self.Tyz = Field(Tyy, (False,True,True))
-		self.Txz = Field(Tyy, (True,False,True))
-		self.U = Field(U, (True,False,False))
-		self.V = Field(V, (False,True,False))
-		self.W = Field(W, (False,False,True))
+	def __init__(self, h, dt, dim):
+		self.h = symbols(h)
+		self.dt = Symbol(dt)
+		self.dim = symbols(dim)
 
-		return
+	def set_stress_fields(self, sfields):
+		self.sfields = sfields
 
-	def set_grid_size(self, h, dt):
-		self.h = h
-		self.dt = dt
-
-	def set_domain_size(self, dim):
-		self.dim = dim
-
-	def get_stress_fields(self):
-		return self.sfields
-
-	def get_velocity_fields(self):
-		return self.vfields
-
-	def assign_analytic(self, field, function):
-		self.solution[field] = function
+	def set_velocity_fields(self, vfields):
+		self.vfields = vfields
 
 	def calc_derivatives(self):
-		for field in [self.U, self.V, self.Txx, self.Tyy, self.Txy]:
-			self.Dt[field] = Deriv_half(field, self.index, 0, self.dt, self.accuracy_time)[1]
-			self.Dx[field] = Deriv_half(field, self.index, 1, self.h[0], self.accuracy_space)[1]
-			self.Dy[field] = Deriv_half(field, self.index, 2, self.h[1], self.accuracy_space)[1]
-			self.Dx_2[field] = Deriv_half(field, self.index, 1, self.h[0], 1)[1]
-			self.Dy_2[field] = Deriv_half(field, self.index, 2, self.h[1], 1)[1]
+		l = [self.dt] + list(self.h)
+		for field in self.sfields+self.vfields:
+			for k in range(3):
+				field.calc_derivative(self.index,k,l[k],1)
+				field.calc_derivative(self.index,k,l[k],2)
 
 	def assign_fd(self, field, fd):
 		self.fd[field] = fd
