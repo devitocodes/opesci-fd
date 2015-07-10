@@ -436,16 +436,40 @@ class Field:
 
 class StaggeredGrid3D:
 	"""description of staggered grid for finite difference method"""
+	
+	def __init__(self):
+		self.lookup = TemplateLookup(directories=['templates/staggered/'])
+		self.size = (1.0, 1.0, 1.0) # default domain size
+		self.spacing = (0.1, 0.1, 0.1) # default grid spacing
+		self.index = list(symbols('t x y z')) # default index names
+		self.margin = 2
+		self.h = symbols('dx dy dz')
+		self.dt = Symbol('dt')
+		self.dim = symbols('dimx dimy dimz')
+		self.float_symbols = {self.h[0]:0.1,self.h[1]:0.1,self.h[2]:0.1,self.dt:1.0} # dictionary to hold symbols and their values
+		self.int_symbols = {Symbol('margin'):2, Symbol('ntsteps'):1,self.dim[0]:0,self.dim[1]:0,self.dim[2]:0, Symbol('t'):0, Symbol('t1'):0}
 
-	lookup = TemplateLookup(directories=['templates/staggered/'])
-	order = [1,2,2,2]
-	margin = 2
-	index = list(symbols('t x y z'))
+	def set_domain_size(self, size):
+		self.size = size
 
-	def __init__(self, h, dt, dim):
-		self.h = symbols(h)
-		self.dt = Symbol(dt)
-		self.dim = symbols(dim)
+	def set_spacing(self, spacing):
+		self.spacing = spacing
+		for k in range(3):
+			self.int_symbols[self.dim[k]] = int(self.size[k]/self.spacing[k]) + 1 + self.margin*2
+
+	def set_index(self, indices):
+		self.index = indices
+
+	def set_symbol(self, var, value):
+		if isinstance(value, int):
+			self.int_symbols[var] = value
+		else:
+			self.float_symbols[var] = value
+
+	def set_time_step(self, dt, tmax):
+		self.float_symbols[self.dt] = dt
+		self.float_symbols[Symbol('tmax')] = tmax
+		self.int_symbols[Symbol('ntsteps')] = int(tmax/dt)
 
 	def set_stress_fields(self, sfields):
 		self.sfields = sfields
@@ -479,8 +503,19 @@ class StaggeredGrid3D:
 			else:
 				field.set_free_surface_velocity(self.index, d, self.dim[d-1]-self.margin-1, side)
 
-	def eval_function(self, field, t):
-		return self.functions[field].subs(self.t,t)
+	def define_const(self):
+		result = ''
+		for v in self.float_symbols:
+			result += 'float ' + v.name + ' = ' + str(self.float_symbols[v]) + ';\n'
+		for v in self.int_symbols:
+			result += 'int ' + v.name + ' = ' + str(self.int_symbols[v]) + ';\n'
+		return result
+
+	def declare_fields(self):
+		result = ''
+		for field in self.sfields + self.vfields:
+			result += 'float ' + ccode(field.name[[2]+list(self.dim)]) + ';\n'
+		return result
 
 	def initialise(self):
 		tmpl = self.lookup.get_template('init_loop_3d.txt')
@@ -514,13 +549,8 @@ class StaggeredGrid3D:
 		return result
 
 	def initialise_boundary(self):
-		tmpl = self.lookup.get_template('ghost_stress_x.txt')
-		dict1 = {'dimx':self.dim[0],'dimy':self.dim[1],'t':0}
-		result = render(tmpl, dict1)
-
-		tmpl = self.lookup.get_template('ghost_stress_y.txt')
-		result += render(tmpl, dict1)
-		result += self._velocity_bc(0)
+		result = self.stress_bc().replace('[t]','[0]')
+		result += self.velocity_bc().replace('[t]','[0]')
 		return result
 
 	def stress_loop(self):
@@ -594,39 +624,39 @@ class StaggeredGrid3D:
 					i,j,i1,j1 = self._get_ij(d)
 					dict1 = {'i':i,'j':j,'i0':1,'i1':i1-1,'j0':1,'j1':j1-1,'body':field.bc[d][side]}
 					result += render(tmpl, dict1)
+
 		return result
 
 	def converge_test(self):
-		tmpl = self.lookup.get_template('generic_loop_2d_2.txt')
-		i, j = symbols('i j')
+		tmpl = self.lookup.get_template('init_loop_3d.txt')
+		i, j, k = symbols('i j k')
+		ijk = [i,j,k]
 		m = self.margin
 		t = self.index[0]
-		t1, tf1, tf2 = symbols('t1, tf1, tf2')
+		xyzvalue = [None]*3
+		ijk0 = [None]*3
+		ijk1 = [None]*3
 
-		x_value_whole = ccode((i-m)*self.h[0])
-		y_value_whole = ccode((j-m)*self.h[1])
-		x_value_half = ccode((i-m+0.5)*self.h[0])
-		y_value_half = ccode((j-m+0.5)*self.h[1])
+		result = ''
 
-		# Txx
-		body = 'Txx_diff += pow(' + ccode(self.Txx[t1,i,j]) + '-(' + ccode(self.functions[self.Txx].subs(t,tf1)) + '),2);'
-		dict1 = {'i':'i','j':'j','l_i':self.l_x,'h_i':self.h_x_long,'l_j':self.l_y,'h_j':self.h_y_long,'x_value':x_value_whole,'y_value':y_value_whole,'body':body}
-		result = render(tmpl, dict1)
-		# Tyy
-		body = 'Tyy_diff += pow(' + ccode(self.Tyy[t1,i,j]) + '-(' + ccode(self.functions[self.Tyy].subs(t,tf1)) + '),2);'
-		dict1.update({'body':body})
-		result += render(tmpl, dict1)
-		# Txy
-		body = 'Txy_diff += pow(' + ccode(self.Txy[t1,i,j]) + '-(' + ccode(self.functions[self.Txy].subs(t,tf1)) + '),2);'
-		dict1.update({'h_i':self.h_x_short,'h_j':self.h_y_short,'x_value':x_value_half,'y_value':y_value_half,'body':body})
-		result += render(tmpl, dict1)
-		# U
-		body = 'U_diff += pow(' + ccode(self.U[t1,i,j]) + '-(' + ccode(self.functions[self.U].subs(t,tf2)) + '),2);'
-		dict1.update({'h_i':self.h_x_short,'h_j':self.h_y_long,'x_value':x_value_half,'y_value':y_value_whole,'body':body})
-		result += render(tmpl, dict1)
-		# V
-		body = 'V_diff += pow(' + ccode(self.V[t1,i,j]) + '-(' + ccode(self.functions[self.V].subs(t,tf2)) + '),2);'
-		dict1.update({'h_i':self.h_x_long,'h_j':self.h_y_short,'x_value':x_value_whole,'y_value':y_value_half,'body':body})
-		result += render(tmpl, dict1)
+		for field in self.sfields+self.vfields:
+			# populate xvalue, yvalue zvalue code
+			l2 = ccode(field.name.label)+'_l2'
+			result += 'float ' + l2 + ' = 0.0;\n\t\t'
+			for d in range(3):
+				if not field.offset[d+1]:
+					xyzvalue[d] = ccode((ijk[d]-m)*self.h[d])
+					ijk0[d] = ccode(m)
+					ijk1[d] = ccode(self.dim[d]-m)
+				else:
+					xyzvalue[d] = ccode((ijk[d]-m+0.5)*self.h[d])
+					ijk0[d] = ccode(m) # same as first case
+					ijk1[d] = ccode(self.dim[d]-m-1)
+
+			tn = 1.0 if field.offset[0] else 1.0
+			body = l2 + '+=' + ccode((field.name[0,i,j,k]-field.func.subs(t,tn))**2.0) + ';'
+			dict1 = {'i':'i','j':'j','k':'k','i0':ijk0[0],'i1':ijk1[0],'j0':ijk0[1],'j1':ijk1[1],'k0':ijk0[2],'k1':ijk1[2],'xvalue':xyzvalue[0],'yvalue':xyzvalue[1],'zvalue':xyzvalue[2],'body':body}
+			result += render(tmpl, dict1)
+			result += 'printf("' + l2 + ' = %.5f\\n", ' + l2 + ');\n\t\t'
 
 		return result
