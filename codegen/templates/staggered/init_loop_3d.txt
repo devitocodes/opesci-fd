@@ -6,6 +6,6 @@ for(int ${i}=${i0};${i}<${i1};++${i}){
     		float y = ${yvalue};
     		float z = ${zvalue};
     		${body}
-    	}    	
+    	}
     }
 }

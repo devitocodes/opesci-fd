@@ -60,7 +60,7 @@ int main(){
 
   const int _tp = 2;
   // defined constants
-  float dt = 0.01;
+  float dt = 0.005;
 float mu = 0.5;
 float rho = 1.0;
 float dz = 0.1;
@@ -69,28 +69,33 @@ float tmax = 1.0;
 float dy = 0.1;
 float beta = 1.0;
 float lambda = 0.5;
-int dimx = 55;
-int ntsteps = 100;
+int dimx = 45;
+int ntsteps = 200;
 int t1 = 0;
-int dimz = 55;
-int margin = 2;
-int dimy = 55;
+int dimz = 45;
+int dimy = 45;
 int t = 0;
 
-std::vector<float> u(2*dimx*dimy*dimz), v(2*dimx*dimy*dimz), w(2*dimx*dimy*dimz),
-    txx(2*dimx*dimy*dimz), tyy(2*dimx*dimy*dimz), tzz(2*dimx*dimy*dimz),
-    tyz(2*dimx*dimy*dimz), txz(2*dimx*dimy*dimz), txy(2*dimx*dimy*dimz);
+  // set up solution mesh
+  std::vector<float> _Txx_vec(2*dimx*dimy*dimz);
+float (*Txx)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _Txx_vec.data();
+std::vector<float> _Tyy_vec(2*dimx*dimy*dimz);
+float (*Tyy)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _Tyy_vec.data();
+std::vector<float> _Tzz_vec(2*dimx*dimy*dimz);
+float (*Tzz)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _Tzz_vec.data();
+std::vector<float> _Txy_vec(2*dimx*dimy*dimz);
+float (*Txy)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _Txy_vec.data();
+std::vector<float> _Tyz_vec(2*dimx*dimy*dimz);
+float (*Tyz)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _Tyz_vec.data();
+std::vector<float> _Txz_vec(2*dimx*dimy*dimz);
+float (*Txz)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _Txz_vec.data();
+std::vector<float> _U_vec(2*dimx*dimy*dimz);
+float (*U)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _U_vec.data();
+std::vector<float> _V_vec(2*dimx*dimy*dimz);
+float (*V)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _V_vec.data();
+std::vector<float> _W_vec(2*dimx*dimy*dimz);
+float (*W)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _W_vec.data();
 
-    float (*U)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) u.data();
-    float (*V)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) v.data();
-    float (*W)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) w.data();
-
-    float (*Txx)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) txx.data();
-    float (*Tyy)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) tyy.data();
-    float (*Tzz)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) tzz.data();
-    float (*Tyz)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) tyz.data();
-    float (*Txz)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) txz.data();
-    float (*Txy)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) txy.data(); 
 
 #pragma omp parallel
   {
@@ -103,7 +108,7 @@ for(int i=2;i<dimx - 2;++i){
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
     		Txx[0][i][j][k]=0;
-    	}    	
+    	}
     }
 }
 #pragma omp for
@@ -114,7 +119,7 @@ for(int i=2;i<dimx - 2;++i){
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
     		Tyy[0][i][j][k]=0;
-    	}    	
+    	}
     }
 }
 #pragma omp for
@@ -125,7 +130,7 @@ for(int i=2;i<dimx - 2;++i){
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
     		Tzz[0][i][j][k]=0;
-    	}    	
+    	}
     }
 }
 #pragma omp for
@@ -136,7 +141,7 @@ for(int i=2;i<dimx - 3;++i){
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 2);
     		Txy[0][i][j][k]=0.0;
-    	}    	
+    	}
     }
 }
 #pragma omp for
@@ -147,7 +152,7 @@ for(int i=2;i<dimx - 2;++i){
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 1.5);
     		Tyz[0][i][j][k]=0.0;
-    	}    	
+    	}
     }
 }
 #pragma omp for
@@ -158,7 +163,7 @@ for(int i=2;i<dimx - 3;++i){
     		float y = dy*(j - 2);
     		float z = dz*(k - 1.5);
     		Txz[0][i][j][k]=0.0;
-    	}    	
+    	}
     }
 }
 #pragma omp for
@@ -168,8 +173,8 @@ for(int i=2;i<dimx - 3;++i){
     		float x = dx*(i - 1.5);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		U[0][i][j][k]=(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(0.5*sqrt(2)*M_PI*sqrt(mu/rho));
-    	}    	
+    		U[0][i][j][k]=(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
+    	}
     }
 }
 #pragma omp for
@@ -179,8 +184,8 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 2);
-    		V[0][i][j][k]=(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(0.5*sqrt(2)*M_PI*sqrt(mu/rho));
-    	}    	
+    		V[0][i][j][k]=(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
+    	}
     }
 }
 #pragma omp for
@@ -190,8 +195,8 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 1.5);
-    		W[0][i][j][k]=(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(0.5*sqrt(2)*M_PI*sqrt(mu/rho));
-    	}    	
+    		W[0][i][j][k]=(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
+    	}
     }
 }
 
@@ -1187,7 +1192,7 @@ for(int i=2;i<dimx - 2;++i){
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
     		Txx_l2+=pow(sqrt(2)*sqrt(mu*rho)*(sin(M_PI*y) - sin(M_PI*z))*sin(M_PI*x)*sin(sqrt(2)*M_PI*sqrt(mu/rho)) + Txx[0][i][j][k], 2.0);
-    	}    	
+    	}
     }
 }
 printf("Txx_l2 = %.10f\n", Txx_l2);
@@ -1200,7 +1205,7 @@ for(int i=2;i<dimx - 2;++i){
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
     		Tyy_l2+=pow(sqrt(2)*sqrt(mu*rho)*(-sin(M_PI*x) + sin(M_PI*z))*sin(M_PI*y)*sin(sqrt(2)*M_PI*sqrt(mu/rho)) + Tyy[0][i][j][k], 2.0);
-    	}    	
+    	}
     }
 }
 printf("Tyy_l2 = %.10f\n", Tyy_l2);
@@ -1213,7 +1218,7 @@ for(int i=2;i<dimx - 2;++i){
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
     		Tzz_l2+=pow(sqrt(2)*sqrt(mu*rho)*(sin(M_PI*x) - sin(M_PI*y))*sin(M_PI*z)*sin(sqrt(2)*M_PI*sqrt(mu/rho)) + Tzz[0][i][j][k], 2.0);
-    	}    	
+    	}
     }
 }
 printf("Tzz_l2 = %.10f\n", Tzz_l2);
@@ -1226,7 +1231,7 @@ for(int i=2;i<dimx - 3;++i){
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 2);
     		Txy_l2+=pow(Txy[0][i][j][k], 2.0);
-    	}    	
+    	}
     }
 }
 printf("Txy_l2 = %.10f\n", Txy_l2);
@@ -1239,7 +1244,7 @@ for(int i=2;i<dimx - 2;++i){
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 1.5);
     		Tyz_l2+=pow(Tyz[0][i][j][k], 2.0);
-    	}    	
+    	}
     }
 }
 printf("Tyz_l2 = %.10f\n", Tyz_l2);
@@ -1252,7 +1257,7 @@ for(int i=2;i<dimx - 3;++i){
     		float y = dy*(j - 2);
     		float z = dz*(k - 1.5);
     		Txz_l2+=pow(Txz[0][i][j][k], 2.0);
-    	}    	
+    	}
     }
 }
 printf("Txz_l2 = %.10f\n", Txz_l2);
@@ -1264,8 +1269,8 @@ for(int i=2;i<dimx - 3;++i){
     		float x = dx*(i - 1.5);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		U_l2+=pow(-(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(sqrt(2)*M_PI*sqrt(mu/rho)) + U[0][i][j][k], 2.0);
-    	}    	
+    		U_l2+=pow(-(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(1.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + U[0][i][j][k], 2.0);
+    	}
     }
 }
 printf("U_l2 = %.10f\n", U_l2);
@@ -1277,8 +1282,8 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 2);
-    		V_l2+=pow(-(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(sqrt(2)*M_PI*sqrt(mu/rho)) + V[0][i][j][k], 2.0);
-    	}    	
+    		V_l2+=pow(-(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(1.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + V[0][i][j][k], 2.0);
+    	}
     }
 }
 printf("V_l2 = %.10f\n", V_l2);
@@ -1290,12 +1295,13 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 1.5);
-    		W_l2+=pow(-(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(sqrt(2)*M_PI*sqrt(mu/rho)) + W[0][i][j][k], 2.0);
-    	}    	
+    		W_l2+=pow(-(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(1.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + W[0][i][j][k], 2.0);
+    	}
     }
 }
 printf("W_l2 = %.10f\n", W_l2);
 		
+    opesci_dump_field_vts_3d('vtk_test', {dimx, dimy, dimz}, {dx, dy, dz}, 2, Txx[0]);
 
   return 0;
 }

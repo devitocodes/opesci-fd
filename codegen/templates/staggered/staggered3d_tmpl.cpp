@@ -7,14 +7,11 @@
 int main(){
 
   const int _tp = 2;
-  // defined constants
   ${define_constants}
-  // set up solution mesh
   ${declare_fields}
 
 #pragma omp parallel
   {
-  // Initialise fields
   ${initialise}
   ${initialise_bc}
 
@@ -28,17 +25,16 @@ int main(){
     }
 
     ${stress_loop}
-
     ${stress_bc}
-
     ${velocity_loop}
-
     ${velocity_bc}
+
+    ${output_step}
 
   } // end of time loop
   } // end of parallel section
 
-  ${output}
+  ${output_final}
 
   return 0;
 }

@@ -1,14 +1,3 @@
-    #pragma omp single
-    {
-    printf("%d\n", _ti);
-    for(int x=0;x<dimx;x++){
-      for(int y=0;y<dimy;y++){
-        printf("%.5f ", Txx[t][x][y]);
-      }
-      printf("\n");
-    }
-    }
-
 
 std::vector<float> u(2*dimx*dimy*dimz), v(2*dimx*dimy*dimz), w(2*dimx*dimy*dimz),
     txx(2*dimx*dimy*dimz), tyy(2*dimx*dimy*dimz), tzz(2*dimx*dimy*dimz),
@@ -24,3 +13,17 @@ std::vector<float> u(2*dimx*dimy*dimz), v(2*dimx*dimy*dimz), w(2*dimx*dimy*dimz)
     float (*Tyz)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) tyz.data();
     float (*Txz)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) txz.data();
     float (*Txy)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) txy.data(); 
+
+
+
+
+printf("%d\n", _ti);
+for(int i=2;i<dimx - 2;++i){
+    for(int j=2;j<dimy - 2;++j){
+      for(int k=2;k<dimz - 2;++k){
+        printf("%.4f ",V[0][i][j][k]);
+      }
+      printf("\n");
+    }
+    printf("\n");
+}

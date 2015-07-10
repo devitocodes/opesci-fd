@@ -445,9 +445,10 @@ class StaggeredGrid3D:
 		self.margin = 2
 		self.h = symbols('dx dy dz')
 		self.dt = Symbol('dt')
+		self.ntsteps= Symbol('ntsteps')
 		self.dim = symbols('dimx dimy dimz')
 		self.float_symbols = {self.h[0]:0.1,self.h[1]:0.1,self.h[2]:0.1,self.dt:1.0} # dictionary to hold symbols and their values
-		self.int_symbols = {Symbol('ntsteps'):1,self.dim[0]:0,self.dim[1]:0,self.dim[2]:0, Symbol('t'):0, Symbol('t1'):0}
+		self.int_symbols = {self.ntsteps:1,self.dim[0]:0,self.dim[1]:0,self.dim[2]:0, Symbol('t'):0, Symbol('t1'):0}
 
 	def set_domain_size(self, size):
 		self.size = size
@@ -465,6 +466,15 @@ class StaggeredGrid3D:
 			self.int_symbols[var] = value
 		else:
 			self.float_symbols[var] = value
+
+	def get_time_step_limit(self):
+		# Vp = sqrt((lambda+2*mu)/rho)
+		l = self.float_symbols[Symbol('lambda')]
+		m = self.float_symbols[Symbol('mu')]
+		r = self.float_symbols[Symbol('rho')]
+		Vp = ((l + 2*m)/r)**0.5
+		h = min([self.float_symbols[x] for x in self.h])
+		return 0.5*h/Vp
 
 	def set_time_step(self, dt, tmax):
 		self.float_symbols[self.dt] = dt
@@ -514,7 +524,9 @@ class StaggeredGrid3D:
 	def declare_fields(self):
 		result = ''
 		for field in self.sfields + self.vfields:
-			result += 'float ' + ccode(field.name[[2]+list(self.dim)]) + ';\n'
+			vec = '_' + ccode(field.name.label) + '_vec'
+			result += 'std::vector<float> ' + vec + '(2*dimx*dimy*dimz);\n'
+			result += 'float (*' + ccode(field.name.label) + ')[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) ' + vec + '.data();\n'
 		return result
 
 	def initialise(self):
@@ -541,7 +553,7 @@ class StaggeredGrid3D:
 					ijk0[d] = ccode(m) # same as first case
 					ijk1[d] = ccode(self.dim[d]-m-1)
 
-			t0 = 0.5 if field.offset[0] else 0
+			t0 = self.float_symbols[self.dt]/2.0 if field.offset[0] else 0.0
 			body = ccode(field.name[0,i,j,k]) + '=' + ccode(field.func.subs(t,t0)) + ';'
 			dict1 = {'i':'i','j':'j','k':'k','i0':ijk0[0],'i1':ijk1[0],'j0':ijk0[1],'j1':ijk1[1],'k0':ijk0[2],'k1':ijk1[2],'xvalue':xyzvalue[0],'yvalue':xyzvalue[1],'zvalue':xyzvalue[2],'body':body}
 			result += render(tmpl, dict1)
@@ -636,6 +648,9 @@ class StaggeredGrid3D:
 		xyzvalue = [None]*3
 		ijk0 = [None]*3
 		ijk1 = [None]*3
+		dt = self.float_symbols[self.dt]
+		ntsteps = self.int_symbols[self.ntsteps]
+		ti = 0 if ntsteps%2 == 0 else 1
 
 		result = ''
 
@@ -653,8 +668,8 @@ class StaggeredGrid3D:
 					ijk0[d] = ccode(m) # same as first case
 					ijk1[d] = ccode(self.dim[d]-m-1)
 
-			tn = 1.0 if field.offset[0] else 1.0
-			body = l2 + '+=' + ccode((field.name[0,i,j,k]-field.func.subs(t,tn))**2.0) + ';'
+			tn = dt*ntsteps if not field.offset[0] else dt*ntsteps + dt/2.0
+			body = l2 + '+=' + ccode((field.name[ti,i,j,k]-(field.func.subs(t,tn)))**2.0) + ';'
 			dict1 = {'i':'i','j':'j','k':'k','i0':ijk0[0],'i1':ijk1[0],'j0':ijk0[1],'j1':ijk1[1],'k0':ijk0[2],'k1':ijk1[2],'xvalue':xyzvalue[0],'yvalue':xyzvalue[1],'zvalue':xyzvalue[2],'body':body}
 			result += render(tmpl, dict1)
 			result += 'printf("' + l2 + ' = %.10f\\n", ' + l2 + ');\n\t\t'
