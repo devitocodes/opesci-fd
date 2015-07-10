@@ -1,7 +1,7 @@
 #pragma omp for
 for(int ${i}=${i0};${i}<${i1};++${i}){
     for(int ${j}=${j0};${j}<${j1};++${j}){
-    	for(int ${k}=${k0};${j}<${k1};++${k}){
+    	for(int ${k}=${k0};${k}<${k1};++${k}){
     		float x = ${xvalue};
     		float y = ${yvalue};
     		float z = ${zvalue};

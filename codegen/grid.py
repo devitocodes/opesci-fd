@@ -447,7 +447,7 @@ class StaggeredGrid3D:
 		self.dt = Symbol('dt')
 		self.dim = symbols('dimx dimy dimz')
 		self.float_symbols = {self.h[0]:0.1,self.h[1]:0.1,self.h[2]:0.1,self.dt:1.0} # dictionary to hold symbols and their values
-		self.int_symbols = {Symbol('margin'):2, Symbol('ntsteps'):1,self.dim[0]:0,self.dim[1]:0,self.dim[2]:0, Symbol('t'):0, Symbol('t1'):0}
+		self.int_symbols = {Symbol('ntsteps'):1,self.dim[0]:0,self.dim[1]:0,self.dim[2]:0, Symbol('t'):0, Symbol('t1'):0}
 
 	def set_domain_size(self, size):
 		self.size = size
@@ -558,9 +558,9 @@ class StaggeredGrid3D:
 		t, x, y, z = self.index
 		t1 = Symbol('t1')
 		m = self.margin
-		i1 = ccode(self.h[0]-m)
-		j1 = ccode(self.h[1]-m)
-		k1 = ccode(self.h[2]-m)
+		i1 = ccode(self.dim[0]-m)
+		j1 = ccode(self.dim[1]-m)
+		k1 = ccode(self.dim[2]-m)
 		body = ''
 		for field in self.sfields:
 			body += ccode(field.name[t1,x,y,z]) + '=' + ccode(field.shift_fd) + ';\n\t\t\t'
@@ -573,9 +573,9 @@ class StaggeredGrid3D:
 		t, x, y, z = self.index
 		t1 = Symbol('t1')
 		m = self.margin
-		i1 = ccode(self.h[0]-m)
-		j1 = ccode(self.h[1]-m)
-		k1 = ccode(self.h[2]-m)
+		i1 = ccode(self.dim[0]-m)
+		j1 = ccode(self.dim[1]-m)
+		k1 = ccode(self.dim[2]-m)
 		body = ''
 		for field in self.vfields:
 			body += ccode(field.name[t1,x,y,z]) + '=' + ccode(field.shift_fd.replace(t+1,t1)) + ';\n\t\t\t'
@@ -657,6 +657,6 @@ class StaggeredGrid3D:
 			body = l2 + '+=' + ccode((field.name[0,i,j,k]-field.func.subs(t,tn))**2.0) + ';'
 			dict1 = {'i':'i','j':'j','k':'k','i0':ijk0[0],'i1':ijk1[0],'j0':ijk0[1],'j1':ijk1[1],'k0':ijk0[2],'k1':ijk1[2],'xvalue':xyzvalue[0],'yvalue':xyzvalue[1],'zvalue':xyzvalue[2],'body':body}
 			result += render(tmpl, dict1)
-			result += 'printf("' + l2 + ' = %.5f\\n", ' + l2 + ');\n\t\t'
+			result += 'printf("' + l2 + ' = %.10f\\n", ' + l2 + ');\n\t\t'
 
 		return result
