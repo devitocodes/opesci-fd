@@ -351,6 +351,7 @@ class StaggeredGrid2D:
 class Field:
 	
 	def __init__(self, name, offset):
+		self.lookup = TemplateLookup(directories=['templates/staggered/'])
 		self.name = IndexedBase(name)
 		self.offset = offset
 		self.d = [[None]*4 for x in range(len(offset))] # list of list to store derivative expressions	
@@ -373,6 +374,14 @@ class Field:
 		self.fd = fd
 		t = self.recenter(fd)
 		self.shift_fd = shift_grid(t)
+
+	def save_field(self):
+		tmpl = self.lookup.get_template('save_field.txt')
+		result = ''
+		dict1 = {'filename':ccode(self.name.label)+'_','field':ccode(self.name.label)}
+		result = render(tmpl, dict1)
+
+		return result
 
 	def set_free_surface_stress(self, indices, d, b, side):
 		# boundary at dimension[d] = b
@@ -637,6 +646,11 @@ class StaggeredGrid3D:
 					dict1 = {'i':i,'j':j,'i0':1,'i1':i1-1,'j0':1,'j1':j1-1,'body':field.bc[d][side]}
 					result += render(tmpl, dict1)
 
+		return result
+
+	def output_step(self):
+		result = ''
+		result += self.vfields[0].save_field()
 		return result
 
 	def converge_test(self):

@@ -412,7 +412,7 @@ int opesci_read_model_segy(const char *filename, std::vector<float> &array, int 
 
 
 
-void opesci_dump_field_vts_3d(std::string name, const int dims[], const float spacing[], int margin, float ***field){
+void opesci_dump_field_vts_3d(std::string name, const int dims[], const float spacing[], int margin, float *field){
 #ifdef VTK_FOUND
 
   vtkSmartPointer<vtkStructuredGrid> sg = vtkSmartPointer<vtkStructuredGrid>::New();
@@ -420,12 +420,12 @@ void opesci_dump_field_vts_3d(std::string name, const int dims[], const float sp
   
   {
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
-    for(int i=margin;i<dims[0]-margin;i++){
+    for(int i=0;i<dims[0];i++){
       float x = (i-margin)*spacing[0];
-      for(int j=margin;j<dims[1]-margin;j++){
+      for(int j=0;j<dims[1];j++){
         float y = (j-margin)*spacing[1];
-        for(int k=margin;k<dims[2]-margin;k++){
-          float z = (k-margin)*spacing[0];
+        for(int k=0;k<dims[2];k++){
+          float z = (k-margin)*spacing[2];
           points->InsertNextPoint(x, y, z);
         }
       }
@@ -436,12 +436,12 @@ void opesci_dump_field_vts_3d(std::string name, const int dims[], const float sp
   {
     vtkSmartPointer<vtkFloatArray> vtkfield = vtkSmartPointer<vtkFloatArray>::New();  
     vtkfield->SetName("field");
-    vtkfield->SetNumberOfTuples((dims[0]-margin*2)*(dims[1]-margin*2)*(dims[2]-margin*2));
-    for(int i=margin;i<dims[0]-margin;i++){
-      for(int j=margin;j<dims[1]-margin;j++){
-        for(int k=margin;i<dims[2]-margin;k++){
+    vtkfield->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
+    for(int i=0;i<dims[0];i++){
+      for(int j=0;j<dims[1];j++){
+        for(int k=0;k<dims[2];k++){
           int index = i*dims[1]*dims[2]+j*dims[2]+k;
-          vtkfield->SetTuple1(index, field[i][j][k]);
+          vtkfield->SetTuple1(index, *(field+index));
         }
       }
     }

@@ -53,4 +53,6 @@ int opesci_read_souces(const char *xyz_filename, const char *xsrc_filename, cons
 int opesci_read_receivers(const char *filename, std::vector<float> &array);
 int opesci_read_model_segy(const char *filename, std::vector<float> &array, int dim[], float spacing[]);
 
+void opesci_dump_field_vts_3d(std::string name, const int dims[], const float spacing[], int margin, float *field);
+
 #endif

@@ -3,6 +3,7 @@
 <%include file="common_include.txt"/>
 #include <cmath>
 #include <cstdio>
+#include <string>
 
 int main(){
 

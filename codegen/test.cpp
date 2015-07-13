@@ -55,17 +55,17 @@
 #include <vector>
 #include <cmath>
 #include <cstdio>
+#include <string>
 
 int main(){
 
   const int _tp = 2;
-  // defined constants
-  float dt = 0.005;
+  float dt = 0.02;
 float mu = 0.5;
 float rho = 1.0;
 float dz = 0.1;
 float dx = 0.1;
-float tmax = 1.0;
+float tmax = 4.0;
 float dy = 0.1;
 float beta = 1.0;
 float lambda = 0.5;
@@ -76,7 +76,6 @@ int dimz = 45;
 int dimy = 45;
 int t = 0;
 
-  // set up solution mesh
   std::vector<float> _Txx_vec(2*dimx*dimy*dimz);
 float (*Txx)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _Txx_vec.data();
 std::vector<float> _Tyy_vec(2*dimx*dimy*dimz);
@@ -99,7 +98,6 @@ float (*W)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _W_vec.data();
 
 #pragma omp parallel
   {
-  // Initialise fields
   #pragma omp for
 for(int i=2;i<dimx - 2;++i){
     for(int j=2;j<dimy - 2;++j){
@@ -173,7 +171,7 @@ for(int i=2;i<dimx - 3;++i){
     		float x = dx*(i - 1.5);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		U[0][i][j][k]=(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
+    		U[0][i][j][k]=(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(0.01*sqrt(2)*M_PI*sqrt(mu/rho));
     	}
     }
 }
@@ -184,7 +182,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 2);
-    		V[0][i][j][k]=(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
+    		V[0][i][j][k]=(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(0.01*sqrt(2)*M_PI*sqrt(mu/rho));
     	}
     }
 }
@@ -195,7 +193,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 1.5);
-    		W[0][i][j][k]=(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
+    		W[0][i][j][k]=(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(0.01*sqrt(2)*M_PI*sqrt(mu/rho));
     	}
     }
 }
@@ -694,7 +692,6 @@ for(int x=2;x<dimx - 2;++x){
     }
 }
 
-
       // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
@@ -1020,7 +1017,6 @@ for(int x=2;x<dimx - 2;++x){
       }
   }
 
-
     #pragma omp for
 for(int x=2;x<dimx - 2;++x){
     for(int y=2;y<dimy - 2;++y){
@@ -1032,7 +1028,6 @@ for(int x=2;x<dimx - 2;++x){
     	}    	
     }
 }
-
 
       // update ghost cells for boundary conditions
   #pragma omp for
@@ -1180,6 +1175,8 @@ for(int x=2;x<dimx - 2;++x){
   }
 
 
+    
+
   } // end of time loop
   } // end of parallel section
 
@@ -1191,7 +1188,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		Txx_l2+=pow(sqrt(2)*sqrt(mu*rho)*(sin(M_PI*y) - sin(M_PI*z))*sin(M_PI*x)*sin(sqrt(2)*M_PI*sqrt(mu/rho)) + Txx[0][i][j][k], 2.0);
+    		Txx_l2+=pow(sqrt(2)*sqrt(mu*rho)*(sin(M_PI*y) - sin(M_PI*z))*sin(M_PI*x)*sin(4.0*sqrt(2)*M_PI*sqrt(mu/rho)) + Txx[0][i][j][k], 2.0);
     	}
     }
 }
@@ -1204,7 +1201,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		Tyy_l2+=pow(sqrt(2)*sqrt(mu*rho)*(-sin(M_PI*x) + sin(M_PI*z))*sin(M_PI*y)*sin(sqrt(2)*M_PI*sqrt(mu/rho)) + Tyy[0][i][j][k], 2.0);
+    		Tyy_l2+=pow(sqrt(2)*sqrt(mu*rho)*(-sin(M_PI*x) + sin(M_PI*z))*sin(M_PI*y)*sin(4.0*sqrt(2)*M_PI*sqrt(mu/rho)) + Tyy[0][i][j][k], 2.0);
     	}
     }
 }
@@ -1217,7 +1214,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		Tzz_l2+=pow(sqrt(2)*sqrt(mu*rho)*(sin(M_PI*x) - sin(M_PI*y))*sin(M_PI*z)*sin(sqrt(2)*M_PI*sqrt(mu/rho)) + Tzz[0][i][j][k], 2.0);
+    		Tzz_l2+=pow(sqrt(2)*sqrt(mu*rho)*(sin(M_PI*x) - sin(M_PI*y))*sin(M_PI*z)*sin(4.0*sqrt(2)*M_PI*sqrt(mu/rho)) + Tzz[0][i][j][k], 2.0);
     	}
     }
 }
@@ -1269,7 +1266,7 @@ for(int i=2;i<dimx - 3;++i){
     		float x = dx*(i - 1.5);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		U_l2+=pow(-(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(1.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + U[0][i][j][k], 2.0);
+    		U_l2+=pow(-(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(4.01*sqrt(2)*M_PI*sqrt(mu/rho)) + U[0][i][j][k], 2.0);
     	}
     }
 }
@@ -1282,7 +1279,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 2);
-    		V_l2+=pow(-(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(1.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + V[0][i][j][k], 2.0);
+    		V_l2+=pow(-(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(4.01*sqrt(2)*M_PI*sqrt(mu/rho)) + V[0][i][j][k], 2.0);
     	}
     }
 }
@@ -1295,13 +1292,12 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 1.5);
-    		W_l2+=pow(-(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(1.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + W[0][i][j][k], 2.0);
+    		W_l2+=pow(-(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(4.01*sqrt(2)*M_PI*sqrt(mu/rho)) + W[0][i][j][k], 2.0);
     	}
     }
 }
 printf("W_l2 = %.10f\n", W_l2);
 		
-    opesci_dump_field_vts_3d('vtk_test', {dimx, dimy, dimz}, {dx, dy, dz}, 2, Txx[0]);
 
   return 0;
 }
