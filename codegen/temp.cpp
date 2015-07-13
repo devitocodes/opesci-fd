@@ -27,3 +27,6 @@ for(int i=2;i<dimx - 2;++i){
     }
     printf("\n");
 }
+
+U[t1][x][1][z]=((  - dy*V[t1][x][1][z] + dy*V[t1][x][2][z] + dy*V[t1][x + 1][1][z] - dy*V[t1][x + 1][2][z])
+U[t1][x][dimy - 2][z]=((  - dy*V[t1][x][dimy - 4][z] + dy*V[t1][x][dimy - 3][z] + dy*V[t1][x + 1][dimy - 4][z] - dy*V[t1][x + 1][dimy - 3][z])

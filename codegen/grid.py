@@ -386,33 +386,44 @@ class Field:
 	def set_free_surface_stress(self, indices, d, b, side):
 		# boundary at dimension[d] = b
 		result = ''
+		if d == 1:
+			ch = 'x'
+		elif d == 2:
+			ch = 'y'
+		else:
+			ch = 'z'
+
+		if ch not in ccode(self.name.label):
+			self.bc[d][side] = '// nothing'
+			return
+
 		idx = list(indices)
 		idx2 = list(indices)
 		if not self.offset[d]:
 			idx[d] = b
-			result += ccode(self.name[idx]) +' = 0;\n\t\t\t'
+			result += ccode(self.name[idx]) +' = 0;\n\t\t\t\t'
 			if side==0:
 				idx[d] = b-1
 				idx2[d] = b+1
 			else:
 				idx[d] = b+1
 				idx2[d] = b-1
-			result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t'
+			result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
 		else:
 			if side==0:
 				idx[d] = b-1
 				idx2[d] = b
-				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t'
+				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
 				idx[d] = b-2
 				idx2[d] = b+1
-				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t'
+				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
 			else:
 				idx[d] = b
 				idx2[d] = b-1
-				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t'
+				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
 				idx[d] = b+1
 				idx2[d] = b-2
-				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t'
+				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
 
 		self.bc[d][side] = result
 
@@ -434,7 +445,9 @@ class Field:
 
 		lhs = self.name[idx]
 		rhs = solve(eq,lhs)[0]
-		self.bc[d][side] = ccode(shift_grid(lhs)) + '=' + ccode(shift_grid(self.recenter(rhs))) + ';\n\t\t\t'
+		if shift == 1:
+			rhs = self.recenter(rhs) # shift if not shifted already
+		self.bc[d][side] = ccode(shift_grid(lhs)) + '=' + ccode(shift_grid(rhs)) + ';\n\t\t\t\t'
 
 	def associate_stress_fields(self,sfields):
 		self.sfields = sfields
@@ -465,6 +478,7 @@ class StaggeredGrid3D:
 	def set_spacing(self, spacing):
 		self.spacing = spacing
 		for k in range(3):
+			self.float_symbols[self.h[k]] = self.spacing[k]
 			self.int_symbols[self.dim[k]] = int(self.size[k]/self.spacing[k]) + 1 + self.margin*2
 
 	def set_index(self, indices):
@@ -570,8 +584,8 @@ class StaggeredGrid3D:
 		return result
 
 	def initialise_boundary(self):
-		result = self.stress_bc().replace('[t]','[0]')
-		result += self.velocity_bc().replace('[t]','[0]')
+		result = self.stress_bc().replace('[t1]','[0]')
+		result += self.velocity_bc().replace('[t1]','[0]')
 		return result
 
 	def stress_loop(self):
@@ -630,7 +644,8 @@ class StaggeredGrid3D:
 				for side in range(2):
 					i,j,i1,j1 = self._get_ij(d)
 					dict1 = {'i':i,'j':j,'i0':0,'i1':i1,'j0':0,'j1':j1,'body':field.bc[d][side]}
-					result += render(tmpl, dict1)
+					result += render(tmpl, dict1).replace('[t]','[t1]')
+
 
 		return result
 
@@ -639,12 +654,12 @@ class StaggeredGrid3D:
 		result = ''
 		for d in range(1,4):
 			# update the staggered field first because other fields depends on it
-			sequence = [f for f in self.vfields if not f.offset[d]] + [f for f in self.vfields if f.offset[d]]
+			sequence = [f for f in self.vfields if f.offset[d]] + [f for f in self.vfields if not f.offset[d]]
 			for field in sequence:
 				for side in range(2):
 					i,j,i1,j1 = self._get_ij(d)
 					dict1 = {'i':i,'j':j,'i0':1,'i1':i1-1,'j0':1,'j1':j1-1,'body':field.bc[d][side]}
-					result += render(tmpl, dict1)
+					result += render(tmpl, dict1).replace('[t]','[t1]')
 
 		return result
 
