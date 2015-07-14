@@ -8,6 +8,9 @@
 int main(){
 
   const int _tp = 2;
+  int t1 = 0;
+  int t = 0;
+  
   ${define_constants}
   ${declare_fields}
 

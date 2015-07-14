@@ -470,7 +470,7 @@ class StaggeredGrid3D:
 		self.ntsteps= Symbol('ntsteps')
 		self.dim = symbols('dimx dimy dimz')
 		self.float_symbols = {self.h[0]:0.1,self.h[1]:0.1,self.h[2]:0.1,self.dt:1.0} # dictionary to hold symbols and their values
-		self.int_symbols = {self.ntsteps:1,self.dim[0]:0,self.dim[1]:0,self.dim[2]:0, Symbol('t'):0, Symbol('t1'):0}
+		self.int_symbols = {self.ntsteps:1,self.dim[0]:0,self.dim[1]:0,self.dim[2]:0}
 
 	def set_domain_size(self, size):
 		self.size = size
@@ -539,9 +539,9 @@ class StaggeredGrid3D:
 	def define_const(self):
 		result = ''
 		for v in self.float_symbols:
-			result += 'float ' + v.name + ' = ' + str(self.float_symbols[v]) + ';\n'
+			result += 'const float ' + v.name + ' = ' + str(self.float_symbols[v]) + ';\n'
 		for v in self.int_symbols:
-			result += 'int ' + v.name + ' = ' + str(self.int_symbols[v]) + ';\n'
+			result += 'const int ' + v.name + ' = ' + str(self.int_symbols[v]) + ';\n'
 		return result
 
 	def declare_fields(self):

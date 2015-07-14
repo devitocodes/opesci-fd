@@ -60,21 +60,22 @@
 int main(){
 
   const int _tp = 2;
-  float dt = 0.02;
-float mu = 0.5;
-float rho = 1.0;
-float dz = 0.1;
-float dx = 0.1;
-float tmax = 4.0;
-float dy = 0.1;
-float beta = 1.0;
-float lambda = 0.5;
-int dimx = 45;
-int ntsteps = 200;
-int t1 = 0;
-int dimz = 45;
-int dimy = 45;
-int t = 0;
+  int t1 = 0;
+  int t = 0;
+  
+  const float dt = 0.005;
+const float mu = 0.5;
+const float rho = 1.0;
+const float dz = 0.02;
+const float dx = 0.02;
+const float tmax = 4.0;
+const float dy = 0.02;
+const float beta = 1.0;
+const float lambda = 0.5;
+const int dimx = 55;
+const int ntsteps = 800;
+const int dimy = 55;
+const int dimz = 55;
 
   std::vector<float> _Txx_vec(2*dimx*dimy*dimz);
 float (*Txx)[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) _Txx_vec.data();
@@ -171,7 +172,7 @@ for(int i=2;i<dimx - 3;++i){
     		float x = dx*(i - 1.5);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		U[0][i][j][k]=(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(0.01*sqrt(2)*M_PI*sqrt(mu/rho));
+    		U[0][i][j][k]=(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
     	}
     }
 }
@@ -182,7 +183,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 2);
-    		V[0][i][j][k]=(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(0.01*sqrt(2)*M_PI*sqrt(mu/rho));
+    		V[0][i][j][k]=(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
     	}
     }
 }
@@ -193,7 +194,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 1.5);
-    		W[0][i][j][k]=(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(0.01*sqrt(2)*M_PI*sqrt(mu/rho));
+    		W[0][i][j][k]=(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(0.0025*sqrt(2)*M_PI*sqrt(mu/rho));
     	}
     }
 }
@@ -203,8 +204,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
         Txx[0][2][y][z] = 0;
-			Txx[0][1][y][z] = -Txx[0][3][y][z];
-			
+				Txx[0][1][y][z] = -Txx[0][3][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -212,62 +213,50 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
         Txx[0][dimx - 3][y][z] = 0;
-			Txx[0][dimx - 2][y][z] = -Txx[0][dimx - 4][y][z];
-			
+				Txx[0][dimx - 2][y][z] = -Txx[0][dimx - 4][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txx[0][x][2][z] = 0;
-			Txx[0][x][1][z] = -Txx[0][x][3][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txx[0][x][dimy - 3][z] = 0;
-			Txx[0][x][dimy - 2][z] = -Txx[0][x][dimy - 4][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txx[0][x][y][2] = 0;
-			Txx[0][x][y][1] = -Txx[0][x][y][3];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txx[0][x][y][dimz - 3] = 0;
-			Txx[0][x][y][dimz - 2] = -Txx[0][x][y][dimz - 4];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tyy[0][2][y][z] = 0;
-			Tyy[0][1][y][z] = -Tyy[0][3][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tyy[0][dimx - 3][y][z] = 0;
-			Tyy[0][dimx - 2][y][z] = -Tyy[0][dimx - 4][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
@@ -275,8 +264,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
         Tyy[0][x][2][z] = 0;
-			Tyy[0][x][1][z] = -Tyy[0][x][3][z];
-			
+				Tyy[0][x][1][z] = -Tyy[0][x][3][z];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -284,62 +273,50 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
         Tyy[0][x][dimy - 3][z] = 0;
-			Tyy[0][x][dimy - 2][z] = -Tyy[0][x][dimy - 4][z];
-			
+				Tyy[0][x][dimy - 2][z] = -Tyy[0][x][dimy - 4][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Tyy[0][x][y][2] = 0;
-			Tyy[0][x][y][1] = -Tyy[0][x][y][3];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Tyy[0][x][y][dimz - 3] = 0;
-			Tyy[0][x][y][dimz - 2] = -Tyy[0][x][y][dimz - 4];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tzz[0][2][y][z] = 0;
-			Tzz[0][1][y][z] = -Tzz[0][3][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tzz[0][dimx - 3][y][z] = 0;
-			Tzz[0][dimx - 2][y][z] = -Tzz[0][dimx - 4][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Tzz[0][x][2][z] = 0;
-			Tzz[0][x][1][z] = -Tzz[0][x][3][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Tzz[0][x][dimy - 3][z] = 0;
-			Tzz[0][x][dimy - 2][z] = -Tzz[0][x][dimy - 4][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
@@ -347,8 +324,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
         Tzz[0][x][y][2] = 0;
-			Tzz[0][x][y][1] = -Tzz[0][x][y][3];
-			
+				Tzz[0][x][y][1] = -Tzz[0][x][y][3];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -356,8 +333,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
         Tzz[0][x][y][dimz - 3] = 0;
-			Tzz[0][x][y][dimz - 2] = -Tzz[0][x][y][dimz - 4];
-			
+				Tzz[0][x][y][dimz - 2] = -Tzz[0][x][y][dimz - 4];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -365,8 +342,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
         Txy[0][1][y][z] = -Txy[0][2][y][z];
-			Txy[0][0][y][z] = -Txy[0][3][y][z];
-			
+				Txy[0][0][y][z] = -Txy[0][3][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -374,8 +351,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
         Txy[0][dimx - 3][y][z] = -Txy[0][dimx - 4][y][z];
-			Txy[0][dimx - 2][y][z] = -Txy[0][dimx - 5][y][z];
-			
+				Txy[0][dimx - 2][y][z] = -Txy[0][dimx - 5][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -383,8 +360,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
         Txy[0][x][1][z] = -Txy[0][x][2][z];
-			Txy[0][x][0][z] = -Txy[0][x][3][z];
-			
+				Txy[0][x][0][z] = -Txy[0][x][3][z];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -392,44 +369,36 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
         Txy[0][x][dimy - 3][z] = -Txy[0][x][dimy - 4][z];
-			Txy[0][x][dimy - 2][z] = -Txy[0][x][dimy - 5][z];
-			
+				Txy[0][x][dimy - 2][z] = -Txy[0][x][dimy - 5][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txy[0][x][y][2] = 0;
-			Txy[0][x][y][1] = -Txy[0][x][y][3];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txy[0][x][y][dimz - 3] = 0;
-			Txy[0][x][y][dimz - 2] = -Txy[0][x][y][dimz - 4];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tyz[0][2][y][z] = 0;
-			Tyz[0][1][y][z] = -Tyz[0][3][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tyz[0][dimx - 3][y][z] = 0;
-			Tyz[0][dimx - 2][y][z] = -Tyz[0][dimx - 4][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
@@ -437,8 +406,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
         Tyz[0][x][1][z] = -Tyz[0][x][2][z];
-			Tyz[0][x][0][z] = -Tyz[0][x][3][z];
-			
+				Tyz[0][x][0][z] = -Tyz[0][x][3][z];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -446,8 +415,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
         Tyz[0][x][dimy - 3][z] = -Tyz[0][x][dimy - 4][z];
-			Tyz[0][x][dimy - 2][z] = -Tyz[0][x][dimy - 5][z];
-			
+				Tyz[0][x][dimy - 2][z] = -Tyz[0][x][dimy - 5][z];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -455,8 +424,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
         Tyz[0][x][y][1] = -Tyz[0][x][y][2];
-			Tyz[0][x][y][0] = -Tyz[0][x][y][3];
-			
+				Tyz[0][x][y][0] = -Tyz[0][x][y][3];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -464,8 +433,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
         Tyz[0][x][y][dimz - 3] = -Tyz[0][x][y][dimz - 4];
-			Tyz[0][x][y][dimz - 2] = -Tyz[0][x][y][dimz - 5];
-			
+				Tyz[0][x][y][dimz - 2] = -Tyz[0][x][y][dimz - 5];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -473,8 +442,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
         Txz[0][1][y][z] = -Txz[0][2][y][z];
-			Txz[0][0][y][z] = -Txz[0][3][y][z];
-			
+				Txz[0][0][y][z] = -Txz[0][3][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -482,26 +451,22 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
         Txz[0][dimx - 3][y][z] = -Txz[0][dimx - 4][y][z];
-			Txz[0][dimx - 2][y][z] = -Txz[0][dimx - 5][y][z];
-			
+				Txz[0][dimx - 2][y][z] = -Txz[0][dimx - 5][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txz[0][x][2][z] = 0;
-			Txz[0][x][1][z] = -Txz[0][x][3][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txz[0][x][dimy - 3][z] = 0;
-			Txz[0][x][dimy - 2][z] = -Txz[0][x][dimy - 4][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
@@ -509,8 +474,8 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
         Txz[0][x][y][1] = -Txz[0][x][y][2];
-			Txz[0][x][y][0] = -Txz[0][x][y][3];
-			
+				Txz[0][x][y][0] = -Txz[0][x][y][3];
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -518,8 +483,24 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
         Txz[0][x][y][dimz - 3] = -Txz[0][x][y][dimz - 4];
-			Txz[0][x][y][dimz - 2] = -Txz[0][x][y][dimz - 5];
-			
+				Txz[0][x][y][dimz - 2] = -Txz[0][x][y][dimz - 5];
+				
+      }
+  }
+  // update ghost cells for boundary conditions
+  #pragma omp for
+  for(int y=1;y<dimy - 1;++y){
+      for(int z=1;z<dimz - 1;++z){
+        U[0][1][y][z]=(dx*dy*lambda*W[0][2][y][z] - dx*dy*lambda*W[0][2][y][z - 1] + dx*dz*lambda*V[0][2][y][z] - dx*dz*lambda*V[0][2][y - 1][z] + dy*dz*lambda*U[0][2][y][z] + 2*dy*dz*mu*U[0][2][y][z])/(dy*dz*(lambda + 2*mu));
+				
+      }
+  }
+  // update ghost cells for boundary conditions
+  #pragma omp for
+  for(int y=1;y<dimy - 1;++y){
+      for(int z=1;z<dimz - 1;++z){
+        U[0][dimx - 3][y][z]=(-dx*dy*lambda*W[0][dimx - 3][y][z] + dx*dy*lambda*W[0][dimx - 3][y][z - 1] - dx*dz*lambda*V[0][dimx - 3][y][z] + dx*dz*lambda*V[0][dimx - 3][y - 1][z] + dy*dz*lambda*U[0][dimx - 4][y][z] + 2*dy*dz*mu*U[0][dimx - 4][y][z])/(dy*dz*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -527,7 +508,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
         V[0][1][y][z]=(-dx*U[0][1][y][z] + dx*U[0][1][y + 1][z] + dx*U[0][2][y][z] - dx*U[0][2][y + 1][z] + dy*(2*V[0][2][y][z] - V[0][3][y][z]))/dy;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -535,7 +516,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
         V[0][dimx - 2][y][z]=(-dx*U[0][dimx - 4][y][z] + dx*U[0][dimx - 4][y + 1][z] + dx*U[0][dimx - 3][y][z] - dx*U[0][dimx - 3][y + 1][z] + dy*(-V[0][dimx - 4][y][z] + 2*V[0][dimx - 3][y][z]))/dy;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -543,7 +524,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
         W[0][1][y][z]=(-dx*U[0][1][y][z] + dx*U[0][1][y][z + 1] + dx*U[0][2][y][z] - dx*U[0][2][y][z + 1] + dz*(2*W[0][2][y][z] - W[0][3][y][z]))/dz;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -551,23 +532,23 @@ for(int i=2;i<dimx - 2;++i){
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
         W[0][dimx - 2][y][z]=(-dx*U[0][dimx - 4][y][z] + dx*U[0][dimx - 4][y][z + 1] + dx*U[0][dimx - 3][y][z] - dx*U[0][dimx - 3][y][z + 1] + dz*(-W[0][dimx - 4][y][z] + 2*W[0][dimx - 3][y][z]))/dz;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
-  for(int y=1;y<dimy - 1;++y){
+  for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
-        U[0][1][y][z]=(dx*dy*lambda*W[0][2][y][z] - dx*dy*lambda*W[0][2][y][z - 1] + dx*dz*lambda*V[0][2][y][z] - dx*dz*lambda*V[0][2][y - 1][z] + dy*dz*lambda*U[0][3][y][z] + 2*dy*dz*mu*U[0][3][y][z])/(dy*dz*(lambda + 2*mu));
-			
+        V[0][x][1][z]=(dx*dy*lambda*W[0][x][2][z] - dx*dy*lambda*W[0][x][2][z - 1] + dx*dz*lambda*V[0][x][2][z] + 2*dx*dz*mu*V[0][x][2][z] + dy*dz*lambda*U[0][x][2][z] - dy*dz*lambda*U[0][x - 1][2][z])/(dx*dz*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
-  for(int y=1;y<dimy - 1;++y){
+  for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
-        U[0][dimx - 3][y][z]=(-dx*dy*lambda*W[0][dimx - 3][y][z] + dx*dy*lambda*W[0][dimx - 3][y][z - 1] - dx*dz*lambda*V[0][dimx - 3][y][z] + dx*dz*lambda*V[0][dimx - 3][y - 1][z] + dy*dz*lambda*U[0][dimx - 3][y][z] + 2*dy*dz*mu*U[0][dimx - 3][y][z])/(dy*dz*(lambda + 2*mu));
-			
+        V[0][x][dimy - 3][z]=(-dx*dy*lambda*W[0][x][dimy - 3][z] + dx*dy*lambda*W[0][x][dimy - 3][z - 1] + dx*dz*lambda*V[0][x][dimy - 4][z] + 2*dx*dz*mu*V[0][x][dimy - 4][z] - dy*dz*lambda*U[0][x][dimy - 3][z] + dy*dz*lambda*U[0][x - 1][dimy - 3][z])/(dx*dz*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -575,7 +556,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
         U[0][x][1][z]=(dx*(2*U[0][x][2][z] - U[0][x][3][z]) - dy*V[0][x][1][z] + dy*V[0][x][2][z] + dy*V[0][x + 1][1][z] - dy*V[0][x + 1][2][z])/dx;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -583,7 +564,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
         U[0][x][dimy - 2][z]=(dx*(-U[0][x][dimy - 4][z] + 2*U[0][x][dimy - 3][z]) - dy*V[0][x][dimy - 4][z] + dy*V[0][x][dimy - 3][z] + dy*V[0][x + 1][dimy - 4][z] - dy*V[0][x + 1][dimy - 3][z])/dx;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -591,7 +572,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
         W[0][x][1][z]=(-dy*V[0][x][1][z] + dy*V[0][x][1][z + 1] + dy*V[0][x][2][z] - dy*V[0][x][2][z + 1] + dz*(2*W[0][x][2][z] - W[0][x][3][z]))/dz;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -599,23 +580,23 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
         W[0][x][dimy - 2][z]=(-dy*V[0][x][dimy - 4][z] + dy*V[0][x][dimy - 4][z + 1] + dy*V[0][x][dimy - 3][z] - dy*V[0][x][dimy - 3][z + 1] + dz*(-W[0][x][dimy - 4][z] + 2*W[0][x][dimy - 3][z]))/dz;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
-      for(int z=1;z<dimz - 1;++z){
-        V[0][x][1][z]=(dx*dy*lambda*W[0][x][2][z] - dx*dy*lambda*W[0][x][2][z - 1] + dx*dz*lambda*V[0][x][3][z] + 2*dx*dz*mu*V[0][x][3][z] + dy*dz*lambda*U[0][x][2][z] - dy*dz*lambda*U[0][x - 1][2][z])/(dx*dz*(lambda + 2*mu));
-			
+      for(int y=1;y<dimy - 1;++y){
+        W[0][x][y][1]=(dx*dy*lambda*W[0][x][y][2] + 2*dx*dy*mu*W[0][x][y][2] + dx*dz*lambda*V[0][x][y][2] - dx*dz*lambda*V[0][x][y - 1][2] + dy*dz*lambda*U[0][x][y][2] - dy*dz*lambda*U[0][x - 1][y][2])/(dx*dy*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
-      for(int z=1;z<dimz - 1;++z){
-        V[0][x][dimy - 3][z]=(-dx*dy*lambda*W[0][x][dimy - 3][z] + dx*dy*lambda*W[0][x][dimy - 3][z - 1] + dx*dz*lambda*V[0][x][dimy - 3][z] + 2*dx*dz*mu*V[0][x][dimy - 3][z] - dy*dz*lambda*U[0][x][dimy - 3][z] + dy*dz*lambda*U[0][x - 1][dimy - 3][z])/(dx*dz*(lambda + 2*mu));
-			
+      for(int y=1;y<dimy - 1;++y){
+        W[0][x][y][dimz - 3]=(dx*dy*lambda*W[0][x][y][dimz - 4] + 2*dx*dy*mu*W[0][x][y][dimz - 4] - dx*dz*lambda*V[0][x][y][dimz - 3] + dx*dz*lambda*V[0][x][y - 1][dimz - 3] - dy*dz*lambda*U[0][x][y][dimz - 3] + dy*dz*lambda*U[0][x - 1][y][dimz - 3])/(dx*dy*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -623,7 +604,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
         U[0][x][y][1]=(dx*(2*U[0][x][y][2] - U[0][x][y][3]) - dz*W[0][x][y][1] + dz*W[0][x][y][2] + dz*W[0][x + 1][y][1] - dz*W[0][x + 1][y][2])/dx;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -631,7 +612,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
         U[0][x][y][dimz - 2]=(dx*(-U[0][x][y][dimz - 4] + 2*U[0][x][y][dimz - 3]) - dz*W[0][x][y][dimz - 4] + dz*W[0][x][y][dimz - 3] + dz*W[0][x + 1][y][dimz - 4] - dz*W[0][x + 1][y][dimz - 3])/dx;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -639,7 +620,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
         V[0][x][y][1]=(dy*(2*V[0][x][y][2] - V[0][x][y][3]) - dz*W[0][x][y][1] + dz*W[0][x][y][2] + dz*W[0][x][y + 1][1] - dz*W[0][x][y + 1][2])/dy;
-			
+				
       }
   }
   // update ghost cells for boundary conditions
@@ -647,23 +628,7 @@ for(int i=2;i<dimx - 2;++i){
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
         V[0][x][y][dimz - 2]=(dy*(-V[0][x][y][dimz - 4] + 2*V[0][x][y][dimz - 3]) - dz*W[0][x][y][dimz - 4] + dz*W[0][x][y][dimz - 3] + dz*W[0][x][y + 1][dimz - 4] - dz*W[0][x][y + 1][dimz - 3])/dy;
-			
-      }
-  }
-  // update ghost cells for boundary conditions
-  #pragma omp for
-  for(int x=1;x<dimx - 1;++x){
-      for(int y=1;y<dimy - 1;++y){
-        W[0][x][y][1]=(dx*dy*lambda*W[0][x][y][3] + 2*dx*dy*mu*W[0][x][y][3] + dx*dz*lambda*V[0][x][y][2] - dx*dz*lambda*V[0][x][y - 1][2] + dy*dz*lambda*U[0][x][y][2] - dy*dz*lambda*U[0][x - 1][y][2])/(dx*dy*(lambda + 2*mu));
-			
-      }
-  }
-  // update ghost cells for boundary conditions
-  #pragma omp for
-  for(int x=1;x<dimx - 1;++x){
-      for(int y=1;y<dimy - 1;++y){
-        W[0][x][y][dimz - 3]=(dx*dy*lambda*W[0][x][y][dimz - 3] + 2*dx*dy*mu*W[0][x][y][dimz - 3] - dx*dz*lambda*V[0][x][y][dimz - 3] + dx*dz*lambda*V[0][x][y - 1][dimz - 3] - dy*dz*lambda*U[0][x][y][dimz - 3] + dy*dz*lambda*U[0][x - 1][y][dimz - 3])/(dx*dy*(lambda + 2*mu));
-			
+				
       }
   }
 
@@ -696,324 +661,288 @@ for(int x=2;x<dimx - 2;++x){
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Txx[t][2][y][z] = 0;
-			Txx[t][1][y][z] = -Txx[t][3][y][z];
-			
+        Txx[t1][2][y][z] = 0;
+				Txx[t1][1][y][z] = -Txx[t1][3][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Txx[t][dimx - 3][y][z] = 0;
-			Txx[t][dimx - 2][y][z] = -Txx[t][dimx - 4][y][z];
-			
+        Txx[t1][dimx - 3][y][z] = 0;
+				Txx[t1][dimx - 2][y][z] = -Txx[t1][dimx - 4][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txx[t][x][2][z] = 0;
-			Txx[t][x][1][z] = -Txx[t][x][3][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txx[t][x][dimy - 3][z] = 0;
-			Txx[t][x][dimy - 2][z] = -Txx[t][x][dimy - 4][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txx[t][x][y][2] = 0;
-			Txx[t][x][y][1] = -Txx[t][x][y][3];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txx[t][x][y][dimz - 3] = 0;
-			Txx[t][x][y][dimz - 2] = -Txx[t][x][y][dimz - 4];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tyy[t][2][y][z] = 0;
-			Tyy[t][1][y][z] = -Tyy[t][3][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tyy[t][dimx - 3][y][z] = 0;
-			Tyy[t][dimx - 2][y][z] = -Tyy[t][dimx - 4][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Tyy[t][x][2][z] = 0;
-			Tyy[t][x][1][z] = -Tyy[t][x][3][z];
-			
+        Tyy[t1][x][2][z] = 0;
+				Tyy[t1][x][1][z] = -Tyy[t1][x][3][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Tyy[t][x][dimy - 3][z] = 0;
-			Tyy[t][x][dimy - 2][z] = -Tyy[t][x][dimy - 4][z];
-			
+        Tyy[t1][x][dimy - 3][z] = 0;
+				Tyy[t1][x][dimy - 2][z] = -Tyy[t1][x][dimy - 4][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Tyy[t][x][y][2] = 0;
-			Tyy[t][x][y][1] = -Tyy[t][x][y][3];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Tyy[t][x][y][dimz - 3] = 0;
-			Tyy[t][x][y][dimz - 2] = -Tyy[t][x][y][dimz - 4];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tzz[t][2][y][z] = 0;
-			Tzz[t][1][y][z] = -Tzz[t][3][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tzz[t][dimx - 3][y][z] = 0;
-			Tzz[t][dimx - 2][y][z] = -Tzz[t][dimx - 4][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Tzz[t][x][2][z] = 0;
-			Tzz[t][x][1][z] = -Tzz[t][x][3][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Tzz[t][x][dimy - 3][z] = 0;
-			Tzz[t][x][dimy - 2][z] = -Tzz[t][x][dimy - 4][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Tzz[t][x][y][2] = 0;
-			Tzz[t][x][y][1] = -Tzz[t][x][y][3];
-			
+        Tzz[t1][x][y][2] = 0;
+				Tzz[t1][x][y][1] = -Tzz[t1][x][y][3];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Tzz[t][x][y][dimz - 3] = 0;
-			Tzz[t][x][y][dimz - 2] = -Tzz[t][x][y][dimz - 4];
-			
+        Tzz[t1][x][y][dimz - 3] = 0;
+				Tzz[t1][x][y][dimz - 2] = -Tzz[t1][x][y][dimz - 4];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Txy[t][1][y][z] = -Txy[t][2][y][z];
-			Txy[t][0][y][z] = -Txy[t][3][y][z];
-			
+        Txy[t1][1][y][z] = -Txy[t1][2][y][z];
+				Txy[t1][0][y][z] = -Txy[t1][3][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Txy[t][dimx - 3][y][z] = -Txy[t][dimx - 4][y][z];
-			Txy[t][dimx - 2][y][z] = -Txy[t][dimx - 5][y][z];
-			
+        Txy[t1][dimx - 3][y][z] = -Txy[t1][dimx - 4][y][z];
+				Txy[t1][dimx - 2][y][z] = -Txy[t1][dimx - 5][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txy[t][x][1][z] = -Txy[t][x][2][z];
-			Txy[t][x][0][z] = -Txy[t][x][3][z];
-			
+        Txy[t1][x][1][z] = -Txy[t1][x][2][z];
+				Txy[t1][x][0][z] = -Txy[t1][x][3][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txy[t][x][dimy - 3][z] = -Txy[t][x][dimy - 4][z];
-			Txy[t][x][dimy - 2][z] = -Txy[t][x][dimy - 5][z];
-			
+        Txy[t1][x][dimy - 3][z] = -Txy[t1][x][dimy - 4][z];
+				Txy[t1][x][dimy - 2][z] = -Txy[t1][x][dimy - 5][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txy[t][x][y][2] = 0;
-			Txy[t][x][y][1] = -Txy[t][x][y][3];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txy[t][x][y][dimz - 3] = 0;
-			Txy[t][x][y][dimz - 2] = -Txy[t][x][y][dimz - 4];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tyz[t][2][y][z] = 0;
-			Tyz[t][1][y][z] = -Tyz[t][3][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Tyz[t][dimx - 3][y][z] = 0;
-			Tyz[t][dimx - 2][y][z] = -Tyz[t][dimx - 4][y][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Tyz[t][x][1][z] = -Tyz[t][x][2][z];
-			Tyz[t][x][0][z] = -Tyz[t][x][3][z];
-			
+        Tyz[t1][x][1][z] = -Tyz[t1][x][2][z];
+				Tyz[t1][x][0][z] = -Tyz[t1][x][3][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Tyz[t][x][dimy - 3][z] = -Tyz[t][x][dimy - 4][z];
-			Tyz[t][x][dimy - 2][z] = -Tyz[t][x][dimy - 5][z];
-			
+        Tyz[t1][x][dimy - 3][z] = -Tyz[t1][x][dimy - 4][z];
+				Tyz[t1][x][dimy - 2][z] = -Tyz[t1][x][dimy - 5][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Tyz[t][x][y][1] = -Tyz[t][x][y][2];
-			Tyz[t][x][y][0] = -Tyz[t][x][y][3];
-			
+        Tyz[t1][x][y][1] = -Tyz[t1][x][y][2];
+				Tyz[t1][x][y][0] = -Tyz[t1][x][y][3];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Tyz[t][x][y][dimz - 3] = -Tyz[t][x][y][dimz - 4];
-			Tyz[t][x][y][dimz - 2] = -Tyz[t][x][y][dimz - 5];
-			
+        Tyz[t1][x][y][dimz - 3] = -Tyz[t1][x][y][dimz - 4];
+				Tyz[t1][x][y][dimz - 2] = -Tyz[t1][x][y][dimz - 5];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Txz[t][1][y][z] = -Txz[t][2][y][z];
-			Txz[t][0][y][z] = -Txz[t][3][y][z];
-			
+        Txz[t1][1][y][z] = -Txz[t1][2][y][z];
+				Txz[t1][0][y][z] = -Txz[t1][3][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=0;y<dimy;++y){
       for(int z=0;z<dimz;++z){
-        Txz[t][dimx - 3][y][z] = -Txz[t][dimx - 4][y][z];
-			Txz[t][dimx - 2][y][z] = -Txz[t][dimx - 5][y][z];
-			
+        Txz[t1][dimx - 3][y][z] = -Txz[t1][dimx - 4][y][z];
+				Txz[t1][dimx - 2][y][z] = -Txz[t1][dimx - 5][y][z];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txz[t][x][2][z] = 0;
-			Txz[t][x][1][z] = -Txz[t][x][3][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int z=0;z<dimz;++z){
-        Txz[t][x][dimy - 3][z] = 0;
-			Txz[t][x][dimy - 2][z] = -Txz[t][x][dimy - 4][z];
-			
+        // nothing
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txz[t][x][y][1] = -Txz[t][x][y][2];
-			Txz[t][x][y][0] = -Txz[t][x][y][3];
-			
+        Txz[t1][x][y][1] = -Txz[t1][x][y][2];
+				Txz[t1][x][y][0] = -Txz[t1][x][y][3];
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=0;x<dimx;++x){
       for(int y=0;y<dimy;++y){
-        Txz[t][x][y][dimz - 3] = -Txz[t][x][y][dimz - 4];
-			Txz[t][x][y][dimz - 2] = -Txz[t][x][y][dimz - 5];
-			
+        Txz[t1][x][y][dimz - 3] = -Txz[t1][x][y][dimz - 4];
+				Txz[t1][x][y][dimz - 2] = -Txz[t1][x][y][dimz - 5];
+				
       }
   }
 
@@ -1033,144 +962,144 @@ for(int x=2;x<dimx - 2;++x){
   #pragma omp for
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
-        V[t][1][y][z]=(-dx*U[t][1][y][z] + dx*U[t][1][y + 1][z] + dx*U[t][2][y][z] - dx*U[t][2][y + 1][z] + dy*(2*V[t][2][y][z] - V[t][3][y][z]))/dy;
-			
+        U[t1][1][y][z]=(dx*dy*lambda*W[t1][2][y][z] - dx*dy*lambda*W[t1][2][y][z - 1] + dx*dz*lambda*V[t1][2][y][z] - dx*dz*lambda*V[t1][2][y - 1][z] + dy*dz*lambda*U[t1][2][y][z] + 2*dy*dz*mu*U[t1][2][y][z])/(dy*dz*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
-        V[t][dimx - 2][y][z]=(-dx*U[t][dimx - 4][y][z] + dx*U[t][dimx - 4][y + 1][z] + dx*U[t][dimx - 3][y][z] - dx*U[t][dimx - 3][y + 1][z] + dy*(-V[t][dimx - 4][y][z] + 2*V[t][dimx - 3][y][z]))/dy;
-			
+        U[t1][dimx - 3][y][z]=(-dx*dy*lambda*W[t1][dimx - 3][y][z] + dx*dy*lambda*W[t1][dimx - 3][y][z - 1] - dx*dz*lambda*V[t1][dimx - 3][y][z] + dx*dz*lambda*V[t1][dimx - 3][y - 1][z] + dy*dz*lambda*U[t1][dimx - 4][y][z] + 2*dy*dz*mu*U[t1][dimx - 4][y][z])/(dy*dz*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
-        W[t][1][y][z]=(-dx*U[t][1][y][z] + dx*U[t][1][y][z + 1] + dx*U[t][2][y][z] - dx*U[t][2][y][z + 1] + dz*(2*W[t][2][y][z] - W[t][3][y][z]))/dz;
-			
+        V[t1][1][y][z]=(-dx*U[t1][1][y][z] + dx*U[t1][1][y + 1][z] + dx*U[t1][2][y][z] - dx*U[t1][2][y + 1][z] + dy*(2*V[t1][2][y][z] - V[t1][3][y][z]))/dy;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
-        W[t][dimx - 2][y][z]=(-dx*U[t][dimx - 4][y][z] + dx*U[t][dimx - 4][y][z + 1] + dx*U[t][dimx - 3][y][z] - dx*U[t][dimx - 3][y][z + 1] + dz*(-W[t][dimx - 4][y][z] + 2*W[t][dimx - 3][y][z]))/dz;
-			
+        V[t1][dimx - 2][y][z]=(-dx*U[t1][dimx - 4][y][z] + dx*U[t1][dimx - 4][y + 1][z] + dx*U[t1][dimx - 3][y][z] - dx*U[t1][dimx - 3][y + 1][z] + dy*(-V[t1][dimx - 4][y][z] + 2*V[t1][dimx - 3][y][z]))/dy;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
-        U[t][1][y][z]=(dx*dy*lambda*W[t][2][y][z] - dx*dy*lambda*W[t][2][y][z - 1] + dx*dz*lambda*V[t][2][y][z] - dx*dz*lambda*V[t][2][y - 1][z] + dy*dz*lambda*U[t][3][y][z] + 2*dy*dz*mu*U[t][3][y][z])/(dy*dz*(lambda + 2*mu));
-			
+        W[t1][1][y][z]=(-dx*U[t1][1][y][z] + dx*U[t1][1][y][z + 1] + dx*U[t1][2][y][z] - dx*U[t1][2][y][z + 1] + dz*(2*W[t1][2][y][z] - W[t1][3][y][z]))/dz;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int y=1;y<dimy - 1;++y){
       for(int z=1;z<dimz - 1;++z){
-        U[t][dimx - 3][y][z]=(-dx*dy*lambda*W[t][dimx - 3][y][z] + dx*dy*lambda*W[t][dimx - 3][y][z - 1] - dx*dz*lambda*V[t][dimx - 3][y][z] + dx*dz*lambda*V[t][dimx - 3][y - 1][z] + dy*dz*lambda*U[t][dimx - 3][y][z] + 2*dy*dz*mu*U[t][dimx - 3][y][z])/(dy*dz*(lambda + 2*mu));
-			
+        W[t1][dimx - 2][y][z]=(-dx*U[t1][dimx - 4][y][z] + dx*U[t1][dimx - 4][y][z + 1] + dx*U[t1][dimx - 3][y][z] - dx*U[t1][dimx - 3][y][z + 1] + dz*(-W[t1][dimx - 4][y][z] + 2*W[t1][dimx - 3][y][z]))/dz;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
-        U[t][x][1][z]=(dx*(2*U[t][x][2][z] - U[t][x][3][z]) - dy*V[t][x][1][z] + dy*V[t][x][2][z] + dy*V[t][x + 1][1][z] - dy*V[t][x + 1][2][z])/dx;
-			
+        V[t1][x][1][z]=(dx*dy*lambda*W[t1][x][2][z] - dx*dy*lambda*W[t1][x][2][z - 1] + dx*dz*lambda*V[t1][x][2][z] + 2*dx*dz*mu*V[t1][x][2][z] + dy*dz*lambda*U[t1][x][2][z] - dy*dz*lambda*U[t1][x - 1][2][z])/(dx*dz*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
-        U[t][x][dimy - 2][z]=(dx*(-U[t][x][dimy - 4][z] + 2*U[t][x][dimy - 3][z]) - dy*V[t][x][dimy - 4][z] + dy*V[t][x][dimy - 3][z] + dy*V[t][x + 1][dimy - 4][z] - dy*V[t][x + 1][dimy - 3][z])/dx;
-			
+        V[t1][x][dimy - 3][z]=(-dx*dy*lambda*W[t1][x][dimy - 3][z] + dx*dy*lambda*W[t1][x][dimy - 3][z - 1] + dx*dz*lambda*V[t1][x][dimy - 4][z] + 2*dx*dz*mu*V[t1][x][dimy - 4][z] - dy*dz*lambda*U[t1][x][dimy - 3][z] + dy*dz*lambda*U[t1][x - 1][dimy - 3][z])/(dx*dz*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
-        W[t][x][1][z]=(-dy*V[t][x][1][z] + dy*V[t][x][1][z + 1] + dy*V[t][x][2][z] - dy*V[t][x][2][z + 1] + dz*(2*W[t][x][2][z] - W[t][x][3][z]))/dz;
-			
+        U[t1][x][1][z]=(dx*(2*U[t1][x][2][z] - U[t1][x][3][z]) - dy*V[t1][x][1][z] + dy*V[t1][x][2][z] + dy*V[t1][x + 1][1][z] - dy*V[t1][x + 1][2][z])/dx;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
-        W[t][x][dimy - 2][z]=(-dy*V[t][x][dimy - 4][z] + dy*V[t][x][dimy - 4][z + 1] + dy*V[t][x][dimy - 3][z] - dy*V[t][x][dimy - 3][z + 1] + dz*(-W[t][x][dimy - 4][z] + 2*W[t][x][dimy - 3][z]))/dz;
-			
+        U[t1][x][dimy - 2][z]=(dx*(-U[t1][x][dimy - 4][z] + 2*U[t1][x][dimy - 3][z]) - dy*V[t1][x][dimy - 4][z] + dy*V[t1][x][dimy - 3][z] + dy*V[t1][x + 1][dimy - 4][z] - dy*V[t1][x + 1][dimy - 3][z])/dx;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
-        V[t][x][1][z]=(dx*dy*lambda*W[t][x][2][z] - dx*dy*lambda*W[t][x][2][z - 1] + dx*dz*lambda*V[t][x][3][z] + 2*dx*dz*mu*V[t][x][3][z] + dy*dz*lambda*U[t][x][2][z] - dy*dz*lambda*U[t][x - 1][2][z])/(dx*dz*(lambda + 2*mu));
-			
+        W[t1][x][1][z]=(-dy*V[t1][x][1][z] + dy*V[t1][x][1][z + 1] + dy*V[t1][x][2][z] - dy*V[t1][x][2][z + 1] + dz*(2*W[t1][x][2][z] - W[t1][x][3][z]))/dz;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int z=1;z<dimz - 1;++z){
-        V[t][x][dimy - 3][z]=(-dx*dy*lambda*W[t][x][dimy - 3][z] + dx*dy*lambda*W[t][x][dimy - 3][z - 1] + dx*dz*lambda*V[t][x][dimy - 3][z] + 2*dx*dz*mu*V[t][x][dimy - 3][z] - dy*dz*lambda*U[t][x][dimy - 3][z] + dy*dz*lambda*U[t][x - 1][dimy - 3][z])/(dx*dz*(lambda + 2*mu));
-			
+        W[t1][x][dimy - 2][z]=(-dy*V[t1][x][dimy - 4][z] + dy*V[t1][x][dimy - 4][z + 1] + dy*V[t1][x][dimy - 3][z] - dy*V[t1][x][dimy - 3][z + 1] + dz*(-W[t1][x][dimy - 4][z] + 2*W[t1][x][dimy - 3][z]))/dz;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
-        U[t][x][y][1]=(dx*(2*U[t][x][y][2] - U[t][x][y][3]) - dz*W[t][x][y][1] + dz*W[t][x][y][2] + dz*W[t][x + 1][y][1] - dz*W[t][x + 1][y][2])/dx;
-			
+        W[t1][x][y][1]=(dx*dy*lambda*W[t1][x][y][2] + 2*dx*dy*mu*W[t1][x][y][2] + dx*dz*lambda*V[t1][x][y][2] - dx*dz*lambda*V[t1][x][y - 1][2] + dy*dz*lambda*U[t1][x][y][2] - dy*dz*lambda*U[t1][x - 1][y][2])/(dx*dy*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
-        U[t][x][y][dimz - 2]=(dx*(-U[t][x][y][dimz - 4] + 2*U[t][x][y][dimz - 3]) - dz*W[t][x][y][dimz - 4] + dz*W[t][x][y][dimz - 3] + dz*W[t][x + 1][y][dimz - 4] - dz*W[t][x + 1][y][dimz - 3])/dx;
-			
+        W[t1][x][y][dimz - 3]=(dx*dy*lambda*W[t1][x][y][dimz - 4] + 2*dx*dy*mu*W[t1][x][y][dimz - 4] - dx*dz*lambda*V[t1][x][y][dimz - 3] + dx*dz*lambda*V[t1][x][y - 1][dimz - 3] - dy*dz*lambda*U[t1][x][y][dimz - 3] + dy*dz*lambda*U[t1][x - 1][y][dimz - 3])/(dx*dy*(lambda + 2*mu));
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
-        V[t][x][y][1]=(dy*(2*V[t][x][y][2] - V[t][x][y][3]) - dz*W[t][x][y][1] + dz*W[t][x][y][2] + dz*W[t][x][y + 1][1] - dz*W[t][x][y + 1][2])/dy;
-			
+        U[t1][x][y][1]=(dx*(2*U[t1][x][y][2] - U[t1][x][y][3]) - dz*W[t1][x][y][1] + dz*W[t1][x][y][2] + dz*W[t1][x + 1][y][1] - dz*W[t1][x + 1][y][2])/dx;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
-        V[t][x][y][dimz - 2]=(dy*(-V[t][x][y][dimz - 4] + 2*V[t][x][y][dimz - 3]) - dz*W[t][x][y][dimz - 4] + dz*W[t][x][y][dimz - 3] + dz*W[t][x][y + 1][dimz - 4] - dz*W[t][x][y + 1][dimz - 3])/dy;
-			
+        U[t1][x][y][dimz - 2]=(dx*(-U[t1][x][y][dimz - 4] + 2*U[t1][x][y][dimz - 3]) - dz*W[t1][x][y][dimz - 4] + dz*W[t1][x][y][dimz - 3] + dz*W[t1][x + 1][y][dimz - 4] - dz*W[t1][x + 1][y][dimz - 3])/dx;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
-        W[t][x][y][1]=(dx*dy*lambda*W[t][x][y][3] + 2*dx*dy*mu*W[t][x][y][3] + dx*dz*lambda*V[t][x][y][2] - dx*dz*lambda*V[t][x][y - 1][2] + dy*dz*lambda*U[t][x][y][2] - dy*dz*lambda*U[t][x - 1][y][2])/(dx*dy*(lambda + 2*mu));
-			
+        V[t1][x][y][1]=(dy*(2*V[t1][x][y][2] - V[t1][x][y][3]) - dz*W[t1][x][y][1] + dz*W[t1][x][y][2] + dz*W[t1][x][y + 1][1] - dz*W[t1][x][y + 1][2])/dy;
+				
       }
   }
   // update ghost cells for boundary conditions
   #pragma omp for
   for(int x=1;x<dimx - 1;++x){
       for(int y=1;y<dimy - 1;++y){
-        W[t][x][y][dimz - 3]=(dx*dy*lambda*W[t][x][y][dimz - 3] + 2*dx*dy*mu*W[t][x][y][dimz - 3] - dx*dz*lambda*V[t][x][y][dimz - 3] + dx*dz*lambda*V[t][x][y - 1][dimz - 3] - dy*dz*lambda*U[t][x][y][dimz - 3] + dy*dz*lambda*U[t][x - 1][y][dimz - 3])/(dx*dy*(lambda + 2*mu));
-			
+        V[t1][x][y][dimz - 2]=(dy*(-V[t1][x][y][dimz - 4] + 2*V[t1][x][y][dimz - 3]) - dz*W[t1][x][y][dimz - 4] + dz*W[t1][x][y][dimz - 3] + dz*W[t1][x][y + 1][dimz - 4] - dz*W[t1][x][y + 1][dimz - 3])/dy;
+				
       }
   }
 
@@ -1266,7 +1195,7 @@ for(int i=2;i<dimx - 3;++i){
     		float x = dx*(i - 1.5);
     		float y = dy*(j - 2);
     		float z = dz*(k - 2);
-    		U_l2+=pow(-(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(4.01*sqrt(2)*M_PI*sqrt(mu/rho)) + U[0][i][j][k], 2.0);
+    		U_l2+=pow(-(sin(M_PI*y) - sin(M_PI*z))*cos(M_PI*x)*cos(4.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + U[0][i][j][k], 2.0);
     	}
     }
 }
@@ -1279,7 +1208,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 1.5);
     		float z = dz*(k - 2);
-    		V_l2+=pow(-(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(4.01*sqrt(2)*M_PI*sqrt(mu/rho)) + V[0][i][j][k], 2.0);
+    		V_l2+=pow(-(-sin(M_PI*x) + sin(M_PI*z))*cos(M_PI*y)*cos(4.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + V[0][i][j][k], 2.0);
     	}
     }
 }
@@ -1292,7 +1221,7 @@ for(int i=2;i<dimx - 2;++i){
     		float x = dx*(i - 2);
     		float y = dy*(j - 2);
     		float z = dz*(k - 1.5);
-    		W_l2+=pow(-(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(4.01*sqrt(2)*M_PI*sqrt(mu/rho)) + W[0][i][j][k], 2.0);
+    		W_l2+=pow(-(sin(M_PI*x) - sin(M_PI*y))*cos(M_PI*z)*cos(4.0025*sqrt(2)*M_PI*sqrt(mu/rho)) + W[0][i][j][k], 2.0);
     	}
     }
 }

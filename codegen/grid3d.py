@@ -33,7 +33,7 @@ U.associate_stress_fields((Txx,Txy,Txz))
 V.associate_stress_fields((Txy,Tyy,Tyz))
 W.associate_stress_fields((Txz,Tyz,Tzz))
 grid.set_domain_size((1.0,1.0,1.0))
-grid.set_spacing((0.025,0.025,0.025))
+grid.set_spacing((0.02,0.02,0.02))
 
 
 # In[41]:
@@ -45,7 +45,7 @@ grid.set_symbol(rho,1.0)
 grid.set_symbol(beta,1.0)
 grid.set_symbol(lam,0.5)
 grid.set_symbol(mu,0.5)
-grid.set_time_step(0.02,4.0)
+grid.set_time_step(0.005,4.0)
 grid.get_time_step_limit()
 
 
