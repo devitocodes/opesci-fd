@@ -8,3 +8,5 @@ install:
 script:
     - cd codegen
     - python grid3d.py
+    - g++ -fopenmp -o test test.cpp
+    - ./test
