@@ -8,8 +8,6 @@
 int main(){
 
   const int _tp = 2;
-  int t1 = 0;
-  int t = 0;
   
   ${define_constants}
   ${declare_fields}
@@ -24,7 +22,7 @@ int main(){
     // shared variables
     #pragma omp single
     {
-      t = _ti % _tp; // array index of current time step
+      t0 = _ti % _tp; // array index of current time step
       t1 = (t+1) % _tp; // array index of the grid to be updated
     }
 

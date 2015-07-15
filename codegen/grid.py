@@ -29,6 +29,10 @@ class MyCPrinter(CCodePrinter):
 def ccode(expr, **settings):
 	return MyCPrinter(settings).doprint(expr, None)
 
+def ccode_eq(eq, **settings):
+	# print assignment code from equation
+	return MyCPrinter(settings).doprint(eq.lhs, None) + ' = ' + MyCPrinter(settings).doprint(eq.rhs, None)
+
 def render(tmpl, dict1):
 	buf = StringIO()
 	ctx = Context(buf, **dict1)
@@ -137,15 +141,11 @@ def shift_index(expr, k, s):
 
 class Field(IndexedBase):
 
-	def __new__(cls, name, *args, **kargs):
-		return IndexedBase.__new__(cls, name)
-
-	def __init__(self, name, dimension, staggered, *args, **kargs):
-		self.lookup = TemplateLookup(directories=['templates/staggered/'])
+	def set(self, dimension, staggered):
 		self.dimension = dimension
 		self.staggered = staggered
 		self.d = [[None]*4 for x in range(dimension+1)] # list of list to store derivative expressions
-		self.bc = [[None]*2 for x in range(dimension+1)] # list of list to store boundary condition
+		self.bc = [[None]*2 for x in range(dimension+1)] # list of list to store boundary ghost cell code
 
 	def set_analytic_solution(self, function):
 		self.sol = function
@@ -155,15 +155,37 @@ class Field(IndexedBase):
 
 	def recenter(self, expr):
 		result = expr
-		for k in range(len(self.offset)):
-			if self.offset[k]:
+		for k in range(self.dimension):
+			if self.staggered[k]:
 				result = shift_index(result,k,hf)
+		return result
+
+	def align(self, expr):
+		# align staggered cells to whole number indices
+		if expr.is_Symbol or expr.is_Number:
+			return expr
+		if isinstance(expr,Indexed):
+			b = expr.base
+			# align the index if expression field staggered different from this field
+			idx = []
+			for k in range(len(expr.indices)):
+				if self.staggered[k] == b.staggered[k]:
+					idx += [expr.indices[k]]
+				elif self.staggered[k]:
+					idx += [expr.indices[k]+hf]
+				else:
+					idx += [expr.indices[k]-hf]
+			tmp = Indexed(b,*idx)
+			return tmp
+		# recursive call for all arguments of expr
+		args = tuple([self.align(arg) for arg in expr.args])
+		result = expr.func(*args)
 		return result
 
 	def set_fd(self,fd):
 		self.fd = fd
-		t = self.recenter(fd)
-		self.shift_fd = shift_grid(t)
+		t = self.align(fd)
+		self.fd_align = t
 
 	def save_field(self):
 		tmpl = self.lookup.get_template('save_field.txt')
@@ -173,104 +195,81 @@ class Field(IndexedBase):
 
 		return result
 
-	def associate_stress_fields(self,sfields):
-		self.sfields = sfields
-
 	def set_dt(self,dt):
 		self.dt = dt
 
 class VField(Field):
-	def __new__(cls, name, *args, **kargs):
 
-		return Field.__new__(cls, name)
-
-	def __init__(self, name, dimension, direction):
+	def set(self, dimension, direction):
 		self.direction = direction
 		staggered = [False] * (dimension+1)
 		staggered[0] = True
 		staggered[direction] = True
-		Field.__init__(self, name, dimension, staggered)
+		Field.set(self,dimension,staggered)
+
+	def associate_stress_fields(self,sfields):
+		self.sfields = sfields
 
 	def set_free_surface(self, indices, d, b, side):
 		# boundary at dimension[d] = b
-		field = self.sfields[d-1]
+		field = self.sfields[d] # use this stress field to solve for ghost cell expression
 		idx = list(indices)
-		if not field.offset[d]:
-			eq = Eq(field.dt.subs(indices[d],b))
+		if not field.staggered[d]:
+			eq = Eq(field.dt)
 			shift = hf
+			t = b - hf
 		else:
-			eq = Eq(field.dt.subs(indices[d],b-hf),field.dt.subs(indices[d],b+hf))
+			eq = Eq(field.dt.subs(indices[d],indices[d]-hf),field.dt.subs(indices[d],indices[d]+hf))
 			shift = 1
+			t = b
 
-		if side==0:
-			idx[d] = b-shift
-		else:
-			idx[d] = b+shift
+		idx[d] -= ((-1)**side)*shift
 
-		lhs = self.name[idx]
+		lhs = self[idx]
 		rhs = solve(eq,lhs)[0]
-		if shift == 1:
-			rhs = self.recenter(rhs) # shift if not shifted already
-		self.bc[d][side] = ccode(shift_grid(lhs)) + '=' + ccode(shift_grid(rhs)) + ';\n\t\t\t\t'
+		lhs = lhs.subs(indices[d],t)
+		rhs = self.align(rhs.subs(indices[d],t))
+
+		self.bc[d][side] = ccode(lhs) + ' = ' + ccode(rhs) + ';\n\t\t\t\t'
 
 
 class SField(Field):
-	def __new__(cls, name, *args, **kargs):
 
-		return Field.__new__(cls, name)
-
-	def __init__(self, name, dimension, direction):
+	def set(self, dimension, direction):
 		self.direction = direction
 		staggered = [False] * (dimension+1)
-		for i in range(len(direction)):
-			staggered[direction[i]] = True
-
-		Field.__init__(self, name, dimension, staggered)
+		if direction[0]==direction[1]:
+			# compression stress, not staggered
+			Field.set(self,dimension,staggered)
+		else:
+			# sheer stress, staggered
+			for i in range(len(direction)):
+				staggered[direction[i]] = True
+			Field.set(self,dimension,staggered)
 
 	def set_free_surface(self, indices, d, b, side):
 		# boundary at dimension[d] = b
-		result = ''
-		if d == 1:
-			ch = 'x'
-		elif d == 2:
-			ch = 'y'
-		else:
-			ch = 'z'
-
-		if ch not in ccode(self.name.label):
+		if d not in self.direction:
+			# x boundary for Tyy etc are not needed
 			self.bc[d][side] = '// nothing'
 			return
 
-		idx = list(indices)
-		idx2 = list(indices)
-		if not self.offset[d]:
+		idx = list(indices) # ghost cell
+		idx2 = list(indices) # cell inside domain
+		
+		if not self.staggered[d]:
 			idx[d] = b
-			result += ccode(self.name[idx]) +' = 0;\n\t\t\t\t'
-			if side==0:
-				idx[d] = b-1
-				idx2[d] = b+1
-			else:
-				idx[d] = b+1
-				idx2[d] = b-1
-			result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
+			idx2[d] = b
+			eq1 = Eq(self[idx])
 		else:
-			if side==0:
-				idx[d] = b-1
-				idx2[d] = b
-				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
-				idx[d] = b-2
-				idx2[d] = b+1
-				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
-			else:
-				idx[d] = b
-				idx2[d] = b-1
-				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
-				idx[d] = b+1
-				idx2[d] = b-2
-				result += ccode(self.name[idx]) +' = ' + ccode(-self.name[idx2])+';\n\t\t\t\t'
+			idx[d] = b - (1-side)
+			idx2[d] = idx[d] + (-1)**side
+			eq1 = Eq(self[idx], -self[idx2])
 
-		self.bc[d][side] = result
-
+		idx[d] -= (-1)**side
+		idx2[d] += (-1)**side
+		eq2 = Eq(self[idx], -self[idx2])
+		self.bc[d][side] = ccode_eq(eq1) +';\n\t\t\t\t' + ccode_eq(eq2) + ';\n\t\t\t\t'
 
 class Variable(Symbol):
 	""" wrapper for Symbol to store extra information """
@@ -298,9 +297,17 @@ class StaggeredGrid:
 		self.margin = Variable('margin', 2, 'int', True)
 		self.ntsteps= Variable('ntsteps', 100, 'int', True)
 
-		self.order = [1,2,2,2]
+		self.order = (1,2,2,2)
 
-		self.defined_variable = {} # user defined variables
+		self.defined_variable = {} # user defined variables, use dictionary because of potential duplication when using list
+
+		# add time variables for time stepping
+		self.time = []
+		for k in range(self.order[0]*2):
+			name = 't' + str(k)
+			v = Variable(name, 0, 'int', False)
+			self.time.append(v)
+
 
 		self._update_domain_size()
 
@@ -310,6 +317,10 @@ class StaggeredGrid:
 	def _update_domain_size(self):
 		# set dimension symbols, dim1, dim2, ...
 		self.dim = [Variable('dim'+str(k+1), int(self.size[k]/self.spacing[k].value)+1+self.margin.value*2, 'int', True)  for k in range(self.dimension)]
+		expr = 2*self.order[0]
+		for d in self.dim:
+			expr *= d
+		self.vec_size = Variable('vec_size', expr, 'int', True)
 
 	def set_domain_size(self, size):
 		self.size = size
@@ -342,83 +353,109 @@ class StaggeredGrid:
 		self.ntsteps.value = int(tmax/dt)
 
 	def set_stress_fields(self, sfields):
+		num = self.dimension+self.dimension*(self.dimension-1)/2
+		if not len(sfields)==num:
+			raise Exception('wrong number of stress fields: '+str(num)+' fields required.')
 		self.sfields = sfields
 
 	def set_velocity_fields(self, vfields):
+		num = self.dimension
+		if not len(vfields)==num:
+			raise Exception('wrong number of velocity fields: '+str(num)+' fields required.')
 		self.vfields = vfields
 
 	def calc_derivatives(self):
 		l = [self.dt] + self.spacing
 		for field in self.sfields+self.vfields:
 			for k in range(self.dimension+1):
+				# loop through dimensions
 				h = l[k]
 				for o in range(1,self.order[k]+1):
+					# loop through order of derivatives
 					field.calc_derivative([self.t]+self.index,k,h,o)
 
 	def solve_fd(self,eqs):
-		t, x, y, z = self.index
+		t = self.t
+		index = [t+hf] + self.index
 		self.eqs = eqs
 		for field, eq in zip(self.vfields+self.sfields, eqs):
-			field.set_fd(solve(eq,field.name[t+hf,x,y,z])[0].subs({t:t+hf}))
+			field.set_fd(solve(eq,field[index])[0].subs({t:t+hf}))
 
-	def set_free_surface_boundary(self, d, side):
-		for field in self.sfields:
+	def associate_fields(self):
+		# match up stress fields with velocity fields
+		for v in self.vfields:
+			fields = [None]
+			for d in range(1,self.dimension+1):
+				lookfor = tuple(sorted([v.direction,d]))
+				fields.append([f for f in self.sfields if f.direction==lookfor][0])
+			if not len(fields)==self.dimension+1:
+				print len(fields)
+				raise Exception('error in field directions')
+			v.associate_stress_fields(fields)
+
+	def set_free_surface_boundary(self, dimension, side):
+		self.associate_fields()
+		index = [self.t] + self.index
+		for field in self.sfields+self.vfields:
 			if side==0:
-				field.set_free_surface_stress(self.index, d, self.margin, side)
+				field.set_free_surface(index, dimension, self.margin.value, side)
 			else:
-				field.set_free_surface_stress(self.index, d, self.dim[d-1]-self.margin-1, side)
+				field.set_free_surface(index, dimension, self.dim[dimension-1]-self.margin.value-1, side)
 
-		for field in self.vfields:
-			if side==0:
-				field.set_free_surface_velocity(self.index, d, self.margin, side)
-			else:
-				field.set_free_surface_velocity(self.index, d, self.dim[d-1]-self.margin-1, side)
+	############## sub-routines for output ##############
 
-	def define_const(self):
+	def define_variables(self):
 		result = ''
-		for v in self.float_symbols:
-			result += 'const float ' + v.name + ' = ' + str(self.float_symbols[v]) + ';\n'
-		for v in self.int_symbols:
-			result += 'const int ' + v.name + ' = ' + str(self.int_symbols[v]) + ';\n'
+		variables = self.dim + self.spacing + self.time + [self.dt, self.margin, self.ntsteps, self.vec_size] + self.defined_variable.values()
+		for v in variables:
+			line = ''
+			if v.constant:
+				line += 'const '
+			line += v.type + ' ' + v.name + ' = ' + str(v.value) + ';\n'
+			result += line
 		return result
 
 	def declare_fields(self):
 		result = ''
+		arr = '' # =[dim1][dim2][dim3]...
+		for d in self.dim:
+			arr += '[' + d.name + ']'
 		for field in self.sfields + self.vfields:
-			vec = '_' + ccode(field.name.label) + '_vec'
-			result += 'std::vector<float> ' + vec + '(2*dimx*dimy*dimz);\n'
-			result += 'float (*' + ccode(field.name.label) + ')[dimx][dimy][dimz] = (float (*)[dimx][dimy][dimz]) ' + vec + '.data();\n'
+			vec = '_' + ccode(field.label) + '_vec'
+			result += 'std::vector<float> ' + vec + '(' + self.vec_size.name + ');\n'
+			result += 'float (*' + ccode(field.label) + ')' + arr + '= (float (*)' + arr + ') ' + vec + '.data();\n'
 		return result
 
 	def initialise(self):
-		tmpl = self.lookup.get_template('init_loop_3d.txt')
-		i, j, k = symbols('i j k')
-		ijk = [i,j,k]
-		m = self.margin
-		t = self.index[0]
-		xyzvalue = [None]*3
-		ijk0 = [None]*3
-		ijk1 = [None]*3
 
+		tmpl = self.lookup.get_template('generic_loop.txt')
 		result = ''
+		m = self.margin.value
+		loop = [Symbol('_'+x.name) for x in self.index] # symbols for loop
 
 		for field in self.sfields+self.vfields:
+			body = ''
 			# populate xvalue, yvalue zvalue code
-			for d in range(3):
-				if not field.offset[d+1]:
-					xyzvalue[d] = ccode((ijk[d]-m)*self.h[d])
-					ijk0[d] = ccode(m)
-					ijk1[d] = ccode(self.dim[d]-m)
+			for d in range(self.dimension-1,-1,-1):
+				i = loop[d]
+				i0 = m
+				if field.staggered[d+1]:
+					i1 = ccode(self.dim[d]-m-1)
+					expr = self.spacing[d]*(loop[d] - self.margin.value + 0.5)
 				else:
-					xyzvalue[d] = ccode((ijk[d]-m+0.5)*self.h[d])
-					ijk0[d] = ccode(m) # same as first case
-					ijk1[d] = ccode(self.dim[d]-m-1)
+					i1 = ccode(self.dim[d]-m)
+					expr = self.spacing[d]*(loop[d] - self.margin.value)
+				pre = 'float ' + self.index[d].name + '= ' + ccode(expr) + ';\n' + '\t'*d
+				post = ''
+				if d==self.dimension-1:
+					# inner loop
+					t0 = self.dt.value/2 if field.staggered[0] else 0 # first time step
+					post = ccode(field[[0]+loop]) + '=' + ccode(field.sol.subs(self.t, t0))
+				body = pre + body + post
+				dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
+				body = render(tmpl, dict1)
 
-			t0 = self.float_symbols[self.dt]/2.0 if field.offset[0] else 0.0
-			body = ccode(field.name[0,i,j,k]) + '=' + ccode(field.func.subs(t,t0)) + ';'
-			dict1 = {'i':'i','j':'j','k':'k','i0':ijk0[0],'i1':ijk1[0],'j0':ijk0[1],'j1':ijk1[1],'k0':ijk0[2],'k1':ijk1[2],'xvalue':xyzvalue[0],'yvalue':xyzvalue[1],'zvalue':xyzvalue[2],'body':body}
-			result += render(tmpl, dict1)
-
+			result += body
 		return result
 
 	def initialise_boundary(self):
@@ -427,34 +464,40 @@ class StaggeredGrid:
 		return result
 
 	def stress_loop(self):
-		tmpl = self.lookup.get_template('update_loop_3d.txt')
-		t, x, y, z = self.index
-		t1 = Symbol('t1')
-		m = self.margin
-		i1 = ccode(self.dim[0]-m)
-		j1 = ccode(self.dim[1]-m)
-		k1 = ccode(self.dim[2]-m)
+		tmpl = self.lookup.get_template('generic_loop.txt')
+		m = self.margin.value
 		body = ''
-		for field in self.sfields:
-			body += ccode(field.name[t1,x,y,z]) + '=' + ccode(field.shift_fd) + ';\n\t\t\t'
-		dict1 = {'i':'x','j':'y','k':'z','i0':m,'i1':i1,'j0':m,'j1':j1,'k0':m,'k1':k1,'body':body}
-		result = render(tmpl, dict1)
-		return result
+		for d in range(self.dimension-1,-1,-1):
+			i = self.index[d]
+			i0 = m
+			i1 = ccode(self.dim[d]-m)
+			if d==self.dimension-1:
+				# inner loop
+				idx = [self.time[1]] + self.index
+				for field in self.sfields:
+					body += ccode(field[idx]) + '=' + ccode(field.fd_align.xreplace({self.t+1:self.time[1], self.t:self.time[0]})) + ';\n'
+			dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
+			body = render(tmpl, dict1)
+
+		return body
 
 	def velocity_loop(self):
-		tmpl = self.lookup.get_template('update_loop_3d.txt')
-		t, x, y, z = self.index
-		t1 = Symbol('t1')
-		m = self.margin
-		i1 = ccode(self.dim[0]-m)
-		j1 = ccode(self.dim[1]-m)
-		k1 = ccode(self.dim[2]-m)
+		tmpl = self.lookup.get_template('generic_loop.txt')
+		m = self.margin.value
 		body = ''
-		for field in self.vfields:
-			body += ccode(field.name[t1,x,y,z]) + '=' + ccode(field.shift_fd.replace(t+1,t1)) + ';\n\t\t\t'
-		dict1 = {'i':'x','j':'y','k':'z','i0':m,'i1':i1,'j0':m,'j1':j1,'k0':m,'k1':k1,'body':body}
-		result = render(tmpl, dict1)
-		return result
+		for d in range(self.dimension-1,-1,-1):
+			i = self.index[d]
+			i0 = m
+			i1 = ccode(self.dim[d]-m)
+			if d==self.dimension-1:
+				# inner loop
+				idx = [self.time[1]] + self.index
+				for field in self.vfields:
+					body += ccode(field[idx]) + '=' + ccode(field.fd_align.xreplace({self.t+1:self.time[1], self.t:self.time[0]})) + ';\n'
+			dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
+			body = render(tmpl, dict1)
+
+		return body
 
 	def _get_ij(self, d):
 		if d==1:
