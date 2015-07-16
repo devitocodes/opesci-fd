@@ -518,6 +518,23 @@ class StaggeredGrid:
 		return i,j,i1,j1
 
 	def stress_bc(self):
+		tmpl = self.lookup.get_template('generic_loop.txt')
+		result = ''
+		for field in self.sfields:
+			for d in range(self.dimension):
+				for side in range(2):
+					body = ''
+					for d2 in range(self.dimension-1,-1,-1):
+						if not d==d2:
+							
+					i = self.index
+					dict1 = {'i':i,'j':j,'i0':0,'i1':i1,'j0':0,'j1':j1,'body':field.bc[d][side]}
+					result += render(tmpl, dict1).replace('[t]','[t1]')
+
+
+		return result
+
+	def stress_bc_old(self):
 		tmpl = self.lookup.get_template('ghost_cell_3d.txt')
 		result = ''
 		for field in self.sfields:
