@@ -1,7 +1,0 @@
-  // update ghost cells for boundary conditions
-  #pragma omp for
-  for(int ${i}=${i0};${i}<${i1};++${i}){
-      for(int ${j}=${j0};${j}<${j1};++${j}){
-        ${body}
-      }
-  }
