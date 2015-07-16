@@ -7,8 +7,6 @@
 
 int main(){
 
-  const int _tp = 2;
-  
   ${define_constants}
   ${declare_fields}
 
@@ -19,12 +17,7 @@ int main(){
 
   for(int _ti=0;_ti<ntsteps;_ti++){
     
-    // shared variables
-    #pragma omp single
-    {
-      t0 = _ti % _tp; // array index of current time step
-      t1 = (t+1) % _tp; // array index of the grid to be updated
-    }
+    ${time_stepping}
 
     ${stress_loop}
     ${stress_bc}

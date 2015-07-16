@@ -8,10 +8,6 @@ from sympy.printing.ccode import CCodePrinter
 
 hf = Rational(1,2) # 1/2
 
-def IndexedBases(s):
-	l = s.split();
-	bases = [IndexedBase(x) for x in l]
-	return tuple(bases)
 
 class MyCPrinter(CCodePrinter):
 	def __init__(self, settings={}):
@@ -26,6 +22,13 @@ class MyCPrinter(CCodePrinter):
 		p, q = int(expr.p), int(expr.q)
 		return '%d.0F/%d.0F' % (p, q) # float precision by default
 
+	def _print_Mod(self, expr):
+		# print mod as % in C++
+		args = map(ccode, expr.args)
+		args = ['('+x+')' for x in args]
+		result = '%'.join(args)
+		return result
+
 def ccode(expr, **settings):
 	return MyCPrinter(settings).doprint(expr, None)
 
@@ -38,6 +41,11 @@ def render(tmpl, dict1):
 	ctx = Context(buf, **dict1)
 	tmpl.render_context(ctx)
 	return buf.getvalue()
+
+def IndexedBases(s):
+	l = s.split();
+	bases = [IndexedBase(x) for x in l]
+	return tuple(bases)
 
 def tc(dx, n):
     # return coefficient of power n Taylor series term
@@ -144,6 +152,7 @@ class Field(IndexedBase):
 	def set(self, dimension, staggered):
 		self.dimension = dimension
 		self.staggered = staggered
+		self.lookup = TemplateLookup(directories=['templates/staggered/'])
 		self.d = [[None]*4 for x in range(dimension+1)] # list of list to store derivative expressions
 		self.bc = [[None]*2 for x in range(dimension+1)] # list of list to store boundary ghost cell code
 
@@ -152,13 +161,6 @@ class Field(IndexedBase):
 
 	def calc_derivative(self, l, k, d, n):
 		self.d[k][n] = Deriv_half(self, l, k, d, n)[1]
-
-	def recenter(self, expr):
-		result = expr
-		for k in range(self.dimension):
-			if self.staggered[k]:
-				result = shift_index(result,k,hf)
-		return result
 
 	def align(self, expr):
 		# align staggered cells to whole number indices
@@ -187,10 +189,10 @@ class Field(IndexedBase):
 		t = self.align(fd)
 		self.fd_align = t
 
-	def save_field(self):
+	def vtk_save_field(self):
 		tmpl = self.lookup.get_template('save_field.txt')
 		result = ''
-		dict1 = {'filename':ccode(self.name.label)+'_','field':ccode(self.name.label)}
+		dict1 = {'filename':ccode(self.label)+'_','field':ccode(self.label)}
 		result = render(tmpl, dict1)
 
 		return result
@@ -230,7 +232,7 @@ class VField(Field):
 		lhs = lhs.subs(indices[d],t)
 		rhs = self.align(rhs.subs(indices[d],t))
 
-		self.bc[d][side] = ccode(lhs) + ' = ' + ccode(rhs) + ';\n\t\t\t\t'
+		self.bc[d][side] = ccode(lhs) + ' = ' + ccode(rhs) + ';\n'
 
 
 class SField(Field):
@@ -251,7 +253,7 @@ class SField(Field):
 		# boundary at dimension[d] = b
 		if d not in self.direction:
 			# x boundary for Tyy etc are not needed
-			self.bc[d][side] = '// nothing'
+			self.bc[d][side] = '// nothing\n'
 			return
 
 		idx = list(indices) # ghost cell
@@ -269,7 +271,7 @@ class SField(Field):
 		idx[d] -= (-1)**side
 		idx2[d] += (-1)**side
 		eq2 = Eq(self[idx], -self[idx2])
-		self.bc[d][side] = ccode_eq(eq1) +';\n\t\t\t\t' + ccode_eq(eq2) + ';\n\t\t\t\t'
+		self.bc[d][side] = ccode_eq(eq1) +';\n' + ccode_eq(eq2) + ';\n'
 
 class Variable(Symbol):
 	""" wrapper for Symbol to store extra information """
@@ -288,16 +290,18 @@ class StaggeredGrid:
 	def __init__(self, dimension):
 		self.dimension = dimension
 		self.lookup = TemplateLookup(directories=['templates/staggered/'])
+		self.omp = True # switch for inserting #pragma omp for
 		self.size = [1.0] * dimension # default domain size
 		self.spacing = [Variable('dx'+str(k+1), 0.1, 'float', True)  for k in range(dimension)] # spacing symbols, dx1, dx2, ...
 		self.index = [Symbol('x'+str(k+1))  for k in range(dimension)] # indices symbols, x1, x2 ...
 
+		self.order = (1,2,2,2)
+
 		self.t = Symbol('t')
 		self.dt = Variable('dt', 0.01, 'float', True)
+		self.tp = Variable('tp', self.order[0]*2, 'int', True) # periodicity for time stepping
 		self.margin = Variable('margin', 2, 'int', True)
 		self.ntsteps= Variable('ntsteps', 100, 'int', True)
-
-		self.order = (1,2,2,2)
 
 		self.defined_variable = {} # user defined variables, use dictionary because of potential duplication when using list
 
@@ -307,7 +311,6 @@ class StaggeredGrid:
 			name = 't' + str(k)
 			v = Variable(name, 0, 'int', False)
 			self.time.append(v)
-
 
 		self._update_domain_size()
 
@@ -406,7 +409,7 @@ class StaggeredGrid:
 
 	def define_variables(self):
 		result = ''
-		variables = self.dim + self.spacing + self.time + [self.dt, self.margin, self.ntsteps, self.vec_size] + self.defined_variable.values()
+		variables = self.dim + self.spacing + self.time + [self.tp, self.dt, self.margin, self.ntsteps, self.vec_size] + self.defined_variable.values()
 		for v in variables:
 			line = ''
 			if v.constant:
@@ -435,6 +438,8 @@ class StaggeredGrid:
 
 		for field in self.sfields+self.vfields:
 			body = ''
+			if self.omp:
+				result += '#pragma omp for\n'
 			# populate xvalue, yvalue zvalue code
 			for d in range(self.dimension-1,-1,-1):
 				i = loop[d]
@@ -445,13 +450,13 @@ class StaggeredGrid:
 				else:
 					i1 = ccode(self.dim[d]-m)
 					expr = self.spacing[d]*(loop[d] - self.margin.value)
-				pre = 'float ' + self.index[d].name + '= ' + ccode(expr) + ';\n' + '\t'*d
+				pre = 'float ' + self.index[d].name + '= ' + ccode(expr) + ';\n'
 				post = ''
 				if d==self.dimension-1:
 					# inner loop
 					t0 = self.dt.value/2 if field.staggered[0] else 0 # first time step
-					post = ccode(field[[0]+loop]) + '=' + ccode(field.sol.subs(self.t, t0))
-				body = pre + body + post
+					body = ccode(field[[0]+loop]) + '=' + ccode(field.sol.subs(self.t, t0)) +';\n'
+				body = pre + body
 				dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
 				body = render(tmpl, dict1)
 
@@ -479,6 +484,9 @@ class StaggeredGrid:
 			dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
 			body = render(tmpl, dict1)
 
+		if self.omp:
+			body = '#pragma omp for\n' + body
+
 		return body
 
 	def velocity_loop(self):
@@ -497,25 +505,10 @@ class StaggeredGrid:
 			dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
 			body = render(tmpl, dict1)
 
-		return body
+		if self.omp:
+			body = '#pragma omp for\n' + body
 
-	def _get_ij(self, d):
-		if d==1:
-			i = 'y'
-			j = 'z'
-			i1 = self.dim[1]
-			j1 = self.dim[2]
-		elif d==2:
-			i = 'x'
-			j = 'z'
-			i1 = self.dim[0]
-			j1 = self.dim[2]
-		else:
-			i = 'x'
-			j = 'y'
-			i1 = self.dim[0]
-			j1 = self.dim[1]						
-		return i,j,i1,j1
+		return body
 
 	def stress_bc(self):
 		tmpl = self.lookup.get_template('generic_loop.txt')
@@ -523,82 +516,108 @@ class StaggeredGrid:
 		for field in self.sfields:
 			for d in range(self.dimension):
 				for side in range(2):
+					if self.omp:
+						result += '#pragma omp for\n'
 					body = ''
 					for d2 in range(self.dimension-1,-1,-1):
-						if not d==d2:
-							
-					i = self.index
-					dict1 = {'i':i,'j':j,'i0':0,'i1':i1,'j0':0,'j1':j1,'body':field.bc[d][side]}
-					result += render(tmpl, dict1).replace('[t]','[t1]')
+						# loop through other dimensions
+						if not d2==d:
+							i = self.index[d2]
+							i0 = 0
+							i1 = self.dim[d2]
+							if body=='':
+								# inner loop, populate ghost cell calculation
+								body = field.bc[d+1][side]
+							dict1 = {'i':i,'i0':0,'i1':i1,'body':body}
+							body = render(tmpl, dict1).replace('[t]','[t1]')
 
-
-		return result
-
-	def stress_bc_old(self):
-		tmpl = self.lookup.get_template('ghost_cell_3d.txt')
-		result = ''
-		for field in self.sfields:
-			for d in range(1,4):
-				for side in range(2):
-					i,j,i1,j1 = self._get_ij(d)
-					dict1 = {'i':i,'j':j,'i0':0,'i1':i1,'j0':0,'j1':j1,'body':field.bc[d][side]}
-					result += render(tmpl, dict1).replace('[t]','[t1]')
-
+					result += body
 
 		return result
 
 	def velocity_bc(self):
-		tmpl = self.lookup.get_template('ghost_cell_3d.txt')
+		tmpl = self.lookup.get_template('generic_loop.txt')
 		result = ''
-		for d in range(1,4):
+		for d in range(self.dimension):
 			# update the staggered field first because other fields depends on it
-			sequence = [f for f in self.vfields if f.offset[d]] + [f for f in self.vfields if not f.offset[d]]
+			sequence = [f for f in self.vfields if f.staggered[d+1]] + [f for f in self.vfields if not f.staggered[d+1]]
 			for field in sequence:
 				for side in range(2):
-					i,j,i1,j1 = self._get_ij(d)
-					dict1 = {'i':i,'j':j,'i0':1,'i1':i1-1,'j0':1,'j1':j1-1,'body':field.bc[d][side]}
-					result += render(tmpl, dict1).replace('[t]','[t1]')
+					if self.omp:
+						result += '#pragma omp for\n'
+					body = ''
+					for d2 in range(self.dimension-1,-1,-1):
+						# loop through other dimensions
+						if not d2==d:
+							i = self.index[d2]
+							i0 = 1
+							i1 = self.dim[d2]-1
+							if body=='':
+								# inner loop, populate ghost cell calculation
+								body = field.bc[d+1][side]
+							dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
+							body = render(tmpl, dict1).replace('[t]','[t1]')
 
+					result += body
+
+		return result
+
+	def time_stepping(self):
+		# generate time index for time stepping
+		result = ''
+		tmpl = self.lookup.get_template('time_stepping.txt')
+		_ti = Symbol('_ti')
+		body = ''
+
+		for i in range(len(self.time)):
+			lhs = self.time[i].name
+			if i==0:
+				rhs = ccode(_ti % self.tp)
+			else:
+				rhs = ccode((self.time[i-1]+1) % self.tp)
+			body += lhs + ' = ' + rhs + ';\n'
+
+		dict1 = {'body':body}
+		result = render(tmpl, dict1)
 		return result
 
 	def output_step(self):
 		result = ''
-		result += self.vfields[0].save_field()
+		#result += self.vfields[0].vtk_save_field()
 		return result
 
 	def converge_test(self):
-		tmpl = self.lookup.get_template('init_loop_3d.txt')
-		i, j, k = symbols('i j k')
-		ijk = [i,j,k]
-		m = self.margin
-		t = self.index[0]
-		xyzvalue = [None]*3
-		ijk0 = [None]*3
-		ijk1 = [None]*3
-		dt = self.float_symbols[self.dt]
-		ntsteps = self.int_symbols[self.ntsteps]
-		ti = 0 if ntsteps%2 == 0 else 1
-
+		tmpl = self.lookup.get_template('generic_loop.txt')
 		result = ''
+		m = self.margin.value
+		ti = self.ntsteps.value % 2 # last updated grid
+		loop = [Symbol('_'+x.name) for x in self.index] # symbols for loop
 
 		for field in self.sfields+self.vfields:
+			body = ''
+			l2 = ccode(field.label)+'_l2'
+			idx = [ti] + loop
+			result += 'float ' + l2 + ' = 0.0;\n'
 			# populate xvalue, yvalue zvalue code
-			l2 = ccode(field.name.label)+'_l2'
-			result += 'float ' + l2 + ' = 0.0;\n\t\t'
-			for d in range(3):
-				if not field.offset[d+1]:
-					xyzvalue[d] = ccode((ijk[d]-m)*self.h[d])
-					ijk0[d] = ccode(m)
-					ijk1[d] = ccode(self.dim[d]-m)
+			for d in range(self.dimension-1,-1,-1):
+				i = loop[d]
+				i0 = m
+				if field.staggered[d+1]:
+					i1 = ccode(self.dim[d]-m-1)
+					expr = self.spacing[d]*(loop[d] - self.margin.value + 0.5)
 				else:
-					xyzvalue[d] = ccode((ijk[d]-m+0.5)*self.h[d])
-					ijk0[d] = ccode(m) # same as first case
-					ijk1[d] = ccode(self.dim[d]-m-1)
+					i1 = ccode(self.dim[d]-m)
+					expr = self.spacing[d]*(loop[d] - self.margin.value)
+				pre = 'float ' + self.index[d].name + '= ' + ccode(expr) + ';\n'
+				if d==self.dimension-1:
+					# inner loop
+					tn = self.dt.value*self.ntsteps.value if not field.staggered[0] else self.dt.value*self.ntsteps.value + self.dt.value/2.0
+					body = l2 + '+=' + ccode((field[idx]-(field.sol.subs(self.t,tn)))**2.0) + ';\n'
+				body = pre + body
+				dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
+				body = render(tmpl, dict1)
 
-			tn = dt*ntsteps if not field.offset[0] else dt*ntsteps + dt/2.0
-			body = l2 + '+=' + ccode((field.name[ti,i,j,k]-(field.func.subs(t,tn)))**2.0) + ';'
-			dict1 = {'i':'i','j':'j','k':'k','i0':ijk0[0],'i1':ijk1[0],'j0':ijk0[1],'j1':ijk1[1],'k0':ijk0[2],'k1':ijk1[2],'xvalue':xyzvalue[0],'yvalue':xyzvalue[1],'zvalue':xyzvalue[2],'body':body}
-			result += render(tmpl, dict1)
-			result += 'printf("' + l2 + ' = %.10f\\n", ' + l2 + ');\n\t\t'
+			result += body
+			result += 'printf("' + l2 + ' = %.10f\\n", ' + l2 + ');\n'
 
 		return result
