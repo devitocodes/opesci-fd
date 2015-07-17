@@ -5,7 +5,7 @@ from mako.runtime import Context
 from StringIO import StringIO
 from grid import *
 
-def run_test(domain_size, spacing, dt, tmax, filename):
+def run_test(domain_size, spacing, dt, tmax, o_step, o_converge, filename):
 
 	print 'domain size: ' + str(domain_size)
 	print 'spacing: ' + str(spacing)
@@ -88,11 +88,21 @@ def run_test(domain_size, spacing, dt, tmax, filename):
 	grid.set_free_surface_boundary(dimension=2,side=0); grid.set_free_surface_boundary(dimension=2,side=1)
 	grid.set_free_surface_boundary(dimension=3,side=0); grid.set_free_surface_boundary(dimension=3,side=1)
 
+	if o_step:
+		output_step = grid.output_step()
+	else:
+		output_step = ''
+
+	if o_converge:
+		output_final = grid.converge_test()
+	else:
+		output_final = ''
+
 	# write to template file
 	mylookup = TemplateLookup(directories=['templates/staggered','templates/'])
 	mytemplate = mylookup.get_template('staggered3d_tmpl.cpp')
 	buf = StringIO()
-	dict1 = {'time_stepping':grid.time_stepping(),'define_constants':grid.define_variables(),'declare_fields':grid.declare_fields(),'initialise':grid.initialise(),'initialise_bc':grid.initialise_boundary(),'stress_loop':grid.stress_loop(),'velocity_loop':grid.velocity_loop(),'stress_bc':grid.stress_bc(),'velocity_bc':grid.velocity_bc(),'output_step':grid.output_step(),'output_final':grid.converge_test()}
+	dict1 = {'time_stepping':grid.time_stepping(),'define_constants':grid.define_variables(),'declare_fields':grid.declare_fields(),'initialise':grid.initialise(),'initialise_bc':grid.initialise_boundary(),'stress_loop':grid.stress_loop(),'velocity_loop':grid.velocity_loop(),'stress_bc':grid.stress_bc(),'velocity_bc':grid.velocity_bc(),'output_step':output_step,'output_final':output_final}
 	ctx = Context(buf, **dict1)
 	mytemplate.render_context(ctx)
 	code = buf.getvalue()
@@ -105,11 +115,10 @@ def run_test(domain_size, spacing, dt, tmax, filename):
 
 def main():
 	domain_size = (1.0,1.0,1.0)
-	spacing = (0.02,0.02,0.02)
-	dt = 0.005
+	spacing = (0.01,0.01,0.01)
+	dt = 0.002
 	tmax = 2.0
-	run_test(domain_size, spacing, dt, tmax, 'test.cpp')
-
+	run_test(domain_size, spacing, dt, tmax, False, False, 'src/tests/test3d.cpp')
 
 if __name__ == "__main__":
-    main()
+	main()

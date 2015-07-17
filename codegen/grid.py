@@ -583,7 +583,7 @@ class StaggeredGrid:
 
 	def output_step(self):
 		result = ''
-		#result += self.vfields[0].vtk_save_field()
+		result += self.vfields[0].vtk_save_field()
 		return result
 
 	def converge_test(self):
