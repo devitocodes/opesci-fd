@@ -50,18 +50,18 @@ if __name__ == '__main__':
     labels_ = b.result['timings'].keys()
     labels = [x[0] for x in labels_]
 
-    # plt.bar(range(0,len(times)),times,align = 'center')
-    # plt.xticks(range(0,len(times)), labels)
-    # plt.ylabel('running time ')
-    # plt.savefig('my_fig')
+    plt.bar(range(0,len(times)),times,align = 'center')
+    plt.xticks(range(0,len(times)), labels)
+    plt.ylabel('running time ')
+    plt.savefig('my_fig')
     
-    compiler_str = ['%s-haha' % d for d in compilers_check]
-    #for region in regions:
-    region = regions[0]
-    b.plot(figsize=b.figsize, format='pdf',figname='myBench',
-        xaxis='opt_level', xvals=labels,regions=[region],xticklabels=compiler_str,
-        xlabel='x discretisation', labels = labels,
-        kinds='bar', title="")
+    # compiler_str = ['%s-haha' % d for d in compilers_check]
+    # #for region in regions:
+    # region = regions[0]
+    # b.plot(figsize=b.figsize, format='pdf',figname='myBench',
+    #     xaxis='opt_level', xvals=labels,regions=[region],xticklabels=compiler_str,
+    #     xlabel='x discretisation', labels = labels,
+    #     kinds='bar', title="")
 
         #  groups=groups, labels=labels, legend={'loc': 'best'},
         # xticklabels=degree_str, 
