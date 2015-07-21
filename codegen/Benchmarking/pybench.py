@@ -112,7 +112,9 @@ class Benchmark(object):
     """An abstract base class for benchmarks."""
     params = []
     """The parameters to run the benchmark for: a list of pairs, each of which
-    is the parameter name and a list of benchmark values."""
+    is the parameter name and a list of benchmark values. 
+    The method attributes will define the function that take these benchmark values and 
+    run all of them seperately  """
     repeats = 3
     """How often to repeat each benchmark."""
     warmups = 1
@@ -184,7 +186,7 @@ class Benchmark(object):
 
     @contextmanager
     def timed_region(self, name, normalize=1.0):
-        """A context manger for timing a region of code identified by name."""
+        """A context manager for timing a region of code identified by name."""
         if name in self.profiles:
             self.profiles[name].enable()
         t_ = self.timer()
@@ -255,12 +257,20 @@ class Benchmark(object):
         extra = filter(lambda s: '=' in s, extra)
         # Any extra arguments are passed on to the method, but need converting
         # to the right type first
+
         f = self.method.im_func
+
         defaults = dict(zip(f.func_code.co_varnames[1:f.func_code.co_argcount], f.func_defaults))
-        # Caveat: bool("any_string") is always True, but bool("") is always False
+        # default value from the benchmark method 
+
+        # Convert: bool("any_string") is always True, but bool("") is always False
+        # used for condition checks below
         convert = lambda k, v: (k, v in ['True', 'true'] if isinstance(defaults[k], bool)
                                 else type(defaults[k])(v))
+
+
         fargs = dict(convert(*a.split('=')) for a in extra)
+
         if args.load or args.load is None:
             self.load(args.load)
         if args.run:
@@ -276,6 +286,9 @@ class Benchmark(object):
                 self.plot(xaxis)
         if args.profile:
             self.profile(**fargs)
+
+
+
 
     def profile(self, **kwargs):
         """Create a profile for the given benchmark.
@@ -324,7 +337,7 @@ class Benchmark(object):
                         call(cmd % (n, e, statfile, fmt, statfile, fmt), shell=True)
 
     def run(self, **kwargs):
-        """Run the benchmark.
+        """Run the benchmark, record timings and calculate average including total time
 
         :param kwargs: keyword arguments override global attributes:
             * name: benchmark name
@@ -425,6 +438,7 @@ class Benchmark(object):
             pprint(self.result, f)
 
     def combine(self, files):
+        #only used for running options, not in combine_series
         """Combine results given by the dictionary `files`, with file names as
         keys and prefixes as values. The prefix is prepended to the regions."""
         result = {'name': self.name, 'series': self.series}
@@ -780,7 +794,8 @@ class Benchmark(object):
             box = ax.get_position()
             ax.set_position([box.x0, box.y0, box.width, box.height * hscale])
         if legend is not False:
-            l = ax.legend(prop=fontP, framealpha=.5, handlelength=4, **legend)
+            l = ax.legend(prop=fontP, framealpha=.5, handlelength=4, *legend)
+            
             l.get_frame().set_color('white')
         if xlabel:
             ax.set_xlabel(xlabel)
@@ -866,6 +881,7 @@ class Benchmark(object):
         params = dict(kwargs.pop('params', self.result['params']))
         groups = kwargs.get('groups', [])
         legend = kwargs.get('legend', {'loc': 'best'})
+
         format = kwargs.pop('format', 'svg')
         hspace = kwargs.get('hspace')
         html = kwargs.get('html')

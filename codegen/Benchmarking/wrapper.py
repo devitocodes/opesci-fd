@@ -34,7 +34,12 @@ def switchcompiler(compiler,opt_level,name):
 
     polly = '~/./polly/llvm_build/bin/clang++'
     polly += ' -Xclang -load -Xclang LLVMPolly.so'
-    polly += ' -O3 -mllvm -polly'
+    polly += ' -O3 -mllvm'
+
+    # pluto = polly
+
+    polly += ' -polly'
+
     pollywithcmd = polly
 
     polly += ' -fPIC -shared'
@@ -48,6 +53,9 @@ def switchcompiler(compiler,opt_level,name):
     pollywithcmd += ' -o %s_%s.so' % (basename, compiler)
     pollywithcmd += ' %s.cpp' % basename
 
+    # pluto += ' --tile'
+    # pluto += ' -fPIC -shared -o %s_pluto.so %s.cpp' % (basename,basename)
+
 
     return {
         'g++':cc,
@@ -55,7 +63,14 @@ def switchcompiler(compiler,opt_level,name):
         'polly':polly,
         'pollyvector':pollywithcmd,
         'pollyparallel':pollywithcmd,
-        'pollyboth':pollywithcmd
+        'pollyboth':pollywithcmd,
+        'pollynotiling':pollywithcmd,
+        'pollynoaliasing':pollywithcmd,
+        'pollypocc':pollywithcmd,
+        'pollyshow':pollywithcmd,
+        'pollyfunc':pollywithcmd,
+        'pollyexport':pollywithcmd
+        # 'pluto':pluto           ##### careful with this, pluto already in polly
     }[compiler]
 
 
@@ -79,7 +94,19 @@ def pollyoption(x):
     elif(x== 'pollyparallel'):
         return '-parallel -lgomp'
     elif(x== 'pollyboth' ):
-        return '-vectorizer=stripmine' #-parallel -lgomp
+        return '-vectorizer=stripmine -mllvm -polly-parallel -mllvm -polly-ignore-aliasing -lgomp ' #-parallel -lgomp
+    elif(x== 'pollynotiling'):
+        return '-no-tiling'
+    elif(x== 'pollynoaliasing'):
+        return '-ignore-aliasing'
+    elif(x== 'pollypocc'):
+        return '-optimizer=none'    #doesn't work properly because didn't compile with scoplib
+    elif(x== 'pollyshow'):
+        return '-show'          # doesn't work somehow
+    elif(x== 'pollyfunc'):
+        return '-only-func=name'    # have to add a functionname here
+    elif(x== 'pollyexport'):
+        return '-export'
     else :
         return ''
     
@@ -87,13 +114,19 @@ def pollyoption(x):
 class myBench(Benchmark):
 
     warmups = 0
-    repeats = 1
+    repeats = 3
     method = 'benchmarking'
     benchmark = 'myBench'
 
-    compilers = ['g++','clang','polly','pollyvector','pollyparallel','pollyboth']
+    # compilers = ['g++','clang','polly','pollyvector','pollyparallel','pollynotiling','pollyboth','pollynoaliasing']
+    # compilers = ['pollyparallel','pollynotiling','pollynoaliasing']
+    # compilers = ['pollyboth']
+    compilers = ['g++']
     params =  [('opt_level', range(2,3)),('compiler',compilers)]
-    # 
+    # opt_level affect clang++ and g++ 
+
+    #when adding new options , add in switchcompiler, pollyoptions, 
+
 
     basename = 'test'
 

@@ -10,11 +10,15 @@ class myPlot(myBench):
 if __name__ == '__main__':
     p = parser(description="Performance benchmark for optlevel compile time and running time.")
     p.add_argument('-tm', '--times', type=int, nargs='+',
-            help='polynomial degrees to plot')
+            help='times to plot')
+    p.add_argument('-comp','--compiler', type=str,nargs='+',
+            help = 'compiler to plot')
 
     args = p.parse_args()
    # dim = args.dim
     tms = args.times
+    compiler = args.compiler
+
 
     regions = ['compile time', 'running time']
     labels = {(False, False): 'Implicit', (False, True): 'Explicit',
@@ -27,15 +31,17 @@ if __name__ == '__main__':
     b.combine_series([('times', tms)], filename='myBench')
 
     compilers_ = [x for x in b.result['params'] if x[0]=='compiler'][0][1]
-    compilers = ['running time with '+x for x in compilers_ ]
+    compilers_check = ['running time with '+x for x in compilers_ ]
     # get the right parameter , because in the results the order is sometimes read in a wrong way.
 
+    
+
     times = []
-   # print b.result['timings']
+    # print b.result
     for data in b.result['timings'].values():
         # print data.values()
         for x in data.keys():
-            if x in compilers:
+            if x in compilers_check:
                 times.append(data[x])
 
     # checking it is the right results, by checking the key name, 
@@ -44,22 +50,18 @@ if __name__ == '__main__':
     labels_ = b.result['timings'].keys()
     labels = [x[0] for x in labels_]
 
-    # print labels
-
-    plt.bar(range(0,len(times)),times,align = 'center')
-    plt.xticks(range(0,len(times)), labels)
-    plt.ylabel('running time ')
-    plt.savefig('my_fig')
+    # plt.bar(range(0,len(times)),times,align = 'center')
+    # plt.xticks(range(0,len(times)), labels)
+    # plt.ylabel('running time ')
+    # plt.savefig('my_fig')
     
-
-
-
-   # degree_str = ['P%s-DG' % d for d in opt_levels]
-    # for region in regions:
-    #     b.plot(figsize=b.figsize, format='pdf',figname='myBench',
-    #         xaxis='opt_level', xvals=tms,regions=[region],legend={'loc':'best'},
-    #         xlabel='x discretisation', xticklabels = 'labelsabejkflsjflsd',labels = labels,
-    #         kinds='bar', title="")
+    compiler_str = ['%s-haha' % d for d in compilers_check]
+    #for region in regions:
+    region = regions[0]
+    b.plot(figsize=b.figsize, format='pdf',figname='myBench',
+        xaxis='opt_level', xvals=labels,regions=[region],xticklabels=compiler_str,
+        xlabel='x discretisation', labels = labels,
+        kinds='bar', title="")
 
         #  groups=groups, labels=labels, legend={'loc': 'best'},
         # xticklabels=degree_str, 
