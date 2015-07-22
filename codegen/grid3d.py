@@ -118,7 +118,7 @@ def main():
 	spacing = (0.01,0.01,0.01)
 	dt = 0.002
 	tmax = 2.0
-	run_test(domain_size, spacing, dt, tmax, False, False, 'src/tests/test3d.cpp')
+	run_test(domain_size, spacing, dt, tmax, True, True, 'src/tests/test3d.cpp')
 
 if __name__ == "__main__":
 	main()
