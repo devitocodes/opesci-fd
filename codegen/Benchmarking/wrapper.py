@@ -21,19 +21,19 @@ def compile(bench,compiler,opt_level,basename):
 def switchcompiler(compiler,opt_level,name):
     basename = name
     cc = 'g++'
-    cc += ' -fPIC -shared -O%d'% opt_level
+    cc += ' -fopenmp -fPIC -shared -O%d'% opt_level
     cc += " -o %s_g++.so" % basename
     cc += " %s.cpp" % basename
     cc += " test.h"
 
-    clang = '~/./polly/llvm_build/bin/clang++'
-    clang += ' -fPIC -shared'
+    clang = '~/build/bin/clang++'
+    clang += ' -fopenmp -fPIC -shared'
     clang += ' -o %s_clang.so' % basename
     clang += ' %s.cpp'% basename
     clang += ' -O%d' % opt_level
 
-    polly = '~/./polly/llvm_build/bin/clang++'
-    polly += ' -Xclang -load -Xclang LLVMPolly.so'
+    polly = '~/build/bin/clang++'
+    polly += ' -fopenmp -Xclang -load -Xclang LLVMPolly.so'
     polly += ' -O3 -mllvm'
 
     # pluto = polly
@@ -55,7 +55,6 @@ def switchcompiler(compiler,opt_level,name):
 
     # pluto += ' --tile'
     # pluto += ' -fPIC -shared -o %s_pluto.so %s.cpp' % (basename,basename)
-
 
     return {
         'g++':cc,
@@ -94,7 +93,7 @@ def pollyoption(x):
     elif(x== 'pollyparallel'):
         return '-parallel -lgomp'
     elif(x== 'pollyboth' ):
-        return '-vectorizer=stripmine -mllvm -polly-parallel -mllvm -polly-ignore-aliasing -lgomp ' #-parallel -lgomp
+        return '-no-tiling -mllvm -polly-ignore-aliasing ' #-vectorizer=stripmine -mllvm -polly
     elif(x== 'pollynotiling'):
         return '-no-tiling'
     elif(x== 'pollynoaliasing'):
@@ -104,7 +103,7 @@ def pollyoption(x):
     elif(x== 'pollyshow'):
         return '-show'          # doesn't work somehow
     elif(x== 'pollyfunc'):
-        return '-only-func=name'    # have to add a functionname here
+        return '-only-func=main'    
     elif(x== 'pollyexport'):
         return '-export'
     else :
@@ -114,21 +113,25 @@ def pollyoption(x):
 class myBench(Benchmark):
 
     warmups = 0
-    repeats = 3
+    repeats = 1
     method = 'benchmarking'
     benchmark = 'myBench'
 
     # compilers = ['g++','clang','polly','pollyvector','pollyparallel','pollynotiling','pollyboth','pollynoaliasing']
     # compilers = ['pollyparallel','pollynotiling','pollynoaliasing']
-    # compilers = ['pollyboth']
-    compilers = ['g++']
+    compilers = ['pollyfunc','pollyboth','polly','g++','pollyvector']
+    # compilers = ['clang','g++','pollyparallel']
+    # compilers = ['pollyfunc']
+    
     params =  [('opt_level', range(2,3)),('compiler',compilers)]
     # opt_level affect clang++ and g++ 
 
     #when adding new options , add in switchcompiler, pollyoptions, 
 
 
+    # basename = 'test_origin'
     basename = 'test'
+    # basename = 'test2'
 
     # ('extra',['-parallel -lgomp ','-vectorizer=stripmine','-vectorizer=stripmine-parallel -lgomp'])
     compiled =dict ((comp,False) for comp in compilers)
@@ -139,7 +142,6 @@ class myBench(Benchmark):
 
     def benchmarking(self, opt_level=0,times=3 , compiler=''):
 
-        
         self.series['times'] = times
         if not self.compiled[compiler]:
             compile(self,compiler,opt_level,self.basename)

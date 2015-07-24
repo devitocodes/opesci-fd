@@ -1,6 +1,8 @@
 from pybench import parser
 from wrapper import myBench
 import pylab as plt
+import affinity as aff
+import os
 
 
 
@@ -50,10 +52,44 @@ if __name__ == '__main__':
     labels_ = b.result['timings'].keys()
     labels = [x[0] for x in labels_]
 
-    plt.bar(range(0,len(times)),times,align = 'center')
-    plt.xticks(range(0,len(times)), labels)
+    fig = plt.figure();
+    ax  = fig.add_axes((.1,.4,.8,.5))
+
+    detail ={'clang':'using clang++ with opt_level given in wrapper , no other options enabled.'
+                , 'pollyvector':'polly with vectoer=stripemine '
+                , 'pollyparallel':'polly with parallel'
+                , 'polly':'polly default'
+                , 'pollynotiling':'notiling'
+                , 'pollyboth':'all polly'
+                , 'g++':'g++ default with opt_level in wrapper'
+                , 'pollynoaliasing':'polly with noaliasing option'
+                , 'pollyfunc': 'only optimise specific func'
+                }
+
+
+    text = ''
+    for l in labels:
+        text += l + ': ' + (detail[l]) + '\n'
+
+
+    print '+++'
+    # print aff.get_process_affinity_mask(5)
+    # print os.environ['GOMP_CPU_AFFINITY=\"0 1 2 3 \"']
+    print os.getpid()
+    print '---'
+    # plot bar first then add ticks and labels , otherwise no extra space 
+    plt.bar(range(0,len(times)),times,width = 0.5, align = 'center')
+    plt.xticks(range(0,len(times)), labels, rotation = 17)
     plt.ylabel('running time ')
-    plt.savefig('my_fig')
+    fig.text(.1,.0, text)
+    plt.savefig('my_fig%s'%b.basename)
+
+
+
+
+
+
+
     
     # compiler_str = ['%s-haha' % d for d in compilers_check]
     # #for region in regions:
