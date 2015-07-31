@@ -291,6 +291,7 @@ class StaggeredGrid:
 		self.dimension = dimension
 		self.lookup = TemplateLookup(directories=['templates/staggered/'])
 		self.omp = True # switch for inserting #pragma omp for
+		self.ivdep = True # switch for inserting #pragma idvep to inner loop
 		self.size = [1.0] * dimension # default domain size
 		self.spacing = [Variable('dx'+str(k+1), 0.1, 'float', True)  for k in range(dimension)] # spacing symbols, dx1, dx2, ...
 		self.index = [Symbol('x'+str(k+1))  for k in range(dimension)] # indices symbols, x1, x2 ...
@@ -483,6 +484,8 @@ class StaggeredGrid:
 					body += ccode(field[idx]) + '=' + ccode(field.fd_align.xreplace({self.t+1:self.time[1], self.t:self.time[0]})) + ';\n'
 			dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
 			body = render(tmpl, dict1)
+			if self.ivdep and d==self.dimension-1:
+					body = '#pragma ivdep\n' + body
 
 		if self.omp:
 			body = '#pragma omp for\n' + body
@@ -504,6 +507,8 @@ class StaggeredGrid:
 					body += ccode(field[idx]) + '=' + ccode(field.fd_align.xreplace({self.t+1:self.time[1], self.t:self.time[0]})) + ';\n'
 			dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
 			body = render(tmpl, dict1)
+			if self.ivdep and d==self.dimension-1:
+					body = '#pragma ivdep\n' + body
 
 		if self.omp:
 			body = '#pragma omp for\n' + body
@@ -618,6 +623,10 @@ class StaggeredGrid:
 				body = render(tmpl, dict1)
 
 			result += body
-			result += 'printf("' + l2 + ' = %.10f\\n", ' + l2 + ');\n'
+			volume = 1.0
+			for i in range(len(self.spacing)):
+				volume *= self.spacing[i].value
+			l2_value = 'pow(' + l2 + '*' + ccode(volume) + ', 0.5)'
+			result += 'printf("' + l2 + ' = %.10f\\n", ' + l2_value + ');\n'
 
 		return result
