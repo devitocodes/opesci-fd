@@ -533,8 +533,13 @@ class StaggeredGrid:
 							if body=='':
 								# inner loop, populate ghost cell calculation
 								body = field.bc[d+1][side]
-							dict1 = {'i':i,'i0':0,'i1':i1,'body':body}
-							body = render(tmpl, dict1).replace('[t]','[t1]')
+								dict1 = {'i':i,'i0':0,'i1':i1,'body':body}
+								body = render(tmpl, dict1).replace('[t]','[t1]')
+								if self.ivdep:
+									body = '#pragma ivdep\n' + body
+							else:
+								dict1 = {'i':i,'i0':0,'i1':i1,'body':body}
+								body = render(tmpl, dict1).replace('[t]','[t1]')
 
 					result += body
 
@@ -560,8 +565,13 @@ class StaggeredGrid:
 							if body=='':
 								# inner loop, populate ghost cell calculation
 								body = field.bc[d+1][side]
-							dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
-							body = render(tmpl, dict1).replace('[t]','[t1]')
+								dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
+								body = render(tmpl, dict1).replace('[t]','[t1]')
+								if self.ivdep:
+									body = '#pragma ivdep\n' + body
+							else:
+								dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
+								body = render(tmpl, dict1).replace('[t]','[t1]')
 
 					result += body
 
