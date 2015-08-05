@@ -120,7 +120,7 @@ def main():
 	tmax = 2.0
 	output_step = False
 	output_convergence = True
-	vtk = True
+	vtk = False
 	run_test(domain_size, spacing, dt, tmax, output_step, output_convergence, vtk, 'src/tests/test3d.cpp')
 
 if __name__ == "__main__":
