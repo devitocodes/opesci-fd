@@ -1,6 +1,3 @@
-#include "opesciIO.h"
-#include "opesciHandy.h"
-
 #include <cassert>
 #include <cstdlib>
 #include <cmath>

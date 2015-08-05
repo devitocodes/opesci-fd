@@ -1,6 +1,10 @@
 <%include file="copyright.txt"/>
 
+//#define M_PI 3.14159265358979323846
 <%include file="common_include.txt"/>
+% if vtk==True:
+    <%include file="vtk_include.txt"/>
+% endif
 #include <cmath>
 #include <cstdio>
 #include <string>

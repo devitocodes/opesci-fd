@@ -102,7 +102,7 @@ def run_test(domain_size, spacing, dt, tmax, o_step, o_converge, filename):
 	mylookup = TemplateLookup(directories=['templates/staggered','templates/'])
 	mytemplate = mylookup.get_template('staggered3d_tmpl.cpp')
 	buf = StringIO()
-	dict1 = {'time_stepping':grid.time_stepping(),'define_constants':grid.define_variables(),'declare_fields':grid.declare_fields(),'initialise':grid.initialise(),'initialise_bc':grid.initialise_boundary(),'stress_loop':grid.stress_loop(),'velocity_loop':grid.velocity_loop(),'stress_bc':grid.stress_bc(),'velocity_bc':grid.velocity_bc(),'output_step':output_step,'output_final':output_final}
+	dict1 = {'vtk':vtk,'time_stepping':grid.time_stepping(),'define_constants':grid.define_variables(),'declare_fields':grid.declare_fields(),'initialise':grid.initialise(),'initialise_bc':grid.initialise_boundary(),'stress_loop':grid.stress_loop(),'velocity_loop':grid.velocity_loop(),'stress_bc':grid.stress_bc(),'velocity_bc':grid.velocity_bc(),'output_step':output_step,'output_final':output_final}
 	ctx = Context(buf, **dict1)
 	mytemplate.render_context(ctx)
 	code = buf.getvalue()
@@ -115,22 +115,23 @@ def run_test(domain_size, spacing, dt, tmax, o_step, o_converge, filename):
 
 def main():
 	domain_size = (1.0,1.0,1.0)
-	s = 0.25
-	dt = 0.5*s/4
+	s = 0.1
+	c = 0.4/s
+	dt = c*(s**2)
 	tmax = 5.0
-	run_test(domain_size, (s,s,s), dt, tmax, False, True, 'src/tests/test3d_'+str(s)+'.cpp')
+	run_test(domain_size, (s,s,s), dt, tmax, False, True, False, 'tmp/test3d_'+str(s)+'.cpp')
 
-	s = 0.125
-	dt = 0.5*s/4
-	run_test(domain_size, (s,s,s), dt, tmax, False, True, 'src/tests/test3d_'+str(s)+'.cpp')
+	s = s/2
+	dt = c*(s**2)
+	run_test(domain_size, (s,s,s), dt, tmax, False, True, False, 'tmp/test3d_'+str(s)+'.cpp')
 
-	s = 0.0625
-	dt = 0.5*s/4
-	run_test(domain_size, (s,s,s), dt, tmax, False, True, 'src/tests/test3d_'+str(s)+'.cpp')
+	s = s/2
+	dt = c*(s**2)
+	run_test(domain_size, (s,s,s), dt, tmax, False, True, False, 'tmp/test3d_'+str(s)+'.cpp')
 
-	s = 0.03125
-	dt = 0.5*s/4
-	run_test(domain_size, (s,s,s), dt, tmax, False, True, 'src/tests/test3d_'+str(s)+'.cpp')
+	s = s/2
+	dt = c*(s**2)
+	run_test(domain_size, (s,s,s), dt, tmax, False, True, False, 'tmp/test3d_'+str(s)+'.cpp')
 
 if __name__ == "__main__":
 	main()

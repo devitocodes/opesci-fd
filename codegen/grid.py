@@ -290,16 +290,22 @@ class StaggeredGrid:
 	def __init__(self, dimension):
 		self.dimension = dimension
 		self.lookup = TemplateLookup(directories=['templates/staggered/'])
+
+		#switches
 		self.omp = True # switch for inserting #pragma omp for
 		self.ivdep = True # switch for inserting #pragma idvep to inner loop
+		self.double = False
+		self.vtk = False
+		self.real_t = 'double' if self.double else 'float'
+
 		self.size = [1.0] * dimension # default domain size
-		self.spacing = [Variable('dx'+str(k+1), 0.1, 'float', True)  for k in range(dimension)] # spacing symbols, dx1, dx2, ...
+		self.spacing = [Variable('dx'+str(k+1), 0.1, self.real_t, True)  for k in range(dimension)] # spacing symbols, dx1, dx2, ...
 		self.index = [Symbol('x'+str(k+1))  for k in range(dimension)] # indices symbols, x1, x2 ...
 
-		self.order = (1,2,2,2)
+		self.order = (1,2,2,2) # first order in time, 2nd order in space, i.e. (2,4) scheme
 
 		self.t = Symbol('t')
-		self.dt = Variable('dt', 0.01, 'float', True)
+		self.dt = Variable('dt', 0.01, self.real_t, True)
 		self.tp = Variable('tp', self.order[0]*2, 'int', True) # periodicity for time stepping
 		self.margin = Variable('margin', 2, 'int', True)
 		self.ntsteps= Variable('ntsteps', 100, 'int', True)
@@ -315,8 +321,22 @@ class StaggeredGrid:
 
 		self._update_domain_size()
 
-		#self.float_symbols = {self.h[0]:0.1,self.h[1]:0.1,self.h[2]:0.1,self.dt:1.0} # dictionary to hold symbols and their values
-		#self.int_symbols = {self.ntsteps:1,self.dim[0]:0,self.dim[1]:0,self.dim[2]:0}
+	def set_vtk(self, vtk):
+		assert vtk==True or vtk==False
+		self.vtk = vtk
+
+	def set_omp(self, omp):
+		assert omp==True or omp==False
+		self.omp = omp
+
+	def set_ivdep(self, ivdep):
+		assert ivdep==True or ivdep==False
+		self.ivdep = ivdep
+
+	def set_double(self, double):
+		assert double==True or double==False
+		self.double = double
+		self.real_t = 'double' if self.double else 'float'
 
 	def _update_domain_size(self):
 		# set dimension symbols, dim1, dim2, ...
@@ -331,7 +351,7 @@ class StaggeredGrid:
 		self._update_domain_size()
 
 	def set_spacing(self, spacing):
-		self.spacing = [Variable('dx'+str(k+1), spacing[k], 'float', True)  for k in range(self.dimension)] # spacing symbols, dx1, dx2, ...
+		self.spacing = [Variable('dx'+str(k+1), spacing[k], self.real_t, True)  for k in range(self.dimension)] # spacing symbols, dx1, dx2, ...
 		self._update_domain_size()
 
 	def set_index(self, indices):
@@ -406,7 +426,7 @@ class StaggeredGrid:
 			else:
 				field.set_free_surface(index, dimension, self.dim[dimension-1]-self.margin.value-1, side)
 
-	############## sub-routines for output ##############
+	################## sub-routines for output #################
 
 	def define_variables(self):
 		result = ''
@@ -426,8 +446,8 @@ class StaggeredGrid:
 			arr += '[' + d.name + ']'
 		for field in self.sfields + self.vfields:
 			vec = '_' + ccode(field.label) + '_vec'
-			result += 'std::vector<float> ' + vec + '(' + self.vec_size.name + ');\n'
-			result += 'float (*' + ccode(field.label) + ')' + arr + '= (float (*)' + arr + ') ' + vec + '.data();\n'
+			result += 'std::vector<' + self.real_t +'> ' + vec + '(' + self.vec_size.name + ');\n'
+			result +=  self.real_t + ' (*' + ccode(field.label) + ')' + arr + '= (' + self.real_t +' (*)' + arr + ') ' + vec + '.data();\n'
 		return result
 
 	def initialise(self):
@@ -451,7 +471,7 @@ class StaggeredGrid:
 				else:
 					i1 = ccode(self.dim[d]-m)
 					expr = self.spacing[d]*(loop[d] - self.margin.value)
-				pre = 'float ' + self.index[d].name + '= ' + ccode(expr) + ';\n'
+				pre = self.real_t + ' ' + self.index[d].name + '= ' + ccode(expr) + ';\n'
 				post = ''
 				if d==self.dimension-1:
 					# inner loop
@@ -608,11 +628,14 @@ class StaggeredGrid:
 		ti = self.ntsteps.value % 2 # last updated grid
 		loop = [Symbol('_'+x.name) for x in self.index] # symbols for loop
 
+		for i in range(len(self.spacing)):
+			result += 'printf("' + str(self.spacing[i].value) + '\\n");\n'
+
 		for field in self.sfields+self.vfields:
 			body = ''
 			l2 = ccode(field.label)+'_l2'
 			idx = [ti] + loop
-			result += 'float ' + l2 + ' = 0.0;\n'
+			result += self.real_t + ' ' + l2 + ' = 0.0;\n'
 			# populate xvalue, yvalue zvalue code
 			for d in range(self.dimension-1,-1,-1):
 				i = loop[d]
@@ -623,7 +646,7 @@ class StaggeredGrid:
 				else:
 					i1 = ccode(self.dim[d]-m)
 					expr = self.spacing[d]*(loop[d] - self.margin.value)
-				pre = 'float ' + self.index[d].name + '= ' + ccode(expr) + ';\n'
+				pre = self.real_t + ' ' + self.index[d].name + '= ' + ccode(expr) + ';\n'
 				if d==self.dimension-1:
 					# inner loop
 					tn = self.dt.value*self.ntsteps.value if not field.staggered[0] else self.dt.value*self.ntsteps.value + self.dt.value/2.0
@@ -637,6 +660,6 @@ class StaggeredGrid:
 			for i in range(len(self.spacing)):
 				volume *= self.spacing[i].value
 			l2_value = 'pow(' + l2 + '*' + ccode(volume) + ', 0.5)'
-			result += 'printf("' + l2 + ' = %.10f\\n", ' + l2_value + ');\n'
+			result += 'printf("' + l2 + '\\t%.10f\\n", ' + l2_value + ');\n'
 
 		return result

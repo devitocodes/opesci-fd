@@ -5,7 +5,7 @@ from mako.runtime import Context
 from StringIO import StringIO
 from grid import *
 
-def run_test(domain_size, spacing, dt, tmax, o_step, o_converge, filename):
+def run_test(domain_size, spacing, dt, tmax, o_step, o_converge, vtk, filename):
 
 	print 'domain size: ' + str(domain_size)
 	print 'spacing: ' + str(spacing)
@@ -102,7 +102,7 @@ def run_test(domain_size, spacing, dt, tmax, o_step, o_converge, filename):
 	mylookup = TemplateLookup(directories=['templates/staggered','templates/'])
 	mytemplate = mylookup.get_template('staggered3d_tmpl.cpp')
 	buf = StringIO()
-	dict1 = {'time_stepping':grid.time_stepping(),'define_constants':grid.define_variables(),'declare_fields':grid.declare_fields(),'initialise':grid.initialise(),'initialise_bc':grid.initialise_boundary(),'stress_loop':grid.stress_loop(),'velocity_loop':grid.velocity_loop(),'stress_bc':grid.stress_bc(),'velocity_bc':grid.velocity_bc(),'output_step':output_step,'output_final':output_final}
+	dict1 = {'vtk':vtk,'time_stepping':grid.time_stepping(),'define_constants':grid.define_variables(),'declare_fields':grid.declare_fields(),'initialise':grid.initialise(),'initialise_bc':grid.initialise_boundary(),'stress_loop':grid.stress_loop(),'velocity_loop':grid.velocity_loop(),'stress_bc':grid.stress_bc(),'velocity_bc':grid.velocity_bc(),'output_step':output_step,'output_final':output_final}
 	ctx = Context(buf, **dict1)
 	mytemplate.render_context(ctx)
 	code = buf.getvalue()
@@ -118,7 +118,10 @@ def main():
 	spacing = (0.01,0.01,0.01)
 	dt = 0.002
 	tmax = 2.0
-	run_test(domain_size, spacing, dt, tmax, True, True, 'src/tests/test3d.cpp')
+	output_step = False
+	output_convergence = True
+	vtk = True
+	run_test(domain_size, spacing, dt, tmax, output_step, output_convergence, vtk, 'src/tests/test3d.cpp')
 
 if __name__ == "__main__":
 	main()

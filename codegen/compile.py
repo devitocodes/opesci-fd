@@ -1,5 +1,6 @@
 import os
 pwd = os.getcwd()
+data = [[]] * 9
 for f in os.listdir(pwd):
 	if f.endswith('.cpp'):
 		cmd = 'icl -openmp ' + f
@@ -8,3 +9,5 @@ for f in os.listdir(pwd):
 		txt = f.replace('.cpp', '.txt')
 		cmd = exe + ' > ' + txt
 		os.system(cmd)
+		f2 = open(txt)
+		
