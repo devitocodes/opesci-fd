@@ -294,12 +294,13 @@ class StaggeredGrid:
 		#switches
 		self.omp = True # switch for inserting #pragma omp for
 		self.ivdep = True # switch for inserting #pragma idvep to inner loop
+		self.simd = False # switch for inserting #pragma simd to inner loop
 		self.double = False
 		self.vtk = False
 		self.real_t = 'double' if self.double else 'float'
 
 		self.size = [1.0] * dimension # default domain size
-		self.spacing = [Variable('dx'+str(k+1), 0.1, self.real_t, True)  for k in range(dimension)] # spacing symbols, dx1, dx2, ...
+		self.spacing = [Variable('dx'+str(k+1), 0.1, self.real_t, True)  for k in range(self.dimension)] # spacing symbols, dx1, dx2, ...
 		self.index = [Symbol('x'+str(k+1))  for k in range(dimension)] # indices symbols, x1, x2 ...
 
 		self.order = (1,2,2,2) # first order in time, 2nd order in space, i.e. (2,4) scheme
@@ -333,10 +334,15 @@ class StaggeredGrid:
 		assert ivdep==True or ivdep==False
 		self.ivdep = ivdep
 
+	def set_simd(self, simd):
+		assert simd==True or simd==False
+		self.simd = simd
+
 	def set_double(self, double):
 		assert double==True or double==False
 		self.double = double
 		self.real_t = 'double' if self.double else 'float'
+		self.spacing = [Variable('dx'+str(k+1), 0.1, self.real_t, True)  for k in range(self.dimension)] # spacing symbols, dx1, dx2, ...
 
 	def _update_domain_size(self):
 		# set dimension symbols, dim1, dim2, ...
@@ -506,6 +512,8 @@ class StaggeredGrid:
 			body = render(tmpl, dict1)
 			if self.ivdep and d==self.dimension-1:
 					body = '#pragma ivdep\n' + body
+			if self.simd and d==self.dimension-1:
+					body = '#pragma simd\n' + body
 
 		if self.omp:
 			body = '#pragma omp for\n' + body
@@ -529,6 +537,8 @@ class StaggeredGrid:
 			body = render(tmpl, dict1)
 			if self.ivdep and d==self.dimension-1:
 					body = '#pragma ivdep\n' + body
+			if self.simd and d==self.dimension-1:
+					body = '#pragma simd\n' + body
 
 		if self.omp:
 			body = '#pragma omp for\n' + body
@@ -557,6 +567,8 @@ class StaggeredGrid:
 								body = render(tmpl, dict1).replace('[t]','[t1]')
 								if self.ivdep:
 									body = '#pragma ivdep\n' + body
+								if self.simd:
+									body = '#pragma simd\n' + body
 							else:
 								dict1 = {'i':i,'i0':0,'i1':i1,'body':body}
 								body = render(tmpl, dict1).replace('[t]','[t1]')
@@ -589,6 +601,8 @@ class StaggeredGrid:
 								body = render(tmpl, dict1).replace('[t]','[t1]')
 								if self.ivdep:
 									body = '#pragma ivdep\n' + body
+								if self.simd:
+									body = '#pragma simd\n' + body
 							else:
 								dict1 = {'i':i,'i0':i0,'i1':i1,'body':body}
 								body = render(tmpl, dict1).replace('[t]','[t1]')
