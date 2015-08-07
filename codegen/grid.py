@@ -303,24 +303,28 @@ class StaggeredGrid:
 		self.spacing = [Variable('dx'+str(k+1), 0.1, self.real_t, True)  for k in range(self.dimension)] # spacing symbols, dx1, dx2, ...
 		self.index = [Symbol('x'+str(k+1))  for k in range(dimension)] # indices symbols, x1, x2 ...
 
-		self.order = (1,2,2,2) # first order in time, 2nd order in space, i.e. (2,4) scheme
+		default_accuracy = [1] + [2]*self.dimension # default 2nd order in time, 4th order in space, i.e. (2,4) scheme
+		self.set_accuracy(default_accuracy)
 
 		self.t = Symbol('t')
 		self.dt = Variable('dt', 0.01, self.real_t, True)
-		self.tp = Variable('tp', self.order[0]*2, 'int', True) # periodicity for time stepping
+
 		self.margin = Variable('margin', 2, 'int', True)
 		self.ntsteps= Variable('ntsteps', 100, 'int', True)
 
 		self.defined_variable = {} # user defined variables, use dictionary because of potential duplication when using list
 
+		self._update_domain_size()
+
+	def set_accuracy(self, accuracy):
+		self.order = accuracy
+		self.tp = Variable('tp', self.order[0]*2, 'int', True) # periodicity for time stepping
 		# add time variables for time stepping
 		self.time = []
 		for k in range(self.order[0]*2):
 			name = 't' + str(k)
 			v = Variable(name, 0, 'int', False)
 			self.time.append(v)
-
-		self._update_domain_size()
 
 	def set_vtk(self, vtk):
 		assert vtk==True or vtk==False
@@ -406,10 +410,11 @@ class StaggeredGrid:
 
 	def solve_fd(self,eqs):
 		t = self.t
-		index = [t+hf] + self.index
+		t1 = t+hf+(self.order[0]-1) # the most advanced time index
+		index = [t1] + self.index
 		self.eqs = eqs
 		for field, eq in zip(self.vfields+self.sfields, eqs):
-			field.set_fd(solve(eq,field[index])[0].subs({t:t+hf}))
+			field.set_fd(solve(eq,field[index])[0].subs({t:t+1-hf-(self.order[0]-1)})) # want the LHS of express to be at time t+1
 
 	def associate_fields(self):
 		# match up stress fields with velocity fields
