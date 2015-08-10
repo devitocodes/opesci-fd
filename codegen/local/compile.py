@@ -1,3 +1,10 @@
+"""
+local helper script for convergence analysis
+- compile all c++ file in current directory
+- run the executables, save results in txt files
+- collect data (L2 norms) in data.txt file
+"""
+
 import os
 pwd = os.getcwd()
 data = [[]] * 9
