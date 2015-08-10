@@ -6,12 +6,28 @@ from StringIO import StringIO
 from grid import *
 
 def run_test(domain_size, spacing, dt, tmax, o_step=False, o_converge=True, omp=True, simd=False, ivdep=True, vtk=False, double=False, filename='test.cpp'):
+	"""
+	create 3D eigen waves and run FD simulation
+	param domain_size: define size of domain, e.g. (1.0, 1.0, 1.0) for unit cube
+	param spacing: define grid spacing, e.g. (0.1, 0.1, 0.1)
+	param dt: define time step
+	param tmax: define simulation time
+	o_step: switch for code to output at each time step (such as save field as vtk file), default False (no output)
+	o_converge: switch for code to calculate L2 norms for convergence test, default True (output)
+	omp: swtich for inserting #pragma omp for before outter loop, default True (use omp)
+	simd: switch for inserting #pragma simd before inner loop, default False (do not use simd)
+	ivddp: switch for inserting #praga ivdep before inner loop, default True (use ivdep)
+	vtk: switch for include vtk header files, default False (not include vtk header files)
+	double: switch for using double as real number variables, default False (use float)
+	filename: output source code file name as string
+	"""
 
 	print 'domain size: ' + str(domain_size)
 	print 'spacing: ' + str(spacing)
 	print 'dt: ' + str(dt)
 	print 'tmax: ' + str(tmax)
 
+	# declare fields
 	Txx = SField('Txx'); Txx.set(dimension=3, direction=(1,1))
 	Tyy = SField('Tyy'); Tyy.set(dimension=3, direction=(2,2))
 	Tzz = SField('Tzz'); Tzz.set(dimension=3, direction=(3,3))
@@ -23,7 +39,8 @@ def run_test(domain_size, spacing, dt, tmax, o_step=False, o_converge=True, omp=
 	W = VField('W'); W.set(dimension=3, direction=3)
 
 	grid = StaggeredGrid(dimension=3)
-	# switches
+
+	# set switches
 	grid.set_omp(omp)
 	grid.set_simd(simd)
 	grid.set_ivdep(ivdep)
@@ -36,6 +53,7 @@ def run_test(domain_size, spacing, dt, tmax, o_step=False, o_converge=True, omp=
 	grid.set_spacing(spacing)
 	grid.set_time_step(dt,tmax)
 
+	# define parameters
 	rho, beta, lam, mu = symbols('rho beta lambda mu')
 	t,x,y,z = symbols('t x y z')
 	grid.set_index([x,y,z])
@@ -46,6 +64,7 @@ def run_test(domain_size, spacing, dt, tmax, o_step=False, o_converge=True, omp=
 
 	print 'require dt < ' + str(grid.get_time_step_limit())
 
+	# define eigen waves
 	Omega = pi*sqrt(2*mu/rho)
 	A = sqrt(2*rho*mu)
 	U_func = cos(pi*x)*(sin(pi*y)-sin(pi*z))*cos(Omega*t)
@@ -70,11 +89,11 @@ def run_test(domain_size, spacing, dt, tmax, o_step=False, o_converge=True, omp=
 
 	grid.calc_derivatives()
 
-	# momentum equations
+	# PDEs: momentum equations
 	eq1 = Eq(U.d[0][1], beta*(Txx.d[1][2] + Txy.d[2][2] + Txz.d[3][2]))
 	eq2 = Eq(V.d[0][1], beta*(Txy.d[1][2] + Tyy.d[2][2] + Tyz.d[3][2]))
 	eq3 = Eq(W.d[0][1], beta*(Txz.d[1][2] + Tyz.d[2][2] + Tzz.d[3][2]))
-	# stress-strain equations
+	# PDEs: stress-strain equations
 	eq4 = Eq(Txx.d[0][1], (lam + 2*mu)*U.d[1][2] + lam*(V.d[2][2]+W.d[3][2]))
 	eq5 = Eq(Tyy.d[0][1], (lam + 2*mu)*V.d[2][2] + lam*(U.d[1][2]+W.d[3][2]))
 	eq6 = Eq(Tzz.d[0][1], (lam + 2*mu)*W.d[3][2] + lam*(U.d[1][2]+V.d[2][2]))
@@ -113,6 +132,7 @@ def run_test(domain_size, spacing, dt, tmax, o_step=False, o_converge=True, omp=
 	ctx = Context(buf, **dict1)
 	mytemplate.render_context(ctx)
 	code = buf.getvalue()
+	
 	# generate compilable C++ source code
 	f= open(filename,'w')
 	f.write(code)

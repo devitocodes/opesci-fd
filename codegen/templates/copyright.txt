@@ -33,11 +33,3 @@
  *  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
  */
-
-/* Test case implements:
-
-   Graves, Robert W. "Simulating seismic wave propagation in 3D
-   elastic media using staggered-grid finite differences." Bulletin of
-   the Seismological Society of America 86.4 (1996): 1091-1106.
-
-*/
