@@ -8,10 +8,10 @@ from grid import *
 def run_test(domain_size, spacing, dt, tmax, o_step=False, o_converge=True, omp=True, simd=False, ivdep=True, vtk=False, double=False, filename='test.cpp'):
 	"""
 	create 3D eigen waves and run FD simulation
-	param domain_size: define size of domain, e.g. (1.0, 1.0, 1.0) for unit cube
-	param spacing: define grid spacing, e.g. (0.1, 0.1, 0.1)
-	param dt: define time step
-	param tmax: define simulation time
+	:param domain_size: define size of domain, e.g. (1.0, 1.0, 1.0) for unit cube
+	:param spacing: define grid spacing, e.g. (0.1, 0.1, 0.1)
+	:param dt: define time step
+	:param tmax: define simulation time
 	o_step: switch for code to output at each time step (such as save field as vtk file), default False (no output)
 	o_converge: switch for code to calculate L2 norms for convergence test, default True (output)
 	omp: swtich for inserting #pragma omp for before outter loop, default True (use omp)

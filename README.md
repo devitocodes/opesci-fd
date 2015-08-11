@@ -2,7 +2,7 @@
 
 FD simulation for 3D elastic wave equation.
 
-running the python script codegen/grid3d.py (this script is the same as the notebook grid3d.ipynb), this will generate test3d.cpp. This can be compiled manually with g++ -fopenmp for instance, or build the make file according to the .travis.yml scrip.
+running the python script codegen/grid3d.py (this script is the same as the notebook grid3d.ipynb), this will generate test3d.cpp. This can be compiled manually with g++ -fopenmp for instance, or build the make file according to the .travis.yml script.
 
 To enable vtk output, go to grid3d.py and change vtk from False to True in main(), and change output_step to True. Compile with cmake in this case.
 

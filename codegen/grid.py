@@ -71,7 +71,7 @@ def render(tmpl, dict1):
 def IndexedBases(s):
     """
     declare multiple IndexedBase objects
-    param s: string of names seperated by white space
+    :param s: string of names seperated by white space
     returns IndxedBase objects as tuple
     """
     l = s.split();
@@ -81,8 +81,8 @@ def IndexedBases(s):
 def tc(dx, n):
     """
     return coefficient of power n term in Taylor series expansion
-    param n: power
-    param dx: distance from expansion reference
+    :param n: power
+    :param dx: distance from expansion reference
     """
     return (dx**n)/factorial(n)
     
@@ -91,8 +91,8 @@ def Taylor(dx, n):
     create Matrix of Taylor Coefficients M, such that M * D = R
     where D is list of derivatives at x [f, f', f'' ..]
     R is list of values at neighbour grid point [.. f(x-dx), f(x), f(x+dx) ..]
-    param dx: spacing between grid points
-    param n: length of D and R (i.e. number of derivatives to calculate)
+    :param dx: spacing between grid points
+    :param n: length of D and R (i.e. number of derivatives to calculate)
     returns Maxtrix object M
     """
     l = []
@@ -107,8 +107,8 @@ def Taylor_half(dx, n):
     create Matrix of Taylor Coefficients M, such that M * D = R
     where D is list of derivatives at x [f, f', f'' ..]
     R is list of values at neighbour grid point [.. f(x-3/2*dx), f(x-dx/2), f(x), f(x+dx/2), f(x+3/2*dx) ..]
-    param dx: spacing between grid points
-    param n: length of D and R (i.e. number of derivatives to calculate)
+    :param dx: spacing between grid points
+    :param n: length of D and R (i.e. number of derivatives to calculate)
     returns Maxtrix object M
     """
     l = []
@@ -121,11 +121,11 @@ def Deriv(U, i, k, d, n):
     """
     calculate the FD approximation for nth derivative
     the function works by using M * D = R, as specified in Taylor(), then inverting M, so that D = M_inverse * R
-    param U: the field
-    param i: list of indices (Symbol objects) of field U, e.g. possibley [t,x,y,z] for 3D
-    param k: determine the derivative is with respect to which dimension, e.g. dU/dt if k=0, dU/dx if k=0, assuming i=[t,x,y,z]
-    param d: spacing of the grid, e.g. dx, dt
-    param n: accuracy of approximation, e.g. n=2 for 2nd-order FD approximation
+    :param U: the field
+    :param i: list of indices (Symbol objects) of field U, e.g. possibley [t,x,y,z] for 3D
+    :param k: determine the derivative is with respect to which dimension, e.g. dU/dt if k=0, dU/dx if k=0, assuming i=[t,x,y,z]
+    :param d: spacing of the grid, e.g. dx, dt
+    :param n: accuracy of approximation, e.g. n=2 for 2nd-order FD approximation
     returns D=list of expressions for FD approxiation. D[1] for first derivative, D[2] for 2nd derivative etc
     raises NotImplementedError exception if dimension is more than 4 (1 time and 3 space dimensions)
     """
@@ -151,11 +151,11 @@ def Deriv_half(U, i, k, d, n):
     similar function as Deriv() for staggered grids
     calculate the FD approximation for nth derivative
     the function works by using M * D = R, as specified in Taylor(), then inverting M, so that D = M_inverse * R
-    param U: the field
-    param i: list of indices (Symbol objects) of field U, e.g. possibley [t,x,y,z] for 3D
-    param k: determine the derivative is with respect to which dimension, e.g. dU/dt if k=0, dU/dx if k=0, assuming i=[t,x,y,z]
-    param d: spacing of the grid, e.g. dx, dt
-    param n: accuracy of approximation, e.g. n=1 for 2nd-order FD approximation, n=2 for 4th-order FD approximation
+    :param U: the field
+    :param i: list of indices (Symbol objects) of field U, e.g. possibley [t,x,y,z] for 3D
+    :param k: determine the derivative is with respect to which dimension, e.g. dU/dt if k=0, dU/dx if k=0, assuming i=[t,x,y,z]
+    :param d: spacing of the grid, e.g. dx, dt
+    :param n: accuracy of approximation, e.g. n=1 for 2nd-order FD approximation, n=2 for 4th-order FD approximation
     returns D=list of expressions for FD approxiation. D[1] for first derivative, D[2] for 2nd derivative etc
     raises NotImplementedError exception if dimension is more than 4 (1 time and 3 space dimensions)
     """
@@ -179,8 +179,8 @@ def Deriv_half(U, i, k, d, n):
 
 def is_half(expr):
     """
-    test if constants in an expression values to 1/2, 3/2 ...
-    e.g. returns True for x+1/2, returns False for x+y+1
+    test if constants (non symbols) in an expression is integer+1/2 or integer (indices on staggered grid are either integer or integer+1/2)
+    e.g. returns True for expression x+1/2, returns False for expression x+y+1
     used to test for index in staggered grid
     """
     d = {x:0 for x in expr.free_symbols}
@@ -208,7 +208,7 @@ def shift_index(expr, k, s):
     """
     shift the k-th index of all fields in input expression by s
     return the shifted expression
-    param expr: input expression
+    :param expr: input expression
     k: the index number to be shifted
     s: the shifted amount
     e.g. k=1, s=1, U[x,y,z] -> U[x,y+1,z]
@@ -331,8 +331,8 @@ class VField(Field):
         a velocity field is only staggered in the spatial index same as its direction
         a velocity field is always staggered in time index
         i.e. in 3D, field Vx will have staggered = [True, True, False, False]
-        param dimension: number of dimensions, e.g. 3
-        param direction: the direction of the field, e.g. 1
+        :param dimension: number of dimensions, e.g. 3
+        :param direction: the direction of the field, e.g. 1
         """
         self.direction = direction
         staggered = [False] * (dimension+1)
@@ -344,16 +344,16 @@ class VField(Field):
         """
         link this velocity field to a list of stress field
         e.g. Vx will be associated with Txx, Txy, Txz
-        param sfields: list of associated stress field
+        :param sfields: list of associated stress field
         """
         self.sfields = sfields
 
     def set_free_surface(self, indices, d, b, side):
         """
         set free surface boundary condition to boundary d, at index b
-        param indices: list of indices, e.g. [t,x,y,z] for 3D
-        param d: direction of the boundary surface normal
-        param b: location of the boundary (index)
+        :param indices: list of indices, e.g. [t,x,y,z] for 3D
+        :param d: direction of the boundary surface normal
+        :param b: location of the boundary (index)
         side: lower boundary (0) or upper boundary (1)
         e.g. set_free_surface([t,x,y,z],1,2,0) set y-z plane at x=2 to be lower free surface
         ghost cells are calculated using reflection of stress fields
@@ -396,8 +396,8 @@ class SField(Field):
         sheer stress fields are staggered in the surface normal and force direction
         stress fields are not staggered in time index
         i.e. in 3D, field Txx will have staggered = [False, False, False, False], Txy will have staggered = [False, True, True, False]
-        param dimension: number of dimensions, e.g. 3
-        param direction: the direction of the field, e.g. (1,1) for Txx
+        :param dimension: number of dimensions, e.g. 3
+        :param direction: the direction of the field, e.g. (1,1) for Txx
         """
         self.direction = direction
         staggered = [False] * (dimension+1)
@@ -413,9 +413,9 @@ class SField(Field):
     def set_free_surface(self, indices, d, b, side):
         """
         set free surface boundary condition to boundary d, at index b
-        param indices: list of indices, e.g. [t,x,y,z] for 3D
-        param d: direction of the boundary surface normal
-        param b: location of the boundary (index)
+        :param indices: list of indices, e.g. [t,x,y,z] for 3D
+        :param d: direction of the boundary surface normal
+        :param b: location of the boundary (index)
         side: lower boundary (0) or upper boundary (1)
         e.g. set_free_surface([t,x,y,z],1,2,0) set y-z plane at x=2 to be lower free surface
         ghost cells are calculated using reflection of stress fields
@@ -454,9 +454,9 @@ class Variable(Symbol):
 
     def __init__(self, name, value=0, type='int', constant=False):
         """
-        param type: type string of the variable to be used in generated code
-        param value: associated value of the variable
-        param constant: if the variable is a constant
+        :param type: type string of the variable to be used in generated code
+        :param value: associated value of the variable
+        :param constant: if the variable is a constant
         """
         self.type = type
         self.constant = constant
@@ -470,7 +470,7 @@ class StaggeredGrid:
     generate compilable C++ code
     
     steps (refer to run_test() in grid_test.py):
-    - create grid, set switches and parameters (e.g. time step, time length, grid spacing, order of accuracy)
+    - create grid, set switches and :parameters (e.g. time step, time length, grid spacing, order of accuracy)
     - create velocity fields (VField objects) and stress fields (SField objects), link to grid
     - assign analytical solution to the fields (initial condition)
     - input the VS PDEs using FD derivative approximations, which is populate with calc_derivatives()
@@ -519,7 +519,7 @@ class StaggeredGrid:
         """
         set the accuracy of the scheme
         create the t variables for time stepping, e.g. t0, t1 for 2nd order scheme, t0, t1, t2, t3 for 4th order scheme
-        param accuracy: list of time accuracy followed by spatial accuracy, e.g. [1,2,2,2] for (2,4) scheme
+        :param accuracy: list of time accuracy followed by spatial accuracy, e.g. [1,2,2,2] for (2,4) scheme
         """
         self.order = accuracy
         self.tp = Variable('tp', self.order[0]*2, 'int', True) # periodicity for time stepping
@@ -582,7 +582,7 @@ class StaggeredGrid:
     def set_domain_size(self, size):
         """
         set the (physical) domain size
-        param size: domain size as tuple, e.g. (1.0, 1.0, 1.0) for unit cube
+        :param size: domain size as tuple, e.g. (1.0, 1.0, 1.0) for unit cube
         """
         self.size = size
         self._update_domain_size()
@@ -592,7 +592,7 @@ class StaggeredGrid:
         set grid spacing
         update the spacing variables with new value
         update the grid size
-        param spacing: grid spacing as tuple, e.g. (0.1, 0.1, 0.1)
+        :param spacing: grid spacing as tuple, e.g. (0.1, 0.1, 0.1)
         """
         self.spacing = [Variable('dx'+str(k+1), spacing[k], self.real_t, True)  for k in range(self.dimension)] # spacing symbols, dx1, dx2, ...
         self._update_domain_size()
@@ -600,14 +600,14 @@ class StaggeredGrid:
     def set_index(self, indices):
         """
         set indices of the grid
-        param indices: list of symbols as indices, e.g. [t,x,y,z]
+        :param indices: list of symbols as indices, e.g. [t,x,y,z]
         """
         self.index = indices
 
     def set_variable(self, var, value=0, type='int', constant=False):
         """
         set user defined variables, update defined_variable list
-        param var: name of variable
+        :param var: name of variable
         value: variable value
         type: variable type as string
         constant: whether variable is constant
@@ -635,7 +635,7 @@ class StaggeredGrid:
     def set_time_step(self, dt, tmax):
         """
         set the time step size
-        param dt: time step size
+        :param dt: time step size
         tmax: maximum simulation time
         """
         self.dt.value = dt
@@ -644,7 +644,7 @@ class StaggeredGrid:
     def set_stress_fields(self, sfields):
         """
         assign stress fields
-        param sfields: list of stress fields
+        :param sfields: list of stress fields
         """
         num = self.dimension+self.dimension*(self.dimension-1)/2
         if not len(sfields)==num:
@@ -654,7 +654,7 @@ class StaggeredGrid:
     def set_velocity_fields(self, vfields):
         """
         assign velocity fields
-        param vfields: list of velocity fields
+        :param vfields: list of velocity fields
         """
         num = self.dimension
         if not len(vfields)==num:
@@ -678,7 +678,7 @@ class StaggeredGrid:
     def solve_fd(self,eqs):
         """
         from the input PDEs, solve for the time stepping compuation kernel of all stress and velocity fields of the grid
-        param eqs: PDEs
+        :param eqs: PDEs
         Note: sympy doesn't support solving simultaneous equations containing Indexed objects, need to pass one equation to eqch field to solve
         """
         t = self.t
@@ -709,8 +709,8 @@ class StaggeredGrid:
         """
         set free surface boundary condition
         calls set_free_surface() method of SField and VField
-        param dimension: the normal direction to identify the surface, e.g. dimension=1 for y-z place
-        param side: the side of the surface, side=0 for bottom surface, side=1 for top surface
+        :param dimension: the normal direction to identify the surface, e.g. dimension=1 for y-z place
+        :param side: the side of the surface, side=0 for bottom surface, side=1 for top surface
         """
         self.associate_fields()
         index = [self.t] + self.index
