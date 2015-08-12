@@ -1,0 +1,7 @@
+  #pragma omp single
+  {
+  	int dims[]={dim1, dim1, dim1};
+    float spacing[]={dx1, dx2, dx3};
+    std::string vtkfile = "${filename}" + std::to_string(_ti);
+    opesci_dump_field_vts_3d(vtkfile, dims, spacing, 2, &${field}[t1][0][0][0]);
+  }

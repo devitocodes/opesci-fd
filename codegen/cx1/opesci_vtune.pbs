@@ -1,0 +1,23 @@
+#PBS -N opesci_codegen
+#PBS -l walltime=1:00:00
+#PBS -l select=1:ncpus=12:mem=1800mb
+
+module load intel-suite
+module load vtune
+
+# Example of how to set environment flags
+# export LIBS="-L/usr/X11R6/lib64/ -L${MKL_HOME}/lib/64/ -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+
+# Find the right directory
+# cd $PBS_O_WORKDIR
+
+export OMP_NUM_THREADS=6
+export KMP_AFFINITY="compact,verbose" 
+
+icc -openmp .\test3d_ivdep.cpp -o test3d_ivdep
+icc -openmp .\test3d_simd.cpp -o test3d_simd
+
+amplxe-cl -collect hotspots .\test3d_ivdep
+amplxe-cl -collect hotspots .\test3d_simd
+
+rm -rf test3d_ivdep test3d_simd

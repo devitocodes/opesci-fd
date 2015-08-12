@@ -126,7 +126,12 @@ void opesci_dump_solution_vts(std::string name, const int dims[], const float sp
   compressor->SetCompressionLevel(9);
   writer->SetCompressor(compressor);
 
+  // rewrite for vtk 6.20 -TJ
+#if VTK_MAJOR_VERSION <= 5
   writer->SetInput(sg);
+#else
+  writer->SetInputData(sg);
+#endif
   writer->Write();
 #else
   opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");
@@ -177,7 +182,12 @@ void opesci_dump_field_vts(std::string name, const int dims[], const float spaci
   compressor->SetCompressionLevel(9);
   writer->SetCompressor(compressor);
 
+  // rewrite for vtk 6.20 -TJ
+#if VTK_MAJOR_VERSION <= 5
   writer->SetInput(sg);
+#else
+  writer->SetInputData(sg);
+#endif
   writer->Write();
 #else
   opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");
@@ -272,7 +282,12 @@ void opesci_dump_receivers_vts(std::string name, const int dims[], const float s
   compressor->SetCompressionLevel(9);
   writer->SetCompressor(compressor);
 
+  // rewrite for vtk 6.20 -TJ
+#if VTK_MAJOR_VERSION <= 5
   writer->SetInput(sg);
+#else
+  writer->SetInputData(sg);
+#endif
   writer->Write();
 #else
   opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");
@@ -455,7 +470,12 @@ void opesci_dump_field_vts_3d(std::string name, const int dims[], const float sp
   compressor->SetCompressionLevel(9);
   writer->SetCompressor(compressor);
 
+  // rewrite for vtk 6.20 -TJ
+#if VTK_MAJOR_VERSION <= 5
   writer->SetInput(sg);
+#else
+  writer->SetInputData(sg);
+#endif
   writer->Write();
 #else
   opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");

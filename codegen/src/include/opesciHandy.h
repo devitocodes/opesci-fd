@@ -34,25 +34,18 @@
  *  SUCH DAMAGE.
  */
 
-#ifndef OPESCIIO_H
-#define OPESCIIO_H
+#ifndef OPESCIHANDY_H
+#define OPESCIHANDY_H
+
 #include <string>
 #include <vector>
 
-void opesci_dump_field_raw(std::string name, std::vector<float> &field);
-void opesci_dump_solution_vts(std::string name, const int dims[], const float spacing[],
-			      std::vector<float> &u, std::vector<float> &v, std::vector<float> &w,
-			      std::vector<float> &txx, std::vector<float> &tyy, std::vector<float> &tzz);
-void opesci_dump_field_vts(std::string name, const int dims[], const float spacing[], std::vector<float> &field);
-void opesci_dump_receivers_vts(std::string name, const int dims[], const float spacing[],
-			       std::vector<float> &uss, std::vector<float> &vss, std::vector<float> &wss, std::vector<float> &pss);
-
-int opesci_read_simple_binary(const char *filename, std::vector<float> &array);
-int opesci_read_souces(const char *xyz_filename, const char *xsrc_filename, const char *ysrc_filename, const char *zsrc_filename,
-		       std::vector<float> &xyz_array, std::vector<float> &xsrc_array, std::vector<float> &ysrc_array, std::vector<float> &zsrc_array);
-int opesci_read_receivers(const char *filename, std::vector<float> &array);
-int opesci_read_model_segy(const char *filename, std::vector<float> &array, int dim[], float spacing[]);
-
-void opesci_dump_field_vts_3d(std::string name, const int dims[], const float spacing[], int margin, float *field);
+// Abort execution.
+void opesci_abort(std::string msg);
+void opesci_calculate_lame_costants(const std::vector<float> &vp, const std::vector<float> &vs, const std::vector<float> &rho,
+				    std::vector<float> &mu, std::vector<float> &lam);
+float opesci_calculate_dt(const std::vector<float> &vp, float h);
+void opesci_dft(const float inreal[], const float inimag[], float outreal[], float outimag[], int n);
+void opesci_resample_timeseries(const std::vector<float> &src, float dt, double sdt, std::vector<float> &resampled_src);
 
 #endif
