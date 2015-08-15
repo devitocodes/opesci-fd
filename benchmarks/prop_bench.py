@@ -1,5 +1,6 @@
 import os
 import subprocess
+from collections import defaultdict
 
 from pybench import Benchmark
 
@@ -35,7 +36,12 @@ class PropagatorBench(Benchmark):
     method = 'propagator'
     benchmark = 'Propagator'
 
+    compiled = defaultdict(lambda: False)
+
     def compile(self, compiler, basename, opt_level):
+        if self.compiled[compiler]:
+            return
+
         cmd = switchcompiler(compiler, basename, opt_level)
         try:
             print "Compiling:", cmd
@@ -43,6 +49,8 @@ class PropagatorBench(Benchmark):
         except subprocess.CalledProcessError as e:
             print "Compilation error: ", e
             raise Exception("Failed to compile ")
+
+        self.compiled[compiler] = True
 
     def runlib(self, basename, compiler):
         try:
