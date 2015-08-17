@@ -14,7 +14,7 @@ if __name__ == '__main__':
                    help='Compiler optimisation levels to compare')
     args = p.parse_args()
     basename = args.basename or ['test3d']
-    compiler = args.compiler or ['g++', 'clang']
+    compiler = args.compiler or ['g++', 'clang', 'icpc']
     opt_level = args.opt_level or [2, 3]
 
     b = PropagatorPlot(benchmark='Propagator-Performance',

@@ -18,9 +18,16 @@ def switchcompiler(compiler, basename, opt_level):
     clang += ' %s.cpp'% basename
     clang += ' -O%d' % opt_level
 
+    intel = 'icpc'
+    intel += ' -openmp'
+    intel += ' -o %s_icpc' % basename
+    intel += ' %s.cpp'% basename
+    intel += ' -O%d' % opt_level
+
     return {
         'g++' : cc,
         'clang' : clang,
+        'icpc' : intel,
     }[compiler]
 
 class PropagatorBench(Benchmark):
