@@ -16,6 +16,7 @@ script:
     - cd codegen
     - python grid3d.py
     - python grid3d.py read
+    - python grid3d.py vtk
     - mkdir build
     - cd build
     - cmake ../src
