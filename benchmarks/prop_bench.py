@@ -56,7 +56,7 @@ class PropagatorBench(Benchmark):
         try:
             cmd = os.getcwd() + "/" + basename + '_'+ compiler
             print "Running:", cmd
-            with self.timed_region("running time with %s" % compiler):
+            with self.timed_region("total"):
                 # This is still rather crude since we're timing the OS
                 # and Python overheads of invoking the execution command
                 subprocess.check_call(cmd,shell=True)
