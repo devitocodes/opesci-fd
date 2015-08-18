@@ -71,7 +71,7 @@ class PropagatorBench(Benchmark):
             print "running error:", e
 
     def propagator(self, basename='test3d', compiler='g++', opt_level=3,
-                   nthreads=1, affinity='scatter'):
+                   nthreads=1, affinity='close'):
         self.series['compiler'] = compiler
         self.series['basename'] = basename
         self.series['opt_level'] = opt_level
@@ -80,8 +80,15 @@ class PropagatorBench(Benchmark):
 
         # Parallel thread settings
         os.environ["OMP_NUM_THREADS"] = str(nthreads)
-        if compiler in ['icpc', 'clang']:
-            os.environ["KMP_AFFINITY"]="granularity=thread,%s" % affinity
+        if affinity in ['close', 'spread']:
+            os.environ["OMP_PROC_BIND"] = affinity
+        elif affinity in ['compact', 'scatter']:
+            os.environ["KMP_AFFINITY"] = "granularity=thread,%s" % affinity
+        else:
+            print """ERROR: Only the following affinity settings are supported:
+ * OMP_PROC_BIND: 'close', 'spread'
+ * KMP_AFFINITY: 'compact', 'scatter'"""
+            raise ValueError("Unknown thread affinity setting: %s")
 
         self.compile(compiler, basename, opt_level)
         self.runlib(basename, compiler)

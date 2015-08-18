@@ -19,7 +19,7 @@ if __name__ == '__main__':
     compiler = args.compiler or ['g++', 'clang', 'icpc']
     opt_level = args.opt_level or [2, 3]
     nthreads = args.parallel or [1]
-    affinity = args.affinity or ['scatter', 'compact']
+    affinity = args.affinity or ['close']
 
     b = PropagatorPlot(benchmark='Propagator-Performance',
                       resultsdir=args.resultsdir, plotdir=args.plotdir)
