@@ -3,7 +3,7 @@
 //#define M_PI 3.14159265358979323846
 <%include file="common_include.txt"/>
 % if io==True:
-    <%include file="io_include.txt"/>
+<%include file="io_include.txt"/>
 % endif
 #include <cmath>
 #include <cstdio>

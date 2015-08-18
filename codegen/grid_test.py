@@ -4,21 +4,38 @@ from mako.runtime import Context
 from StringIO import StringIO
 from grid import *
 
-def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True, omp=True, simd=False, ivdep=True, io=False, double=False, filename='test.cpp'):
+
+def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
+             omp=True, simd=False, ivdep=True, io=False, double=False,
+             filename='test.cpp', read=False,
+             rho_file='', vp_file='', vs_file=''):
     """
     create 3D eigen waves and run FD simulation
-    :param domain_size: define size of domain, e.g. (1.0, 1.0, 1.0) for unit cube
+    :param domain_size: define size of domain
+    e.g. (1.0, 1.0, 1.0) for unit cube
     :param spacing: define grid spacing, e.g. (0.1, 0.1, 0.1)
     :param dt: define time step
     :param tmax: define simulation time
-    :param o_step: switch for code to output at each time step (such as save field as vtk file), default False (no output)
-    :param o_converge: switch for code to calculate L2 norms for convergence test, default True (output)
-    :param omp: swtich for inserting #pragma omp for before outter loop, default True (use omp)
-    :param simd: switch for inserting #pragma simd before inner loop, default False (do not use simd)
-    :param ivddp: switch for inserting #praga ivdep before inner loop, default True (use ivdep)
-    :param io: switch for include io header files, default False (not include vtk header files)
-    :param double: switch for using double as real number variables, default False (use float)
+    :param o_step: switch for code to output at each time step
+    (such as save field as vtk file), default False (no output)
+    :param o_converge: switch for code to calculate L2 norms
+    for convergence test, default True (output)
+    :param omp: swtich for inserting #pragma omp for before outter loop
+    default True (use omp)
+    :param simd: switch for inserting #pragma simd before inner loop
+    default False (do not use simd)
+    :param ivddp: switch for inserting #praga ivdep before inner loop
+    default True (use ivdep)
+    :param io: switch for include io header files
+    default False (not include vtk header files)
+    :param double: switch for using double as real number variables
+    default False (use float)
     :param filename: output source code file name as string
+    :param read: switch for reading meida parameters from input files
+    default False (not reading)
+    :param rho_file: file name for input file of rho (density)
+    :param vp_file: file name for input file of Vp (primary velocity)
+    :param vs_file: file name for input file of Vs (secondary velocity)
     """
 
     print 'domain size: ' + str(domain_size)
@@ -27,15 +44,24 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True, om
     print 'tmax: ' + str(tmax)
 
     # declare fields
-    Txx = SField('Txx'); Txx.set(dimension=3, direction=(1, 1))
-    Tyy = SField('Tyy'); Tyy.set(dimension=3, direction=(2, 2))
-    Tzz = SField('Tzz'); Tzz.set(dimension=3, direction=(3, 3))
-    Txy = SField('Txy'); Txy.set(dimension=3, direction=(1, 2))
-    Tyz = SField('Tyz'); Tyz.set(dimension=3, direction=(2, 3))
-    Txz = SField('Txz'); Txz.set(dimension=3, direction=(1, 3))
-    U = VField('U'); U.set(dimension=3, direction=1)
-    V = VField('V'); V.set(dimension=3, direction=2)
-    W = VField('W'); W.set(dimension=3, direction=3)
+    Txx = SField('Txx')
+    Txx.set(dimension=3, direction=(1, 1))
+    Tyy = SField('Tyy')
+    Tyy.set(dimension=3, direction=(2, 2))
+    Tzz = SField('Tzz')
+    Tzz.set(dimension=3, direction=(3, 3))
+    Txy = SField('Txy')
+    Txy.set(dimension=3, direction=(1, 2))
+    Tyz = SField('Tyz')
+    Tyz.set(dimension=3, direction=(2, 3))
+    Txz = SField('Txz')
+    Txz.set(dimension=3, direction=(1, 3))
+    U = VField('U')
+    U.set(dimension=3, direction=1)
+    V = VField('V')
+    V.set(dimension=3, direction=2)
+    W = VField('W')
+    W.set(dimension=3, direction=3)
 
     grid = StaggeredGrid(dimension=3)
 
@@ -57,13 +83,17 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True, om
     t, x, y, z = symbols('t x y z')
     grid.set_index([x, y, z])
 
-    grid.set_media_params(read=False, rho=1.0, vp=1.0, vs=0.5, rho_file='', vp_file='', vs_file='')
+    if read:
+        grid.set_media_params(read=True, rho_file=rho_file,
+                              vp_file=vp_file, vs_file=vs_file)
+    else:
+        grid.set_media_params(read=False, rho=1.0, vp=1.0, vs=0.5)
 
     print 'require dt < ' + str(grid.get_time_step_limit())
 
     # define eigen waves
-    Omega = pi*sqrt(2*mu/rho)
-    A = sqrt(2*rho*mu)
+    Omega = pi*sqrt(2*mu*beta)
+    A = sqrt(2*mu/beta)
     U_func = cos(pi*x)*(sin(pi*y)-sin(pi*z))*cos(Omega*t)
     V_func = cos(pi*y)*(sin(pi*z)-sin(pi*x))*cos(Omega*t)
     W_func = cos(pi*z)*(sin(pi*x)-sin(pi*y))*cos(Omega*t)
@@ -100,16 +130,25 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True, om
 
     grid.solve_fd([eq1, eq2, eq3, eq4, eq5, eq6, eq7, eq8, eq9])
 
-    Txx_expr = (lam + 2*mu)*U.d[1][1] + lam*(V.d[2][1]+W.d[3][1]); Txx.set_dt(Txx_expr)
-    Tyy_expr = (lam + 2*mu)*V.d[2][1] + lam*(U.d[1][1]+W.d[3][1]); Tyy.set_dt(Tyy_expr)
-    Tzz_expr = (lam + 2*mu)*W.d[3][1] + lam*(U.d[1][1]+V.d[2][1]); Tzz.set_dt(Tzz_expr)
-    Txy_expr = mu*(U.d[2][1] + V.d[1][1]); Txy.set_dt(Txy_expr)
-    Tyz_expr = mu*(V.d[3][1] + W.d[2][1]); Tyz.set_dt(Tyz_expr)
-    Txz_expr = mu*(U.d[3][1] + W.d[1][1]); Txz.set_dt(Txz_expr)
+    Txx_expr = (lam + 2*mu)*U.d[1][1] + lam*(V.d[2][1]+W.d[3][1])
+    Txx.set_dt(Txx_expr)
+    Tyy_expr = (lam + 2*mu)*V.d[2][1] + lam*(U.d[1][1]+W.d[3][1])
+    Tyy.set_dt(Tyy_expr)
+    Tzz_expr = (lam + 2*mu)*W.d[3][1] + lam*(U.d[1][1]+V.d[2][1])
+    Tzz.set_dt(Tzz_expr)
+    Txy_expr = mu*(U.d[2][1] + V.d[1][1])
+    Txy.set_dt(Txy_expr)
+    Tyz_expr = mu*(V.d[3][1] + W.d[2][1])
+    Tyz.set_dt(Tyz_expr)
+    Txz_expr = mu*(U.d[3][1] + W.d[1][1])
+    Txz.set_dt(Txz_expr)
 
-    grid.set_free_surface_boundary(dimension=1, side=0); grid.set_free_surface_boundary(dimension=1, side=1)
-    grid.set_free_surface_boundary(dimension=2, side=0); grid.set_free_surface_boundary(dimension=2, side=1)
-    grid.set_free_surface_boundary(dimension=3, side=0); grid.set_free_surface_boundary(dimension=3, side=1)
+    grid.set_free_surface_boundary(dimension=1, side=0)
+    grid.set_free_surface_boundary(dimension=1, side=1)
+    grid.set_free_surface_boundary(dimension=2, side=0)
+    grid.set_free_surface_boundary(dimension=2, side=1)
+    grid.set_free_surface_boundary(dimension=3, side=0)
+    grid.set_free_surface_boundary(dimension=3, side=1)
 
     if o_step:
         output_step = grid.output_step()
@@ -122,7 +161,8 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True, om
         output_final = ''
 
     # write to template file
-    mylookup = TemplateLookup(directories=['templates/staggered', 'templates/'])
+    mylookup = TemplateLookup(directories=['templates/staggered',
+                                           'templates/'])
     mytemplate = mylookup.get_template('staggered3d_tmpl.cpp')
     buf = StringIO()
     dict1 = {'io': io, 'time_stepping': grid.time_stepping(),

@@ -15,6 +15,7 @@ install:
 script:
     - cd codegen
     - python grid3d.py
+    - python grid3d.py read
     - mkdir build
     - cd build
     - cmake ../src
