@@ -70,10 +70,18 @@ class PropagatorBench(Benchmark):
         except OSError as e:
             print "running error:", e
 
-    def propagator(self, basename='test3d', compiler='g++', opt_level=3):
+    def propagator(self, basename='test3d', compiler='g++', opt_level=3,
+                   nthreads=1, affinity='scatter'):
         self.series['compiler'] = compiler
         self.series['basename'] = basename
         self.series['opt_level'] = opt_level
+        self.series['nthreads'] = nthreads
+        self.series['affinity'] = affinity
+
+        # Parallel thread settings
+        os.environ["OMP_NUM_THREADS"] = str(nthreads)
+        if compiler in ['icpc', 'clang']:
+            os.environ["KMP_AFFINITY"]="granularity=thread,%s" % affinity
 
         self.compile(compiler, basename, opt_level)
         self.runlib(basename, compiler)
