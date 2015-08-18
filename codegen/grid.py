@@ -687,12 +687,11 @@ class StaggeredGrid:
         self.size = size
         self._update_spacing()
 
-    def set_spacing(self, spacing):
+    def set_grid_size(self, size):
         """
-        set grid spacing
-        update the spacing variables with new value
-        update the grid size
-        :param spacing: grid spacing as tuple, e.g. (0.1, 0.1, 0.1)
+        set grid size (number of grids in each dimension)
+        update the spacing variables with new value (domain size / grid size)
+        :param size: grid spacing as tuple, e.g. (100, 100, 100)
         """
         self.dim = [Variable('dim'+str(k+1), size[k]+1+2*self.margin.value,
                     'int', True) for k in range(self.dimension)]
@@ -1000,8 +999,8 @@ class StaggeredGrid:
 
     def read_data(self):
         """
-        generate code for reading data (rho, Vp, Vs) from input files
-        calculate effective media parameters beta, lambda, mu from the data
+        - generate code for reading data (rho, Vp, Vs) from input files
+        - calculate effective media parameters beta, lambda, mu from the data
         """
         result = ''
         if self.read:
