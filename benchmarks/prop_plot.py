@@ -2,6 +2,24 @@ from pybench import Benchmark, parser
 
 class PropagatorPlot(Benchmark):
     figsize = (6, 4)
+    profileregions = ['total']
+
+    def plot_compiler_comparison(self, opt_level):
+        groups = ['compiler']
+        opt_str = ['-O%s' % o for o in opt_level]
+        for region in self.profileregions:
+            self.plot(figsize=self.figsize, format='pdf', figname='PropCC_%s'%region,
+                      xaxis='opt_level', xvals=opt_level, xticklabels=opt_str,
+                      xlabel='Compiler configuration', groups=groups, regions=[region],
+                      kinds='bar', title='Performance: %s'%region, legend={'loc': 'best'})
+
+    def plot_parallel_scaling(self, nthreads):
+        groups = ['compiler', 'opt_level', 'affinity']
+        for region in self.profileregions:
+            self.plot(figsize=self.figsize, format='pdf', figname='PropOMP_%s'%region,
+                      xaxis='nthreads', xticklabels=nthreads, xlabel='Number of threads',
+                      regions=[region], groups=groups, xmax=nthreads[-1], trendline='Perfect speedup',
+                      kinds='loglog', title='Performance: %s'%region, legend={'loc': 'best'})
 
 
 if __name__ == '__main__':
@@ -27,19 +45,7 @@ if __name__ == '__main__':
                       ('opt_level', opt_level), ('nthreads', nthreads),
                       ('affinity', affinity)], filename='Propagator')
 
-    regions = ['total']
     if len(nthreads) > 1:
-        groups = ['compiler', 'opt_level', 'affinity']
-        for region in regions:
-            b.plot(figsize=b.figsize, format='pdf', figname='Prop3D_%s'%region,
-                   xaxis='nthreads', xlabel='Number of threads', xticklabels=nthreads,
-                   regions=[region], groups=groups,
-                   kinds='semilogx', title='Performance: %s'%region, legend={'loc': 'best'})
+        b.plot_parallel_scaling(nthreads)
     else:
-        groups = ['compiler']
-        opt_str = ['-O%s' % o for o in opt_level]
-        for region in regions:
-            b.plot(figsize=b.figsize, format='pdf', figname='Prop3D_%s'%region,
-                   xaxis='opt_level', xvals=opt_level, xticklabels=opt_str,
-                   xlabel='Compiler configuration', groups=groups, regions=[region],
-                   kinds='bar', title='Performance: %s'%region, legend={'loc': 'best'})
+        b.plot_compiler_comparison(opt_level)
