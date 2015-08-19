@@ -269,6 +269,43 @@ def shift_index(expr, k, s):
     return expr2
 
 
+def get_ops_expr(expr, arrays):
+    """
+    - get number of different operations in expression expr
+    - types of operations are ADD (inc -) and MUL (inc /)
+    - arrays (IndexedBase objects) in expr that are not in list arrays
+    are added to the list
+    - return tuple (#ADD, #MUL, list of unique names of fields)
+    """
+    # add array to list arrays if it is not in it
+    if isinstance(expr, Indexed):
+        base = str(expr.base.label)
+        if base not in arrays:
+            arrays += [base]
+        return (0, 0, arrays)
+
+    mul = 0
+    add = 0
+    if expr.is_Mul or expr.is_Add:
+        args = expr.args
+        # increment MUL or ADD by # arguments less 1
+        # sympy multiplication and addition can have multiple arguments
+        if expr.is_Mul:
+            mul += len(args)-1
+        else:
+            add += len(args)-1
+        arrays2 = arrays
+        # recursive call of all arguments
+        for expr2 in args:
+            add2, mul2, arrays2 = get_ops_expr(expr2, arrays2)
+            add += add2  # accumulate ADD
+            mul += mul2  # acculate MUL
+
+        return (add, mul, arrays2)
+    # return zero and unchanged array if execution gets here
+    return (0, 0, arrays)
+
+
 class Field(IndexedBase):
     """
     - Class to represent fields on staggered grid
@@ -952,6 +989,68 @@ class StaggeredGrid:
                                        self.lam[self.index],
                                        Symbol('mu'):
                                        self.mu[0][self.index]})
+
+    def get_velocity_kernel_ai(self):
+        """
+        - get the arithmetic intensity of velocity kernel
+        - get the number of different operations of the velocity field kernel
+        - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
+        - #LOAD = number of unique fields in the kernel
+        - return tuple (AI, AI_w, #ADD, #MUL, #LOAD, #STORE)
+        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
+        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
+        """
+        store = 0
+        add = 0
+        mul = 0
+        arrays = []  # to store name of arrays loaded
+        for field in self.vfields:
+            store += 1  # increment STORE by 1 (assignment)
+            expr = field.fd_align
+            add2, mul2, arrays2 = get_ops_expr(expr, arrays)
+            add += add2  # accumulate # ADD
+            mul += mul2  # accumulate # MUL
+            arrays = arrays2  # replace with new list of field names
+
+        # 8 byte if double, 4 if float used
+        # media parameter fields are always float, need to amend this
+        word_size = 8 if self.double else 4
+        load = len(arrays)
+        ai = float(add+mul)/(load+store)/word_size
+        ai_w = ai*(add+mul)/max(add, mul)/2.0
+
+        return (ai, ai_w, add, mul, load, store)
+
+    def get_stress_kernel_ai(self):
+        """
+        - get the arithmetic intensity of velocity kernel
+        - get the number of different operations of the stress field kernel
+        - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
+        - #LOAD = number of unique fields in the kernel
+        - return tuple (#ADD, #MUL, #LOAD, #STORE)
+        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
+        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
+        """
+        store = 0
+        add = 0
+        mul = 0
+        arrays = []  # to store name of arrays loaded
+        for field in self.sfields:
+            store += 1  # increment STORE by 1 (assignment)
+            expr = field.fd_align
+            add2, mul2, arrays2 = get_ops_expr(expr, arrays)
+            add += add2  # accumulate # ADD
+            mul += mul2  # accumulate # MUL
+            arrays = arrays2  # replace with new list of field names
+
+        # 8 byte if double, 4 if float used
+        # media parameter fields are always float, need to amend this
+        word_size = 8 if self.double else 4
+        load = len(arrays)
+        ai = float(add+mul)/(load+store)/word_size
+        ai_w = ai*(add+mul)/max(add, mul)/2.0
+
+        return (ai, ai_w, add, mul, load, store)
 
     # ------------------- sub-routines for output -------------------- #
 
