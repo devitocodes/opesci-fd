@@ -268,6 +268,7 @@ def shift_index(expr, k, s):
     expr2 = expr.func(*args)
     return expr2
 
+
 def get_ops_expr(expr, arrays):
     """
     - get number of different operations in expression expr
@@ -294,10 +295,11 @@ def get_ops_expr(expr, arrays):
         else:
             add += len(args)-1
         arrays2 = arrays
+        # recursive call of all arguments
         for expr2 in args:
             add2, mul2, arrays2 = get_ops_expr(expr2, arrays2)
-            add += add2
-            mul += mul2
+            add += add2  # accumulate ADD
+            mul += mul2  # acculate MUL
 
         return (add, mul, arrays2)
     # return zero and unchanged array if execution gets here
