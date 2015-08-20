@@ -1,5 +1,5 @@
 from sympy import Symbol, factorial, Matrix, Rational, Indexed, IndexedBase
-from sympy import solve, Eq
+from sympy import solve, Eq, expand
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
 from StringIO import StringIO
@@ -564,6 +564,8 @@ class StaggeredGrid:
     double: use float (False) or double (True) for real numbers, default False
     io: include header files for io (e.g. vtk support), default False
     read: whether to read media parameters from input file, default False
+    expand: expand kernel fully (no factorisation), default True
+    eval_const: evaluate all constants in kernel in generated code default True
     """
 
     def __init__(self, dimension):
@@ -576,6 +578,8 @@ class StaggeredGrid:
         self.simd = False  # switch for inserting #pragma simd to inner loop
         self.double = False  # use float (False) or double (True)
         self.io = False  # include io header files
+        self.expand = True  # expand kernel fully (no factorisation)
+        self.eval_const = True  # evaluate all constants in kernel
         self.real_t = 'double' if self.double else 'float'
 
         # number of ghost cells for boundary
@@ -650,6 +654,20 @@ class StaggeredGrid:
         """
         assert simd is True or simd is False
         self.simd = simd
+
+    def set_expand(self, expand):
+        """
+        set expand swtich
+        """
+        assert expand is True or expand is False
+        self.expand = expand
+
+    def set_eval_const(self, eval_const):
+        """
+        set eval_const swtich
+        """
+        assert eval_const is True or eval_const is False
+        self.eval_const = eval_const
 
     def set_double(self, double):
         """
@@ -776,10 +794,19 @@ class StaggeredGrid:
         for field in self.sfields+self.vfields:
             for k in range(self.dimension+1):
                 # loop through dimensions
-                h = l[k]
+                h = Symbol(l[k].name)
                 for o in range(1, self.order[k]+1):
                     # loop through order of derivatives
                     field.calc_derivative([self.t]+self.index, k, h, o)
+
+    def get_all_variables(self):
+        """
+        return list of all variables defined
+        """
+        variables = self.dim + self.spacing + self.time\
+            + [self.tp, self.dt, self.margin, self.ntsteps, self.vec_size]\
+            + self.defined_variable.values()
+        return variables
 
     def solve_fd(self, eqs):
         """
@@ -794,10 +821,27 @@ class StaggeredGrid:
         t1 = t+hf+(self.order[0]-1)  # the most advanced time index
         index = [t1] + self.index
         self.eqs = eqs
+        # populate substitution dictionary if evluating constants in kernel
+        if self.eval_const:
+            dict1 = {}
+            variables = self.get_all_variables()
+            for v in variables:
+                if v.constant:
+                    dict1[Symbol(v.name)] = v.value
+
         for field, eq in zip(self.vfields+self.sfields, eqs):
             # want the LHS of express to be at time t+1
             kernel = solve(eq, field[index])[0]
             kernel = kernel.subs({t: t+1-hf-(self.order[0]-1)})
+
+            if self.expand:
+                # expanding kernel (de-factorisation)
+                kernel = expand(kernel)
+
+            if self.eval_const:
+                # substitute constants with values
+                kernel = kernel.subs(dict1)
+
             if self.read:
                 # replace with effective media parameters
                 # if reading data from file (i.e. parameters not constant)
@@ -961,9 +1005,7 @@ class StaggeredGrid:
         - return the generated code as string
         """
         result = ''
-        variables = self.dim + self.spacing + self.time\
-            + [self.tp, self.dt, self.margin, self.ntsteps, self.vec_size]\
-            + self.defined_variable.values()
+        variables = self.get_all_variables()
         for v in variables:
             line = ''
             if v.constant:

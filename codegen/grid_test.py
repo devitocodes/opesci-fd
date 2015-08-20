@@ -7,7 +7,7 @@ from grid import *
 
 def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
              omp=True, simd=False, ivdep=True, io=False, double=False,
-             filename='test.cpp', read=False,
+             filename='test.cpp', read=False, expand=True, eval_const=True,
              rho_file='', vp_file='', vs_file=''):
     """
     create 3D eigen waves and run FD simulation
@@ -30,6 +30,8 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     default False (not include vtk header files)
     :param double: switch for using double as real number variables
     default False (use float)
+    :param expand: expand kernel fully (no factorisation), default True
+    :param eval_const: evaluate all constants in kernel in generated code default True
     :param filename: output source code file name as string
     :param read: switch for reading meida parameters from input files
     default False (not reading)
@@ -39,7 +41,7 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     """
 
     print 'domain size: ' + str(domain_size)
-    print 'gird size: ' + str(grid_size)
+    print 'grid size: ' + str(grid_size)
     print 'dt: ' + str(dt)
     print 'tmax: ' + str(tmax)
 
@@ -71,6 +73,8 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     grid.set_ivdep(ivdep)
     grid.set_io(io)
     grid.set_double(double)
+    grid.set_expand(expand)
+    grid.set_eval_const(eval_const)
 
     grid.set_stress_fields([Txx, Tyy, Tzz, Txy, Tyz, Txz])
     grid.set_velocity_fields([U, V, W])
