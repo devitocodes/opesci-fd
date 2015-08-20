@@ -6,6 +6,6 @@ running the python script codegen/grid3d.py (this script is the same as the note
 
 Testing with eigen waves on unit cube is implemented in grid_test.py. Run run_test() with relevant parameters to generate the source code. Some test cases with common settings are defined in grid3d.py, with explanation.
 
-The outputs are grid sizes (dimx, dimy, dimz), followed by L2 norms between numerical and analytical solutions for the stress and velocity fields. To switch off this output, change output_convergence from True to False in main().
+The outputs are grid spacings (dx, dy, dz), followed by L2 norms between numerical and analytical solutions for the stress and velocity fields. To switch off this output, change output_convergence from True to False in main().
 
 symbolic subroutines are defined in grid.py
