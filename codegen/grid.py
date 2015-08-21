@@ -1050,11 +1050,11 @@ class StaggeredGrid:
                     + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
 
             # read from file
-            result += 'opesci_read_simple_binary("' + self.rho_file + '",_' \
+            result += 'opesci_read_simple_binary_ptr("' + self.rho_file + '",_' \
                 + ccode(self.rho.label) + '_vec);\n'
-            result += 'opesci_read_simple_binary("' + self.vp_file + '",_' \
+            result += 'opesci_read_simple_binary_ptr("' + self.vp_file + '",_' \
                 + ccode(self.vp.label) + '_vec);\n'
-            result += 'opesci_read_simple_binary("' + self.vs_file + '",_' \
+            result += 'opesci_read_simple_binary_ptr("' + self.vs_file + '",_' \
                 + ccode(self.vs.label) + '_vec);\n'
             # calculated effective media parameter
             idx = self.index
