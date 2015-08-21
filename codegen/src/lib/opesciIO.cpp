@@ -316,6 +316,31 @@ int opesci_read_simple_binary(const char *filename, std::vector<float> &array){
   return 0;
 }
 
+int opesci_read_simple_binary_ptr(const char *filename, float *array, int size){
+  std::ifstream infile(filename, std::ios::in | std::ios::binary);
+  if(!infile.good()){
+    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open binary file "<<filename<<std::endl;
+    return -1;
+  }
+  
+  std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(infile)),
+            std::istreambuf_iterator<char>());
+    
+  size_t filesize = buffer.size()/4;
+  if (filesize>size){
+    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Input file "<<filename<<" size larger than array size "<<std::endl;
+  }
+#pragma omp parallel for if (size >= 10000)
+  for(size_t i=0;i<size;i++){
+    array[i] = *((float*)&buffer[i*4]);
+  }
+  
+  infile.close();
+  
+  return 0;
+}
+
+
 int opesci_read_souces(const char *xyz_filename, const char *xsrc_filename, const char *ysrc_filename, const char *zsrc_filename,
 		       std::vector<float> &xyz_array, std::vector<float> &xsrc_array, std::vector<float> &ysrc_array, std::vector<float> &zsrc_array){
  std::ifstream infile(xyz_filename);
