@@ -51,7 +51,7 @@ class MyCPrinter(CCodePrinter):
     def _print_Float(self, expr):
         """
         override method in StrPrinter
-        printing floating point number x in scientific notation if x>100 or x<0.01
+        always printing floating point numbers in scientific notation
         """
         prec = expr._prec
         if prec < 5:
@@ -64,7 +64,7 @@ class MyCPrinter(CCodePrinter):
             strip = True
         elif self._settings["full_prec"] == "auto":
             strip = self._print_level > 1
-        rv = mlib.to_str(expr._mpf_, dps, strip_zeros=strip, max_fixed=2, min_fixed=-2)
+        rv = mlib.to_str(expr._mpf_, dps, strip_zeros=strip, max_fixed=-2, min_fixed=2)
         if rv.startswith('-.0'):
             rv = '-0.' + rv[3:]
         elif rv.startswith('.0'):
