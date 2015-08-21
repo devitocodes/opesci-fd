@@ -1000,14 +1000,15 @@ class StaggeredGrid:
         for field in self.sfields + self.vfields:
             vec = '_' + ccode(field.label) + '_vec'
             # alloc aligned memory (on windows and linux)
+            result += self.real_t + ' *' + vec + ';\n'
             result += '#ifdef _MSC_VER\n'
-            result += self.real_t + ' *' + vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
+            result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
                 + '*sizeof(' + self.real_t + '), ' + str(self.page_size) + ');\n'
             result += '#else\n'
-            # cast pointer to multidimensional array
             result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.page_size) \
                 + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
             result += '#endif\n'
+            # cast pointer to multidimensional array
             result += self.real_t + ' (*' + ccode(field.label) + ')' + arr \
                 + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
 
@@ -1036,8 +1037,9 @@ class StaggeredGrid:
             for field in loop:
                 vec = '_' + ccode(field.label) + '_vec'
                 # alloc aligned memory (on windows and linux)
+                result += self.real_t + ' *' + vec + ';\n'
                 result += '#ifdef _MSC_VER\n'
-                result += self.real_t + ' *' + vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
+                result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
                     + '*sizeof(' + self.real_t + '), ' + str(self.page_size) + ');\n'
                 result += '#else\n'
                 result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.page_size) \
