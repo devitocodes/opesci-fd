@@ -600,7 +600,7 @@ class StaggeredGrid:
         self.t = Symbol('t')
         self.dt = Variable('dt', 0.01, self.real_t, True)
         self.ntsteps = Variable('ntsteps', 100, 'int', True)
-        self.page_size = mmap.PAGESIZE  # default page size for malloc
+        self.alignment = mmap.PAGESIZE  # default alignment for malloc
 
         # user defined variables
         # use dictionary because of potential duplication
@@ -720,12 +720,12 @@ class StaggeredGrid:
             var = var.name
         self.defined_variable[var] = Variable(var, value, type, constant)
 
-    def set_page_size(self, page_size):
+    def set_alignment(self, alignment):
         """
-        set page size to be used for malloc alignment
-        :param page_size: new page size in bytes
+        set alignment size to be used for malloc alignment
+        :param alignment: new alignment size in bytes
         """
-        self.page_size = page_size
+        self.alignment = alignment
 
     def get_time_step_limit(self):
         """
@@ -1003,9 +1003,9 @@ class StaggeredGrid:
             result += self.real_t + ' *' + vec + ';\n'
             result += '#ifdef _MSC_VER\n'
             result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
-                + '*sizeof(' + self.real_t + '), ' + str(self.page_size) + ');\n'
+                + '*sizeof(' + self.real_t + '), ' + str(self.alignment) + ');\n'
             result += '#else\n'
-            result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.page_size) \
+            result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.alignment) \
                 + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
             result += '#endif\n'
             # cast pointer to multidimensional array
@@ -1040,9 +1040,9 @@ class StaggeredGrid:
                 result += self.real_t + ' *' + vec + ';\n'
                 result += '#ifdef _MSC_VER\n'
                 result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
-                    + '*sizeof(' + self.real_t + '), ' + str(self.page_size) + ');\n'
+                    + '*sizeof(' + self.real_t + '), ' + str(self.alignment) + ');\n'
                 result += '#else\n'
-                result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.page_size) \
+                result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.alignment) \
                     + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
                 result += '#endif\n'
                 # cast pointer to multidimensional array
@@ -1051,11 +1051,11 @@ class StaggeredGrid:
 
             # read from file
             result += 'opesci_read_simple_binary_ptr("' + self.rho_file + '",_' \
-                + ccode(self.rho.label) + '_vec);\n'
+                + ccode(self.rho.label) + '_vec, ' + str(vsize) + ');\n'
             result += 'opesci_read_simple_binary_ptr("' + self.vp_file + '",_' \
-                + ccode(self.vp.label) + '_vec);\n'
+                + ccode(self.vp.label) + '_vec, ' + str(vsize) + ');\n'
             result += 'opesci_read_simple_binary_ptr("' + self.vs_file + '",_' \
-                + ccode(self.vs.label) + '_vec);\n'
+                + ccode(self.vs.label) + '_vec, ' + str(vsize) + ');\n'
             # calculated effective media parameter
             idx = self.index
             # make copies of index

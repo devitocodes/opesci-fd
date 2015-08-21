@@ -316,7 +316,7 @@ int opesci_read_simple_binary(const char *filename, std::vector<float> &array){
   return 0;
 }
 
-int opesci_read_simple_binary_ptr(const char *filename, float *array){
+int opesci_read_simple_binary_ptr(const char *filename, float *array, int size){
   std::ifstream infile(filename, std::ios::in | std::ios::binary);
   if(!infile.good()){
     std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open binary file "<<filename<<std::endl;
@@ -326,7 +326,10 @@ int opesci_read_simple_binary_ptr(const char *filename, float *array){
   std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(infile)),
             std::istreambuf_iterator<char>());
     
-  size_t size = buffer.size()/4;
+  size_t filesize = buffer.size()/4;
+  if (filesize>size){
+    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Input file "<<filename<<" size larger than array size "<<std::endl;
+  }
 #pragma omp parallel for if (size >= 10000)
   for(size_t i=0;i<size;i++){
     array[i] = *((float*)&buffer[i*4]);
