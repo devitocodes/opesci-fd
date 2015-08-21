@@ -3,6 +3,11 @@ from mako.lookup import TemplateLookup
 from mako.runtime import Context
 from StringIO import StringIO
 from grid import *
+from os import path
+
+_file_dir = path.dirname(__file__)
+_template_dir = path.join(_file_dir, "templates")
+_staggered_dir = path.join(_template_dir, "staggered")
 
 
 def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
@@ -165,9 +170,8 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
         output_final = ''
 
     # write to template file
-    mylookup = TemplateLookup(directories=['templates/staggered',
-                                           'templates/'])
-    mytemplate = mylookup.get_template('staggered3d_tmpl.cpp')
+    lookup = TemplateLookup(directories=[_staggered_dir, _template_dir])
+    template = lookup.get_template('staggered3d_tmpl.cpp')
     buf = StringIO()
     dict1 = {'io': io, 'time_stepping': grid.time_stepping(),
              'define_constants': grid.define_variables(),
@@ -181,7 +185,7 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
              'output_step': output_step,
              'output_final': output_final}
     ctx = Context(buf, **dict1)
-    mytemplate.render_context(ctx)
+    template.render_context(ctx)
     code = buf.getvalue()
 
     # generate compilable C++ source code

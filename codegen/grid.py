@@ -8,7 +8,11 @@ from mako.lookup import TemplateLookup
 from mako.runtime import Context
 from StringIO import StringIO
 import mmap
+from os import path
 
+_file_dir = path.dirname(__file__)
+_template_dir = path.join(_file_dir, "templates")
+_staggered_dir = path.join(_template_dir, "staggered")
 
 hf = Rational(1, 2)  # 1/2
 
@@ -346,7 +350,7 @@ class Field(IndexedBase):
     def set(self, dimension, staggered):
         self.dimension = dimension
         self.staggered = staggered
-        self.lookup = TemplateLookup(directories=['templates/staggered/'])
+        self.lookup = TemplateLookup(directories=[_staggered_dir])
         # list of list to store derivative expressions
         self.d = [[None]*4 for x in range(dimension+1)]
         # list of list to store boundary ghost cell code
@@ -634,7 +638,7 @@ class StaggeredGrid:
 
     def __init__(self, dimension):
         self.dimension = dimension
-        self.lookup = TemplateLookup(directories=['templates/staggered/'])
+        self.lookup = TemplateLookup(directories=[_staggered_dir])
 
         # switches
         self.omp = True  # switch for inserting #pragma omp for
