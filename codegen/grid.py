@@ -3,6 +3,7 @@ from sympy import solve, Eq
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
 from StringIO import StringIO
+import mmap
 
 from sympy.printing.ccode import CCodePrinter
 
@@ -599,6 +600,8 @@ class StaggeredGrid:
         self.t = Symbol('t')
         self.dt = Variable('dt', 0.01, self.real_t, True)
         self.ntsteps = Variable('ntsteps', 100, 'int', True)
+        self.page_size = mmap.PAGESIZE  # default page size for malloc
+
         # user defined variables
         # use dictionary because of potential duplication
         self.defined_variable = {}
@@ -716,6 +719,13 @@ class StaggeredGrid:
         if isinstance(var, Symbol):
             var = var.name
         self.defined_variable[var] = Variable(var, value, type, constant)
+
+    def set_page_size(self, page_size):
+        """
+        set page size to be used for malloc alignment
+        :param page_size: new page size in bytes
+        """
+        self.page_size = page_size
 
     def get_time_step_limit(self):
         """
@@ -983,13 +993,23 @@ class StaggeredGrid:
         arr = ''  # = [dim1][dim2][dim3]...
         for d in self.dim:
             arr += '[' + d.name + ']'
+        vsize = 1
+        for d in self.dim:
+            vsize *= d.value
+        vsize *= self.order[0]*2
         for field in self.sfields + self.vfields:
             vec = '_' + ccode(field.label) + '_vec'
-            result += 'std::vector<' + self.real_t + '> ' + vec \
-                + '(' + self.vec_size.name + ');\n'
+            # alloc aligned memory (on windows and linux)
+            result += '#ifdef _MSC_VER\n'
+            result += self.real_t + ' *' + vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
+                + '*sizeof(' + self.real_t + '), ' + str(self.page_size) + ');\n'
+            result += '#else\n'
+            # cast pointer to multidimensional array
+            result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.page_size) \
+                + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
+            result += '#endif\n'
             result += self.real_t + ' (*' + ccode(field.label) + ')' + arr \
-                + '= (' + self.real_t + ' (*)' + arr + ') ' + vec \
-                + '.data();\n'
+                + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
 
         if self.read:
             # add code to read data
@@ -1012,14 +1032,21 @@ class StaggeredGrid:
                 vsize *= d.value
             # declare fields to read physical parameters from file
             # always use float not double
-            loop = [self.rho, self.vp, self.vs] + self.beta + [self.lam] \
-                + self.mu
+            loop = [self.rho, self.vp, self.vs] + self.beta + [self.lam] + self.mu
             for field in loop:
                 vec = '_' + ccode(field.label) + '_vec'
-                result += 'std::vector<float> ' + vec + '(' \
-                    + str(vsize) + ');\n'
-                result += 'float (*' + ccode(field.label) + ')' + arr \
-                    + '= (float (*)' + arr + ') ' + vec + '.data();\n'
+                # alloc aligned memory (on windows and linux)
+                result += '#ifdef _MSC_VER\n'
+                result += self.real_t + ' *' + vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
+                    + '*sizeof(' + self.real_t + '), ' + str(self.page_size) + ');\n'
+                result += '#else\n'
+                result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.page_size) \
+                    + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
+                result += '#endif\n'
+                # cast pointer to multidimensional array
+                result += self.real_t + ' (*' + ccode(field.label) + ')' + arr \
+                    + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
+
             # read from file
             result += 'opesci_read_simple_binary("' + self.rho_file + '",_' \
                 + ccode(self.rho.label) + '_vec);\n'

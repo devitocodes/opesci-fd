@@ -1,6 +1,7 @@
 <%include file="copyright.txt"/>
-
-//#define M_PI 3.14159265358979323846
+#ifdef _MSC_VER
+#define M_PI 3.14159265358979323846
+#endif
 <%include file="common_include.txt"/>
 % if io==True:
 <%include file="io_include.txt"/>
@@ -11,29 +12,29 @@
 
 int main(){
 
-  ${define_constants}
-  ${declare_fields}
+${define_constants}
+${declare_fields}
 
 #pragma omp parallel
-  {
-  ${initialise}
-  ${initialise_bc}
+{
+${initialise}
+${initialise_bc}
 
-  for(int _ti=0;_ti<ntsteps;_ti++){
-    
-    ${time_stepping}
+for(int _ti=0;_ti<ntsteps;_ti++){
 
-    ${stress_loop}
-    ${stress_bc}
-    ${velocity_loop}
-    ${velocity_bc}
+${time_stepping}
 
-    ${output_step}
+${stress_loop}
+${stress_bc}
+${velocity_loop}
+${velocity_bc}
 
-  } // end of time loop
-  } // end of parallel section
+${output_step}
 
-  ${output_final}
+} // end of time loop
+} // end of parallel section
 
-  return 0;
+${output_final}
+
+return 0;
 }
