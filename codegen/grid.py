@@ -1,10 +1,13 @@
 from sympy import Symbol, factorial, Matrix, Rational, Indexed, IndexedBase
 from sympy import solve, Eq, expand
+from sympy.mpmath.libmp import prec_to_dps
+from sympy.printing.ccode import CCodePrinter
+
+import sympy.mpmath.libmp as mlib
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
 from StringIO import StringIO
 
-from sympy.printing.ccode import CCodePrinter
 
 hf = Rational(1, 2)  # 1/2
 
@@ -44,6 +47,29 @@ class MyCPrinter(CCodePrinter):
         args = ['('+x+')' for x in args]
         result = '%'.join(args)
         return result
+
+    def _print_Float(self, expr):
+        """
+        override method in StrPrinter
+        printing floating point number x in scientific notation if x>100 or x<0.01
+        """
+        prec = expr._prec
+        if prec < 5:
+            dps = 0
+        else:
+            dps = prec_to_dps(expr._prec)
+        if self._settings["full_prec"] is True:
+            strip = False
+        elif self._settings["full_prec"] is False:
+            strip = True
+        elif self._settings["full_prec"] == "auto":
+            strip = self._print_level > 1
+        rv = mlib.to_str(expr._mpf_, dps, strip_zeros=strip, max_fixed=2, min_fixed=-2)
+        if rv.startswith('-.0'):
+            rv = '-0.' + rv[3:]
+        elif rv.startswith('.0'):
+            rv = '0.' + rv[2:]
+        return rv
 
 
 def ccode(expr, **settings):
