@@ -4,7 +4,7 @@ main entry script to create c++ source code for pre-defined test cases
 - travis.yml script runs the default test case
 """
 
-from grid_test import *
+from codegen.grid_test import *
 import sys
 
 _test_dir = path.join(path.dirname(__file__), "src")
