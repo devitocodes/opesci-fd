@@ -316,7 +316,7 @@ int opesci_read_simple_binary(const char *filename, std::vector<float> &array){
   return 0;
 }
 
-int opesci_read_simple_binary_ptr(const char *filename, float* array){
+int opesci_read_simple_binary_ptr(const char *filename, float *array){
   std::ifstream infile(filename, std::ios::in | std::ios::binary);
   if(!infile.good()){
     std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open binary file "<<filename<<std::endl;
