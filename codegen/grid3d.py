@@ -7,6 +7,8 @@ main entry script to create c++ source code for pre-defined test cases
 from grid_test import *
 import sys
 
+_test_dir = path.join(path.dirname(__file__), "src")
+
 
 def default():
     """
@@ -20,7 +22,7 @@ def default():
     tmax = 1.0
     run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
              omp=True, simd=False, ivdep=True, io=False,
-             filename='src/tests/test3d.cpp')
+             filename=path.join(_test_dir, 'test_grid3d.cpp'))
 
 
 def default_vtk():
@@ -35,7 +37,7 @@ def default_vtk():
     tmax = 1.0
     run_test(domain_size, grid_size, dt, tmax, o_step=True, o_converge=True,
              omp=True, simd=False, ivdep=True, io=True,
-             filename='src/tests/test3d_vtk.cpp')
+             filename=path.join(_test_dir, 'test_grid3d_vtk.cpp'))
 
 
 def read_data():
@@ -49,7 +51,7 @@ def read_data():
     tmax = 1.0
     run_test(domain_size, grid_size, dt, tmax, o_step=True, o_converge=False,
              omp=True, simd=False, ivdep=True, io=True, read=True,
-             filename='src/tests/test3d_read.cpp',
+             filename=path.join(_test_dir, 'test_grid3d_read.cpp'),
              rho_file='RHOhomogx200',
              vp_file='VPhomogx200',
              vs_file='VShomogx200')
@@ -65,10 +67,10 @@ def cx1():
     tmax = 5.0
     run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=False,
              omp=True, simd=False, ivdep=True, io=False,
-             filename='src/tests/test3d_ivdep.cpp')
+             filename=path.join(_test_dir, 'test_grid3d_ivdep.cpp'))
     run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=False,
              omp=True, simd=True, ivdep=False, io=False,
-             filename='src/tests/test3d_simd.cpp')
+             filename=path.join(_test_dir, 'test_grid3d_simd.cpp'))
 
 
 def converge_test():
