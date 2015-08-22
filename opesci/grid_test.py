@@ -1,13 +1,5 @@
 from opesci import *
 from sympy import symbols, Eq, sqrt, pi, cos, sin, Float
-from mako.lookup import TemplateLookup
-from mako.runtime import Context
-from StringIO import StringIO
-from os import path
-
-_file_dir = path.dirname(__file__)
-_template_dir = path.join(_file_dir, "templates")
-_staggered_dir = path.join(_template_dir, "staggered")
 
 
 def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
@@ -159,38 +151,5 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     grid.set_free_surface_boundary(dimension=3, side=0)
     grid.set_free_surface_boundary(dimension=3, side=1)
 
-    if o_step:
-        output_step = grid.output_step()
-    else:
-        output_step = ''
-
-    if o_converge:
-        output_final = grid.converge_test()
-    else:
-        output_final = ''
-
-    # write to template file
-    lookup = TemplateLookup(directories=[_staggered_dir, _template_dir])
-    template = lookup.get_template('staggered3d_tmpl.cpp')
-    buf = StringIO()
-    dict1 = {'io': io, 'time_stepping': grid.time_stepping(),
-             'define_constants': grid.define_variables(),
-             'declare_fields': grid.declare_fields(),
-             'initialise': grid.initialise(),
-             'initialise_bc': grid.initialise_boundary(),
-             'stress_loop': grid.stress_loop(),
-             'velocity_loop': grid.velocity_loop(),
-             'stress_bc': grid.stress_bc(),
-             'velocity_bc': grid.velocity_bc(),
-             'output_step': output_step,
-             'output_final': output_final}
-    ctx = Context(buf, **dict1)
-    template.render_context(ctx)
-    code = buf.getvalue()
-
-    # generate compilable C++ source code
-    f = open(filename, 'w')
-    f.write(code)
-    f.close()
-
-    print filename + ' generated!'
+    # Generate code and write to output file
+    grid.generate(filename, o_step, o_converge)

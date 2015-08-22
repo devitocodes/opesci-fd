@@ -1,8 +1,11 @@
-from sympy import Symbol, Rational, solve, expand
-from mako.lookup import TemplateLookup
 from variable import Variable
 from fields import Field, VField
 from codeprinter import ccode, render
+from StringIO import StringIO
+
+from sympy import Symbol, Rational, solve, expand
+from mako.lookup import TemplateLookup
+from mako.runtime import Context
 import mmap
 from os import path
 
@@ -1040,3 +1043,31 @@ class StaggeredGrid:
             result += 'printf("' + l2 + '\\t%.10f\\n", ' + l2_value + ');\n'
 
         return result
+
+    def generate(self, filename, output=True, convergence=True):
+        """Generate code and write to output file"""
+        lookup = TemplateLookup(directories=[_staggered_dir, _template_dir])
+        template = lookup.get_template('staggered3d_tmpl.cpp')
+        buf = StringIO()
+        dict1 = {'io': self.io, 'time_stepping': self.time_stepping(),
+                 'define_constants': self.define_variables(),
+                 'declare_fields': self.declare_fields(),
+                 'initialise': self.initialise(),
+                 'initialise_bc': self.initialise_boundary(),
+                 'stress_loop': self.stress_loop(),
+                 'velocity_loop': self.velocity_loop(),
+                 'stress_bc': self.stress_bc(),
+                 'velocity_bc': self.velocity_bc(),
+                 'output_step': self.output_step() if output else "",
+                 'output_final': self.converge_test() if convergence else ""
+        }
+        ctx = Context(buf, **dict1)
+        template.render_context(ctx)
+        code = buf.getvalue()
+
+        # Generate compilable C++ source code
+        f = open(filename, 'w')
+        f.write(code)
+        f.close()
+
+        print filename + ' generated!'

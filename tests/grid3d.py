@@ -5,6 +5,7 @@ main entry script to create c++ source code for pre-defined test cases
 """
 
 from opesci.grid_test import *
+from os import path
 import sys
 
 _test_dir = path.join(path.dirname(__file__), "src")
