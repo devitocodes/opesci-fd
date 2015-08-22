@@ -37,29 +37,33 @@ class StaggeredGrid:
     - use functions such as grid.stress_loop() to generate code fragments
     - insert the fragments into Mako templates
 
-    switches can be set with set_switch_name methods:
-    omp: insert #pragma omp for before outer loops, default True
-    ivdep: insert #praga ivdep before inner loop, default True
-    simd: insert #pragma simd before inner loop, default False
-    double: use float (False) or double (True) for real numbers, default False
-    io: include header files for io (e.g. vtk support), default False
-    read: whether to read media parameters from input file, default False
-    expand: expand kernel fully (no factorisation), default True
-    eval_const: evaluate all constants in kernel in generated code default True
+    Switches can also be set with set_switches(switch1=va1, switch2=val2, ...).
+    Supported switches are:
+    * omp: insert #pragma omp for before outer loops, default True
+    * ivdep: insert #praga ivdep before inner loop, default True
+    * simd: insert #pragma simd before inner loop, default False
+    * double: use float (False) or double (True) for real numbers, default False
+    * io: include header files for io (e.g. vtk support), default False
+    * read: whether to read media parameters from input file, default False
+    * expand: expand kernel fully (no factorisation), default True
+    * eval_const: evaluate all constants in kernel in generated code default True
     """
 
-    def __init__(self, dimension):
+    _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const']
+
+    def __init__(self, dimension, omp=True, ivdep=True, simd=False,
+                 double=False, io=False, expand=True, eval_const=True):
         self.dimension = dimension
         self.lookup = TemplateLookup(directories=[_staggered_dir])
 
         # switches
-        self.omp = True  # switch for inserting #pragma omp for
-        self.ivdep = True  # switch for inserting #pragma ivdep to inner loop
-        self.simd = False  # switch for inserting #pragma simd to inner loop
-        self.double = False  # use float (False) or double (True)
-        self.io = False  # include io header files
-        self.expand = True  # expand kernel fully (no factorisation)
-        self.eval_const = True  # evaluate all constants in kernel
+        self.omp = omp
+        self.ivdep = ivdep
+        self.simd = simd
+        self.double = double
+        self.io = io
+        self.expand = expand
+        self.eval_const = eval_const
         self.real_t = 'double' if self.double else 'float'
 
         # number of ghost cells for boundary
@@ -109,59 +113,19 @@ class StaggeredGrid:
             v = Variable(name, 0, 'int', False)
             self.time.append(v)
 
-    def set_io(self, io):
-        """
-        set io swtich
-        """
-        assert io is True or io is False
-        self.io = io
+    def set_switches(self, **kwargs):
+        for switch, value in kwargs.items():
+            if switch not in self._switches:
+                raise KeyError("Unsupported switch: ", switch)
+            if not isinstance(value, bool):
+                raise ValueError("Only boolean values allowed for switches")
 
-    def set_omp(self, omp):
-        """
-        set omp swtich
-        """
-        assert omp is True or omp is False
-        self.omp = omp
-
-    def set_ivdep(self, ivdep):
-        """
-        set ivdep swtich
-        """
-        assert ivdep is True or ivdep is False
-        self.ivdep = ivdep
-
-    def set_simd(self, simd):
-        """
-        set simd swtich
-        """
-        assert simd is True or simd is False
-        self.simd = simd
-
-    def set_expand(self, expand):
-        """
-        set expand swtich
-        """
-        assert expand is True or expand is False
-        self.expand = expand
-
-    def set_eval_const(self, eval_const):
-        """
-        set eval_const swtich
-        """
-        assert eval_const is True or eval_const is False
-        self.eval_const = eval_const
-
-    def set_double(self, double):
-        """
-        set double swtich
-        redefine the spacing varialbes with new type
-        """
-        assert double is True or double is False
-        self.double = double
-        self.real_t = 'double' if self.double else 'float'
-        # spacing symbols, dx1, dx2, ...
-        self.spacing = [Variable('dx' + str(k+1), 0.1, self.real_t, True)
-                        for k in range(self.dimension)]
+            setattr(self, switch, value)
+            if switch == 'double':
+                self.real_t = 'double' if self.double else 'float'
+                # spacing symbols, dx1, dx2, ...
+                self.spacing = [Variable('dx' + str(k+1), 0.1, self.real_t, True)
+                                for k in range(self.dimension)]
 
     def _update_spacing(self):
         """

@@ -57,21 +57,15 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     W = VField('W', dimension=3, direction=3)
 
     grid = StaggeredGrid(dimension=3)
-
-    # set switches
-    grid.set_omp(omp)
-    grid.set_simd(simd)
-    grid.set_ivdep(ivdep)
-    grid.set_io(io)
-    grid.set_double(double)
-    grid.set_expand(expand)
-    grid.set_eval_const(eval_const)
-
     grid.set_stress_fields([Txx, Tyy, Tzz, Txy, Tyz, Txz])
     grid.set_velocity_fields([U, V, W])
     grid.set_domain_size(domain_size)
     grid.set_grid_size(grid_size)
     grid.set_time_step(dt, tmax)
+
+    grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, io=io,
+                      double=double, expand=expand,
+                      eval_const=eval_const)
 
     # define parameters
     rho, beta, lam, mu = symbols('rho beta lambda mu')
