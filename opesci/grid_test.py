@@ -1,8 +1,8 @@
+from opesci import *
 from sympy import symbols, Eq, sqrt, pi, cos, sin, Float
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
 from StringIO import StringIO
-from grid import *
 from os import path
 
 _file_dir = path.dirname(__file__)
