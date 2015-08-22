@@ -1,5 +1,4 @@
 from opesci import *
-from sympy import symbols, Eq, sqrt, pi, cos, sin, Float
 from os import path
 import sys
 
