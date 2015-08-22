@@ -14,11 +14,11 @@ install:
 
 script:
     - export PYTHONPATH=`pwd`:$PYTHONPATH
-    - python codegen/grid3d.py
-    - python codegen/grid3d.py read
-    - python codegen/grid3d.py vtk
-    - mkdir codegen/build
-    - cd codegen/build
+    - python tests/grid3d.py
+    - python tests/grid3d.py read
+    - python tests/grid3d.py vtk
+    - mkdir tests/build
+    - cd tests/build
     - cmake ../src
     - make
     - bin/test_grid3d
