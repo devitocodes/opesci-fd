@@ -255,10 +255,22 @@ class Field(IndexedBase):
     code to calculate boundary cells
     """
 
+    def __new__(typ, name, **kwargs):
+        obj = IndexedBase.__new__(typ, name)
+        return obj
+
+    def __init__(self, *args, **kwargs):
+        self.lookup = TemplateLookup(directories=[_staggered_dir])
+        super(Field, self).__init__()
+
+        # Pass additional arguments to self.set()
+        if len(kwargs) > 0:
+            self.set(**kwargs)
+
     def set(self, dimension, staggered):
         self.dimension = dimension
         self.staggered = staggered
-        self.lookup = TemplateLookup(directories=[_staggered_dir])
+
         # list of list to store derivative expressions
         self.d = [[None]*4 for x in range(dimension+1)]
         # list of list to store boundary ghost cell code
