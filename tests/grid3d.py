@@ -56,11 +56,10 @@ def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     V = VField('V', dimension=3, direction=2)
     W = VField('W', dimension=3, direction=3)
 
-    grid = StaggeredGrid(dimension=3)
-    grid.set_stress_fields([Txx, Tyy, Tzz, Txy, Tyz, Txz])
-    grid.set_velocity_fields([U, V, W])
-    grid.set_domain_size(domain_size)
-    grid.set_grid_size(grid_size)
+    grid = StaggeredGrid(dimension=3, domain_size=domain_size,
+                         grid_size=grid_size,
+                         stress_fields=[Txx, Tyy, Tzz, Txy, Tyz, Txz],
+                         velocity_fields=[U, V, W])
     grid.set_time_step(dt, tmax)
 
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, io=io,

@@ -51,12 +51,14 @@ class StaggeredGrid:
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const']
 
-    def __init__(self, dimension, omp=True, ivdep=True, simd=False,
-                 double=False, io=False, expand=True, eval_const=True):
+    def __init__(self, dimension, domain_size=None, grid_size=None,
+                 time_step=None, stress_fields=None, velocity_fields=None,
+                 omp=True, ivdep=True, simd=False, double=False, io=False,
+                 expand=True, eval_const=True):
         self.dimension = dimension
         self.lookup = TemplateLookup(directories=[_staggered_dir])
 
-        # switches
+        # Switches
         self.omp = omp
         self.ivdep = ivdep
         self.simd = simd
@@ -83,6 +85,16 @@ class StaggeredGrid:
         # default 2nd order in time, 4th order in space, i.e. (2,4) scheme
         default_accuracy = [1] + [2]*self.dimension
         self.set_accuracy(default_accuracy)
+
+        # Optional further grid settings
+        if stress_fields:
+            self.set_stress_fields(stress_fields)
+        if velocity_fields:
+            self.set_velocity_fields(velocity_fields)
+        if domain_size:
+            self.set_domain_size(domain_size)
+        if grid_size:
+            self.set_grid_size(grid_size)
 
         self.t = Symbol('t')
         self.dt = Variable('dt', 0.01, self.real_t, True)
