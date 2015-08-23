@@ -14,11 +14,11 @@ install:
 
 script:
     - export PYTHONPATH=`pwd`:$PYTHONPATH
-    - python tests/grid3d.py
-    - python tests/grid3d.py read
-    - python tests/grid3d.py vtk
+    - python tests/eigenwave3d.py
+    - python tests/eigenwave3d.py read
+    - python tests/eigenwave3d.py vtk
     - mkdir tests/build
     - cd tests/build
     - cmake ../src
     - make
-    - bin/test_grid3d
+    - bin/eigenwave3d

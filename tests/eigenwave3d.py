@@ -5,10 +5,10 @@ import sys
 _test_dir = path.join(path.dirname(__file__), "src")
 
 
-def run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
-             omp=True, simd=False, ivdep=True, io=False, double=False,
-             filename='test.cpp', read=False, expand=True, eval_const=True,
-             rho_file='', vp_file='', vs_file=''):
+def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
+                omp=True, simd=False, ivdep=True, io=False, double=False,
+                filename='test.cpp', read=False, expand=True, eval_const=True,
+                rho_file='', vp_file='', vs_file=''):
     """
     create 3D eigen waves and run FD simulation
     :param domain_size: define size of domain
@@ -152,9 +152,9 @@ def default():
     grid_size = (100, 100, 100)
     dt = 0.002
     tmax = 1.0
-    run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
-             omp=True, simd=False, ivdep=True, io=False,
-             filename=path.join(_test_dir, 'test_grid3d.cpp'))
+    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
+              omp=True, simd=False, ivdep=True, io=False,
+              filename=path.join(_test_dir, 'eigenwave3d.cpp'))
 
 
 def default_vtk():
@@ -167,9 +167,9 @@ def default_vtk():
     grid_size = (100, 100, 100)
     dt = 0.002
     tmax = 1.0
-    run_test(domain_size, grid_size, dt, tmax, o_step=True, o_converge=True,
-             omp=True, simd=False, ivdep=True, io=True,
-             filename=path.join(_test_dir, 'test_grid3d_vtk.cpp'))
+    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=True, o_converge=True,
+              omp=True, simd=False, ivdep=True, io=True,
+              filename=path.join(_test_dir, 'eigenwave3d_vtk.cpp'))
 
 
 def read_data():
@@ -181,12 +181,12 @@ def read_data():
     grid_size = (195, 195, 195)
     dt = 0.002
     tmax = 1.0
-    run_test(domain_size, grid_size, dt, tmax, o_step=True, o_converge=False,
-             omp=True, simd=False, ivdep=True, io=True, read=True,
-             filename=path.join(_test_dir, 'test_grid3d_read.cpp'),
-             rho_file='RHOhomogx200',
-             vp_file='VPhomogx200',
-             vs_file='VShomogx200')
+    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=True, o_converge=False,
+              omp=True, simd=False, ivdep=True, io=True, read=True,
+              filename=path.join(_test_dir, 'eigenwave3d_read.cpp'),
+              rho_file='RHOhomogx200',
+              vp_file='VPhomogx200',
+              vs_file='VShomogx200')
 
 
 def cx1():
@@ -197,12 +197,12 @@ def cx1():
     grid_size = (200, 200, 200)
     dt = 0.001
     tmax = 5.0
-    run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=False,
-             omp=True, simd=False, ivdep=True, io=False,
-             filename=path.join(_test_dir, 'test_grid3d_ivdep.cpp'))
-    run_test(domain_size, grid_size, dt, tmax, o_step=False, o_converge=False,
-             omp=True, simd=True, ivdep=False, io=False,
-             filename=path.join(_test_dir, 'test_grid3d_simd.cpp'))
+    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=False,
+              omp=True, simd=False, ivdep=True, io=False,
+              filename=path.join(_test_dir, 'eigenwave3d_ivdep.cpp'))
+    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=False,
+              omp=True, simd=True, ivdep=False, io=False,
+              filename=path.join(_test_dir, 'eigenwave3d_simd.cpp'))
 
 
 def converge_test():
@@ -217,27 +217,27 @@ def converge_test():
     c = 0.4*s
     dt = c/(s**2)
     tmax = 5.0
-    run_test(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
-             omp=True, simd=False, ivdep=True, io=False,
-             filename='tmp/test3d_'+str(s)+'.cpp')
+    eigenwave3d(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
+              omp=True, simd=False, ivdep=True, io=False,
+              filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    run_test(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
-             omp=True, simd=False, ivdep=True, io=False,
-             filename='tmp/test3d_'+str(s)+'.cpp')
+    eigenwave3d(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
+              omp=True, simd=False, ivdep=True, io=False,
+              filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    run_test(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
-             omp=True, simd=False, ivdep=True, io=False,
-             filename='tmp/test3d_'+str(s)+'.cpp')
+    eigenwave3d(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
+              omp=True, simd=False, ivdep=True, io=False,
+              filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    run_test(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
-             omp=True, simd=False, ivdep=True, io=False,
-             filename='tmp/test3d_'+str(s)+'.cpp')
+    eigenwave3d(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
+              omp=True, simd=False, ivdep=True, io=False,
+              filename='tmp/test3d_'+str(s)+'.cpp')
 
 
 def main():
