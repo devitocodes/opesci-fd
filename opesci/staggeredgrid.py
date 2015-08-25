@@ -135,9 +135,7 @@ class StaggeredGrid:
             setattr(self, switch, value)
             if switch == 'double':
                 self.real_t = 'double' if self.double else 'float'
-                # spacing symbols, dx1, dx2, ...
-                self.spacing = [Variable('dx' + str(k+1), 0.1, self.real_t, True)
-                                for k in range(self.dimension)]
+                self._update_spacing()
 
     def _update_spacing(self):
         """
