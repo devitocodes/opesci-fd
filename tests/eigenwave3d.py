@@ -13,7 +13,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     create 3D eigen waves and run FD simulation
     :param domain_size: define size of domain
     e.g. (1.0, 1.0, 1.0) for unit cube
-    :param spacing: define grid spacing, e.g. (0.1, 0.1, 0.1)
+    :param grid_size: define grid size, e.g. (10, 10, 10)
     :param dt: define time step
     :param tmax: define simulation time
     :param o_step: switch for code to output at each time step
