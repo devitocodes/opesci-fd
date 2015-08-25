@@ -126,7 +126,12 @@ void opesci_dump_solution_vts(std::string name, const int dims[], const float sp
   compressor->SetCompressionLevel(9);
   writer->SetCompressor(compressor);
 
+  // rewrite for vtk 6.20 -TJ
+#if VTK_MAJOR_VERSION <= 5
   writer->SetInput(sg);
+#else
+  writer->SetInputData(sg);
+#endif
   writer->Write();
 #else
   opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");
@@ -177,7 +182,12 @@ void opesci_dump_field_vts(std::string name, const int dims[], const float spaci
   compressor->SetCompressionLevel(9);
   writer->SetCompressor(compressor);
 
+  // rewrite for vtk 6.20 -TJ
+#if VTK_MAJOR_VERSION <= 5
   writer->SetInput(sg);
+#else
+  writer->SetInputData(sg);
+#endif
   writer->Write();
 #else
   opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");
@@ -272,7 +282,12 @@ void opesci_dump_receivers_vts(std::string name, const int dims[], const float s
   compressor->SetCompressionLevel(9);
   writer->SetCompressor(compressor);
 
+  // rewrite for vtk 6.20 -TJ
+#if VTK_MAJOR_VERSION <= 5
   writer->SetInput(sg);
+#else
+  writer->SetInputData(sg);
+#endif
   writer->Write();
 #else
   opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");
@@ -300,6 +315,31 @@ int opesci_read_simple_binary(const char *filename, std::vector<float> &array){
   
   return 0;
 }
+
+int opesci_read_simple_binary_ptr(const char *filename, float *array, int size){
+  std::ifstream infile(filename, std::ios::in | std::ios::binary);
+  if(!infile.good()){
+    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Failed to open binary file "<<filename<<std::endl;
+    return -1;
+  }
+  
+  std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(infile)),
+            std::istreambuf_iterator<char>());
+    
+  size_t filesize = buffer.size()/4;
+  if (filesize>size){
+    std::cerr<<"ERROR ("<<__FILE__<<", "<<__LINE__<<"): Input file "<<filename<<" size larger than array size "<<std::endl;
+  }
+#pragma omp parallel for if (size >= 10000)
+  for(size_t i=0;i<size;i++){
+    array[i] = *((float*)&buffer[i*4]);
+  }
+  
+  infile.close();
+  
+  return 0;
+}
+
 
 int opesci_read_souces(const char *xyz_filename, const char *xsrc_filename, const char *ysrc_filename, const char *zsrc_filename,
 		       std::vector<float> &xyz_array, std::vector<float> &xsrc_array, std::vector<float> &ysrc_array, std::vector<float> &zsrc_array){
@@ -455,7 +495,12 @@ void opesci_dump_field_vts_3d(std::string name, const int dims[], const float sp
   compressor->SetCompressionLevel(9);
   writer->SetCompressor(compressor);
 
+  // rewrite for vtk 6.20 -TJ
+#if VTK_MAJOR_VERSION <= 5
   writer->SetInput(sg);
+#else
+  writer->SetInputData(sg);
+#endif
   writer->Write();
 #else
   opesci_abort("ERROR: OPESCI built without VTK support. Cannot dump VTK files.");

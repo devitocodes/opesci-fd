@@ -32,9 +32,9 @@ if (OPENMP_FOUND)
     add_definitions(-DOPENMP_FOUND)
 endif()
 
-include_directories(include)
+include_directories(../../include)
 
-file(GLOB CXX_SOURCES lib/*.cpp)
+file(GLOB CXX_SOURCES ../../src/*.cpp)
 
 # target_link_library
 add_library(opesci SHARED ${CXX_SOURCES})
@@ -42,11 +42,11 @@ target_link_libraries(opesci ${OPESCI_LIBRARIES})
 
 # add_subdirectory(tests EXCLUDE_FROM_ALL)
 
-set(OPESCI_TEST_SRC ${CMAKE_SOURCE_DIR}/tests)
+set(OPESCI_TEST_SRC ${CMAKE_SOURCE_DIR})
 
-add_executable(test3d ${OPESCI_TEST_SRC}/test3d.cpp)
-target_link_libraries(test3d ${OPESCI_LIBRARIES} opesci)
-add_executable(test3d_read ${OPESCI_TEST_SRC}/test3d_read.cpp)
-target_link_libraries(test3d_read ${OPESCI_LIBRARIES} opesci)
-add_executable(test3d_vtk ${OPESCI_TEST_SRC}/test3d_vtk.cpp)
-target_link_libraries(test3d_vtk ${OPESCI_LIBRARIES} opesci)
+add_executable(eigenwave3d ${OPESCI_TEST_SRC}/eigenwave3d.cpp)
+target_link_libraries(eigenwave3d ${OPESCI_LIBRARIES} opesci)
+add_executable(eigenwave3d_read ${OPESCI_TEST_SRC}/eigenwave3d_read.cpp)
+target_link_libraries(eigenwave3d_read ${OPESCI_LIBRARIES} opesci)
+add_executable(eigenwave3d_vtk ${OPESCI_TEST_SRC}/eigenwave3d_vtk.cpp)
+target_link_libraries(eigenwave3d_vtk ${OPESCI_LIBRARIES} opesci)
