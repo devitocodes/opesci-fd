@@ -1,7 +1,6 @@
 from pybench import parser
 from wrapper import myBench
 import pylab as plt
-import affinity as aff
 import os
 
 
@@ -15,10 +14,13 @@ if __name__ == '__main__':
             help='times to plot')
     p.add_argument('-comp','--compiler', type=str,nargs='+',
             help = 'compiler to plot')
+    p.add_argument('-sp','--speedup', type=int,nargs='+',
+            help = 'plot speedup')
 
     args = p.parse_args()
    # dim = args.dim
     tms = args.times
+    speedup = args.speedup
     compiler = args.compiler
 
 
@@ -33,18 +35,26 @@ if __name__ == '__main__':
     b.combine_series([('times', tms)], filename='myBench')
 
     compilers_ = [x for x in b.result['params'] if x[0]=='compiler'][0][1]
-    compilers_check = ['running time with '+x for x in compilers_ ]
+    compiler_index = ['running time with '+x for x in compilers_ ]
     # get the right parameter , because in the results the order is sometimes read in a wrong way.
 
-    
+
+
+    # base = b.result['timings'].values().keys()['running time with g++']  
+    if(speedup):
+        base =  b.result['timings'][('clang',3,3)]['running time with clang']
 
     times = []
     # print b.result
     for data in b.result['timings'].values():
         # print data.values()
         for x in data.keys():
-            if x in compilers_check:
-                times.append(data[x])
+            # print x 
+            if x in compiler_index:
+                if(speedup):
+                    times.append(base/data[x])
+                else:
+                    times.append(data[x])
 
     # checking it is the right results, by checking the key name, 
 
@@ -63,7 +73,8 @@ if __name__ == '__main__':
                 , 'pollyboth':'all polly'
                 , 'g++':'g++ default with opt_level in wrapper'
                 , 'pollynoaliasing':'polly with noaliasing option'
-                , 'pollyfunc': 'only optimise specific func'
+                , 'pollyfunc': 'only optimise specific func crit'
+                , 'pollymain': 'optimise noncrit'
                 }
 
 
@@ -75,23 +86,18 @@ if __name__ == '__main__':
     print '+++'
     # print aff.get_process_affinity_mask(5)
     # print os.environ['GOMP_CPU_AFFINITY=\"0 1 2 3 \"']
-    print os.getpid()
-    print '---'
     # plot bar first then add ticks and labels , otherwise no extra space 
     plt.bar(range(0,len(times)),times,width = 0.5, align = 'center')
     plt.xticks(range(0,len(times)), labels, rotation = 17)
-    plt.ylabel('running time ')
+    if(speedup):
+        plt.ylabel('speed up ')
+    else:
+        plt.ylabel('running time ')
     fig.text(.1,.0, text)
     plt.savefig('my_fig%s'%b.basename)
 
-
-
-
-
-
-
     
-    # compiler_str = ['%s-haha' % d for d in compilers_check]
+    # compiler_str = ['%s-haha' % d for d in compiler_index]
     # #for region in regions:
     # region = regions[0]
     # b.plot(figsize=b.figsize, format='pdf',figname='myBench',
