@@ -1,7 +1,7 @@
 from variable import Variable
 from fields import Field, VField
 from codeprinter import ccode, render
-from compilation import GNUCompiler
+from compilation import get_package_dir, GNUCompiler
 from StringIO import StringIO
 
 from sympy import Symbol, Rational, solve, expand
@@ -9,10 +9,6 @@ from mako.lookup import TemplateLookup
 from mako.runtime import Context
 import mmap
 from os import path
-
-_file_dir = path.dirname(__file__)
-_template_dir = path.join(_file_dir, "templates")
-_staggered_dir = path.join(_template_dir, "staggered")
 
 __all__ = ['StaggeredGrid']
 
@@ -56,7 +52,10 @@ class StaggeredGrid:
                  omp=True, ivdep=True, simd=False, double=False, io=False,
                  expand=True, eval_const=True):
         self.dimension = dimension
-        self.lookup = TemplateLookup(directories=[_staggered_dir])
+
+        template_dir = path.join(get_package_dir(), "templates")
+        staggered_dir = path.join(get_package_dir(), "templates/staggered")
+        self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
         self._srcfile = None
 
         # Switches
@@ -1021,8 +1020,7 @@ class StaggeredGrid:
 
     def generate(self, filename, output=True, convergence=True):
         """Generate code and write to output file"""
-        lookup = TemplateLookup(directories=[_staggered_dir, _template_dir])
-        template = lookup.get_template('staggered3d_tmpl.cpp')
+        template = self.lookup.get_template('staggered3d_tmpl.cpp')
         buf = StringIO()
         dict1 = {'io': self.io, 'time_stepping': self.time_stepping(),
                  'define_constants': self.define_variables(),

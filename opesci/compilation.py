@@ -1,7 +1,8 @@
 from os import path, environ
 import subprocess
 
-_opesci_dir = path.abspath(path.dirname(path.dirname(__file__)))
+def get_package_dir():
+    return path.abspath(path.dirname(__file__))
 
 
 class Compiler(object):
@@ -43,6 +44,6 @@ class GNUCompiler(Compiler):
     :arg ldargs: A list of arguments to pass to the linker (optional)."""
     def __init__(self, cppargs=[], ldargs=[]):
         opt_flags = ['-g', '-O3', '-fno-tree-vectorize', '-fopenmp']
-        cppargs = ['-Wall', '-std=c++11', '-I%s/include'%_opesci_dir] + opt_flags + cppargs
-        ldargs = ['-lopesci', '-L%s/lib'%_opesci_dir] + ldargs
+        cppargs = ['-Wall', '-std=c++11', '-I%s/include'%get_package_dir()] + opt_flags + cppargs
+        ldargs = ['-lopesci', '-L%s/lib'%get_package_dir()] + ldargs
         super(GNUCompiler, self).__init__("g++", cppargs=cppargs, ldargs=ldargs)
