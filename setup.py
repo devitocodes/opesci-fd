@@ -9,6 +9,7 @@ except ImportError:
 from os import path, chdir
 import subprocess
 import shutil
+import versioneer
 
 
 class CMakeBuilder(build_clib):
@@ -48,7 +49,7 @@ class PythonBuilder(build):
 
 
 setup(name='opesci',
-      version = "0.1", # Need better version management
+      version = versioneer.get_version(),
       description = """Framework for automatic generation of
       Finite Difference models for use in seismic imaging.""",
       author = "Imperial College London and SENAI Cimatec",
