@@ -11,14 +11,11 @@ before_install:
 install:
     - pip install -r requirements.txt
     - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
+    - python setup.py build_clib --build-clib=`pwd`
 
 script:
     - export PYTHONPATH=`pwd`:$PYTHONPATH
     - python tests/eigenwave3d.py
     - python tests/eigenwave3d.py read
     - python tests/eigenwave3d.py vtk
-    - mkdir tests/build
-    - cd tests/build
-    - cmake ../src
-    - make
-    - bin/eigenwave3d
+    - tests/src/eigenwave3d
