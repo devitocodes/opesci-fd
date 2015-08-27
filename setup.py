@@ -1,48 +1,50 @@
 try:
     from setuptools import setup
+    from setuptools.command.build import build
+    from setuptools.command.build_clib import build_clib
 except ImportError:
     from distutils.core import setup
-from distutils.core import Command
-from distutils.dir_util import mkpath, copy_tree
+    from distutils.command.build import build
+    from distutils.command.build_clib import build_clib
 from os import path, chdir
 import subprocess
 import shutil
 
-def opesci_dir(subdir=''):
-    root_dir = path.dirname(path.realpath(__file__))
-    return path.join(root_dir, subdir)
 
-class CMakeBuilder(Command):
+class CMakeBuilder(build_clib):
 
-    user_options = []
+    def run(self):
+        root_dir = path.dirname(path.realpath(__file__))
+        build_dir = path.realpath(self.build_temp)
+        clib_dir = path.realpath(self.build_clib)
 
-    def build_with_cmake(self):
-        mkpath(self._build_dir)
-        chdir(self._build_dir)
-        cmake_cmd = ["cmake", self._root_dir]
+        # Run cmake and make in temp dir
+        self.mkpath(build_dir)
+        chdir(build_dir)
+        cmake_cmd = ["cmake", root_dir]
         if subprocess.call(cmake_cmd) != 0:
             raise EnvironmentError("error calling cmake")
 
         if subprocess.call("make") != 0:
             raise EnvironmentError("error calling make")
-        chdir(self._root_dir)
+        chdir(root_dir)
 
-    def initialize_options(self):
-        self._root_dir = opesci_dir()
-        self._build_dir = opesci_dir('build')
+        # Copy lib and include directories to opesci package
+        self.copy_tree(path.join(root_dir, 'include'),
+                       path.join(clib_dir, 'opesci/include'))
+        self.copy_tree(path.join(build_dir, 'lib'),
+                       path.join(clib_dir, 'opesci/lib'))
 
-    def finalize_options(self):
-        pass
 
-    def build_lib(self):
-        self.build_with_cmake()
-
+class PythonBuilder(build):
     def run(self):
-        self.build_with_cmake()
+        # Pass build_lib to the CMake builder as build_clib
+        build_clib = self.get_finalized_command('build_clib')
+        build_clib.build_clib = self.build_lib
+        build_clib.run()
 
-        # Copy lib and bin directories back to root
-        copy_tree(opesci_dir('build/lib'), opesci_dir('lib'))
-        copy_tree(opesci_dir('build/bin'), opesci_dir('bin'))
+        # Invoke the actual Python build
+        build.run(self)
 
 
 setup(name='opesci',
@@ -53,6 +55,9 @@ setup(name='opesci',
       author_email = "opesci@imperial.ac.uk",
       url = "http://opesci.org",
       packages = ['opesci'],
-      package_data = {'opesci' : ['templates/*.txt', 'templates/staggered/*.txt']},
-      cmdclass = {'build_clib': CMakeBuilder},
+      package_data = {'opesci' : ['lib/*.so', 'include/*.h',
+                                  'templates/*.txt',
+                                  'templates/staggered/*.txt',
+                                  'templates/staggered/*.cpp']},
+      cmdclass = {'build_clib': CMakeBuilder, 'build': PythonBuilder}
 )
