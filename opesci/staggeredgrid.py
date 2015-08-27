@@ -1,6 +1,7 @@
 from variable import Variable
 from fields import Field, VField
 from codeprinter import ccode, render
+from compilation import GNUCompiler
 from StringIO import StringIO
 
 from sympy import Symbol, Rational, solve, expand
@@ -48,7 +49,6 @@ class StaggeredGrid:
     * expand: expand kernel fully (no factorisation), default True
     * eval_const: evaluate all constants in kernel in generated code default True
     """
-
     _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const']
 
     def __init__(self, dimension, domain_size=None, grid_size=None,
@@ -57,6 +57,7 @@ class StaggeredGrid:
                  expand=True, eval_const=True):
         self.dimension = dimension
         self.lookup = TemplateLookup(directories=[_staggered_dir])
+        self._srcfile = None
 
         # Switches
         self.omp = omp
@@ -1040,8 +1041,15 @@ class StaggeredGrid:
         code = buf.getvalue()
 
         # Generate compilable C++ source code
-        f = open(filename, 'w')
-        f.write(code)
-        f.close()
+        self._srcfile = filename
+        with file(self._srcfile, 'w') as f:
+            f.write(code)
 
-        print filename + ' generated!'
+        print "Generated:", self._srcfile
+
+    def compile(self, filename, compiler='g++'):
+        if self._srcfile is None:
+            self.generate(filename)
+        if compiler in ['g++', 'gnu']:
+            self._compiler = GNUCompiler()
+            self._compiler.compile(self._srcfile)
