@@ -45,5 +45,6 @@ class GNUCompiler(Compiler):
     def __init__(self, cppargs=[], ldargs=[]):
         opt_flags = ['-g', '-O3', '-fno-tree-vectorize', '-fopenmp']
         cppargs = ['-Wall', '-std=c++11', '-I%s/include'%get_package_dir()] + opt_flags + cppargs
-        ldargs = ['-lopesci', '-L%s/lib'%get_package_dir()] + ldargs
+        ldargs = ['-lopesci', '-Wl,-rpath,%s/lib'%get_package_dir(),
+                  '-L%s/lib'%get_package_dir()] + ldargs
         super(GNUCompiler, self).__init__("g++", cppargs=cppargs, ldargs=ldargs)
