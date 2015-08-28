@@ -66,7 +66,6 @@ class StaggeredGrid(Grid):
         template_dir = path.join(get_package_dir(), "templates")
         staggered_dir = path.join(get_package_dir(), "templates/staggered")
         self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
-        self.src_file = None
 
         # List of associated fields
         self.sfields = []

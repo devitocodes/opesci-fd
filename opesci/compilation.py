@@ -21,9 +21,12 @@ class Compiler(object):
         self._cppargs = cppargs
         self._ldargs = ldargs
 
-    def compile(self, src, out=None):
+    def compile(self, src, out=None, shared=True):
         basename = src.split('.')[0]
-        outname = out or "%s" % basename
+        outname = out or "%s.so"%basename if shared else basename
+        if shared:
+            self._cppargs += ['-fPIC']
+            self._ldargs += ['-shared']
         cc = [self._cc] + self._cppargs + ['-o', outname, src] + self._ldargs
         with file('%s.log' % basename, 'w') as logfile:
             logfile.write("Compiling: %s\n" % " ".join(cc))
@@ -33,7 +36,8 @@ class Compiler(object):
                 print "Compilation error with:", " ".join(cc)
                 print "Log file:", logfile.name
                 raise RuntimeError("Error during compilation")
-            print "Compiled:", outname
+        print "Compiled:", outname
+        return outname
 
 
 class GNUCompiler(Compiler):

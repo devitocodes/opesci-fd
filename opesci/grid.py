@@ -17,6 +17,11 @@ class Grid:
     # property field in the derived grid class
     template_keys = []
 
+    # Placeholders for generated code and associated files
+    src_code = None
+    src_file = None
+    src_lib = None
+
     def generate(self, filename):
         # Generate a dictionary that maps template keys to code fragments
         template = self.lookup.get_template(self.template_base)
@@ -35,12 +40,14 @@ class Grid:
 
         print "Generated:", self.src_file
 
-    def compile(self, filename, compiler='g++'):
+    def compile(self, filename, compiler='g++', shared=True):
         # Generate code if this hasn't been done yet
         if self.src_file is None:
             self.generate(filename)
 
-        # Compile cource file with appropriate compiler
+        # Compile source file with appropriate compiler
         if compiler in ['g++', 'gnu']:
             self._compiler = GNUCompiler()
-            self._compiler.compile(self.src_file)
+            out = self._compiler.compile(self.src_file, shared=shared)
+        if shared:
+            self.src_lib = out
