@@ -37,7 +37,8 @@ def switchcompiler(compiler,opt_level,name):
 # -fPIC -shared
     basename = name
     cc = 'g++'
-    cc += ' -fopenmp -O%d'% opt_level
+    #cc += ' -fopenmp'
+    cc += ' -O%d'% opt_level
     cc += " -o %s_g++" % basename
     cc += " %s.cpp" % basename
     cc += " test.h"
@@ -49,7 +50,11 @@ def switchcompiler(compiler,opt_level,name):
     clang += ' -O%d' % opt_level
 
     polly = 'clang++'
-    polly += ' -fopenmp'
+    polly += ' -lm -march=native'
+    polly += ' -mllvm -polly-dependences-computeout=0'
+    polly += ' -mllvm -polly-detect-unprofitable'
+    polly += ' -mllvm -polly-parallel -lgomp'
+    #polly += ' -fopenmp'
     polly += ' -Xclang -load -Xclang LLVMPolly.so'
     polly += ' -O3 -mllvm'
 
@@ -112,13 +117,13 @@ def pollyoption(x):
     if(x=='pollyvector'):
         return '-vectorizer=stripmine'
     elif(x== 'pollyparallel'):
-        return '-parallel -lgomp'
+        return '-parallel -lgomp '
     elif(x== 'pollyboth' ):
-        return '-only-func=critical -mllvm -polly-no-tiling' #-mllvm -polly-ignore-aliasing 
+        return '-tile-sizes=4,4,4' #-mllvm -polly-ignore-aliasing 
     elif(x== 'pollynotiling'):
         return '-no-tiling'
     elif(x== 'pollynoaliasing'):
-        return '-ignore-aliasing'
+        return '-ignore-aliasing -mllvm -polly-dependences-computeout=0'
     elif(x== 'pollypocc'):
         return '-optimizer=none'    #doesn't work properly because didn't compile with scoplib
     elif(x== 'pollyshow'):
@@ -145,7 +150,7 @@ class myBench(Benchmark):
    
     # compilers = ['pollyvector','pollyparallel','polly','clang','pollynotiling','pollyfunc' ]
     # compilers = ['g++' , 'clang','polly','pollynotiling','pollyfunc','pollyparallel','pollynoaliasing','pollyvector' ]
-    compilers = ['clang', 'polly', 'pollynotiling']#,'pollynotiling','pollyparallel','pollyvector']
+    compilers = ['pollyboth']#,'pollynotiling','pollyparallel','pollyvector']
 
     params =  [('opt_level', range(3,4)),('compiler',compilers)]
     #when adding new options , add in switchcompiler, pollyoptions, 
