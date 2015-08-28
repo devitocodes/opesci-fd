@@ -1,12 +1,9 @@
+from compilation import get_package_dir
 from sympy import factorial, Matrix, Rational, Indexed, IndexedBase
 from sympy import solve, Eq
 from codeprinter import ccode, ccode_eq, render
 from mako.lookup import TemplateLookup
 from os import path
-
-_file_dir = path.dirname(__file__)
-_template_dir = path.join(_file_dir, "templates")
-_staggered_dir = path.join(_template_dir, "staggered")
 
 hf = Rational(1, 2)  # 1/2
 
@@ -260,7 +257,9 @@ class Field(IndexedBase):
         return obj
 
     def __init__(self, *args, **kwargs):
-        self.lookup = TemplateLookup(directories=[_staggered_dir])
+        template_dir = path.join(get_package_dir(), "templates")
+        staggered_dir = path.join(get_package_dir(), "templates/staggered")
+        self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
         super(Field, self).__init__()
 
         # Pass additional arguments to self.set()

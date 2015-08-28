@@ -16,13 +16,6 @@ enable_testing()
 
 enable_language(CXX)
 
-find_program(POCHOIR pochoir PATHS)
-if(POCHOIR)
-  MESSAGE(STATUS "Found the Pochoir Stencil Compiler: ${POCHOIR}")
-else()
-  MESSAGE(WARNING "WARNING: Cannot find the Pochoir Stencil Compiler. Pochoir source will not be built.")
-endif()
-
 set (OPESCI_LIBRARIES)
 FIND_PACKAGE(VTK NO_MODULE)
 if(VTK_FOUND)
@@ -65,8 +58,6 @@ file(GLOB CXX_SOURCES src/*.cpp)
 # target_link_library
 add_library(opesci SHARED ${CXX_SOURCES})
 target_link_libraries(opesci ${OPESCI_LIBRARIES})
-
-add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 install(DIRECTORY include/ DESTINATION include/opesci FILES_MATCHING PATTERN *.h)
 install(FILES libopesci.so DESTINATION lib)

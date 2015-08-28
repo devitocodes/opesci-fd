@@ -141,6 +141,9 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     # Generate code and write to output file
     grid.generate(filename, o_step, o_converge)
 
+    # Compile the auto-generated code
+    grid.compile(filename, compiler='g++')
+
 
 def default():
     """

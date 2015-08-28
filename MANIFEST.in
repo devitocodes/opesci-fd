@@ -1,0 +1,2 @@
+include versioneer.py
+include opesci/_version.py

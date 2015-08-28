@@ -1,6 +1,7 @@
 from variable import Variable
 from fields import Field, VField
 from codeprinter import ccode, render
+from compilation import get_package_dir, GNUCompiler
 from StringIO import StringIO
 
 from sympy import Symbol, Rational, solve, expand
@@ -8,10 +9,6 @@ from mako.lookup import TemplateLookup
 from mako.runtime import Context
 import mmap
 from os import path
-
-_file_dir = path.dirname(__file__)
-_template_dir = path.join(_file_dir, "templates")
-_staggered_dir = path.join(_template_dir, "staggered")
 
 __all__ = ['StaggeredGrid']
 
@@ -48,7 +45,6 @@ class StaggeredGrid:
     * expand: expand kernel fully (no factorisation), default True
     * eval_const: evaluate all constants in kernel in generated code default True
     """
-
     _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const']
 
     def __init__(self, dimension, domain_size=None, grid_size=None,
@@ -56,7 +52,11 @@ class StaggeredGrid:
                  omp=True, ivdep=True, simd=False, double=False, io=False,
                  expand=True, eval_const=True):
         self.dimension = dimension
-        self.lookup = TemplateLookup(directories=[_staggered_dir])
+
+        template_dir = path.join(get_package_dir(), "templates")
+        staggered_dir = path.join(get_package_dir(), "templates/staggered")
+        self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
+        self._srcfile = None
 
         # Switches
         self.omp = omp
@@ -1020,8 +1020,7 @@ class StaggeredGrid:
 
     def generate(self, filename, output=True, convergence=True):
         """Generate code and write to output file"""
-        lookup = TemplateLookup(directories=[_staggered_dir, _template_dir])
-        template = lookup.get_template('staggered3d_tmpl.cpp')
+        template = self.lookup.get_template('staggered3d_tmpl.cpp')
         buf = StringIO()
         dict1 = {'io': self.io, 'time_stepping': self.time_stepping(),
                  'define_constants': self.define_variables(),
@@ -1040,8 +1039,15 @@ class StaggeredGrid:
         code = buf.getvalue()
 
         # Generate compilable C++ source code
-        f = open(filename, 'w')
-        f.write(code)
-        f.close()
+        self._srcfile = filename
+        with file(self._srcfile, 'w') as f:
+            f.write(code)
 
-        print filename + ' generated!'
+        print "Generated:", self._srcfile
+
+    def compile(self, filename, compiler='g++'):
+        if self._srcfile is None:
+            self.generate(filename)
+        if compiler in ['g++', 'gnu']:
+            self._compiler = GNUCompiler()
+            self._compiler.compile(self._srcfile)
