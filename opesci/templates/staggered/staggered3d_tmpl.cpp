@@ -34,7 +34,7 @@ ${output_step}
 } // end of time loop
 } // end of parallel section
 
-${output_final}
+${converge_test}
 
 return 0;
 }

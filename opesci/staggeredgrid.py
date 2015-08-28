@@ -1,12 +1,11 @@
+from grid import Grid
 from variable import Variable
 from fields import Field, VField
 from codeprinter import ccode, render
-from compilation import get_package_dir, GNUCompiler
-from StringIO import StringIO
+from compilation import get_package_dir
 
 from sympy import Symbol, Rational, solve, expand
 from mako.lookup import TemplateLookup
-from mako.runtime import Context
 import mmap
 from os import path
 
@@ -15,7 +14,7 @@ __all__ = ['StaggeredGrid']
 hf = Rational(1, 2)  # 1/2
 
 
-class StaggeredGrid:
+class StaggeredGrid(Grid):
     """
     - Class to represent velocity-stress method on staggered grid
     - calculates the computation kernel
@@ -47,6 +46,13 @@ class StaggeredGrid:
     * output_vts: Output solution fields at every timestep
     * converge: Generate code for computing analutical solution and L2 norms
     """
+    template_base = 'staggered3d_tmpl.cpp'
+
+    template_keys = ['io', 'time_stepping', 'define_constants', 'declare_fields',
+                     'initialise', 'initialise_bc', 'stress_loop',
+                     'velocity_loop', 'stress_bc', 'velocity_bc',
+                     'output_step', 'converge_test']
+
     _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const',
                  'output_vts', 'converge']
 
@@ -59,7 +65,7 @@ class StaggeredGrid:
         template_dir = path.join(get_package_dir(), "templates")
         staggered_dir = path.join(get_package_dir(), "templates/staggered")
         self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
-        self._srcfile = None
+        self.src_file = None
 
         # Switches
         self.omp = omp
@@ -529,7 +535,8 @@ class StaggeredGrid:
 
     # ------------------- sub-routines for output -------------------- #
 
-    def define_variables(self):
+    @property
+    def define_constants(self):
         """
         - generate code for declaring variables
         - return the generated code as string
@@ -544,6 +551,7 @@ class StaggeredGrid:
             result += line
         return result
 
+    @property
     def declare_fields(self):
         """
         - generate code for delcaring fields
@@ -697,6 +705,7 @@ class StaggeredGrid:
             result = render(tmpl, dict1)
         return result
 
+    @property
     def initialise(self):
         """
         generate code for initialisation of the fields
@@ -748,17 +757,19 @@ class StaggeredGrid:
             result += body
         return result
 
-    def initialise_boundary(self):
+    @property
+    def initialise_bc(self):
         """
         - generate code for initialisation of boundary ghost cells
         - generate generic boundary cell code
         replace array indices [t] with [0]
-        - return gerneated code as string
+        - return generated code as string
         """
-        result = self.stress_bc().replace('[t1]', '[0]')
-        result += self.velocity_bc().replace('[t1]', '[0]')
+        result = self.stress_bc.replace('[t1]', '[0]')
+        result += self.velocity_bc.replace('[t1]', '[0]')
         return result
 
+    @property
     def stress_loop(self):
         """
         generate code for stress field update loop
@@ -796,6 +807,7 @@ class StaggeredGrid:
 
         return body
 
+    @property
     def velocity_loop(self):
         """
         generate code for velocity field update loop
@@ -833,6 +845,7 @@ class StaggeredGrid:
 
         return body
 
+    @property
     def stress_bc(self):
         """
         generate code for updating stress field boundary ghost cells
@@ -879,6 +892,7 @@ class StaggeredGrid:
 
         return result
 
+    @property
     def velocity_bc(self):
         """
         generate code for updating stress field boundary ghost cells
@@ -929,6 +943,7 @@ class StaggeredGrid:
 
         return result
 
+    @property
     def time_stepping(self):
         """
         generate time index variable for time stepping
@@ -957,6 +972,7 @@ class StaggeredGrid:
         result = render(tmpl, dict1)
         return result
 
+    @property
     def output_step(self):
         """
         - generate code for output at each time step
@@ -968,6 +984,7 @@ class StaggeredGrid:
             result += self.vfields[0].vtk_save_field()
         return result
 
+    @property
     def converge_test(self):
         """
         - generate code for convergence test
@@ -1025,37 +1042,3 @@ class StaggeredGrid:
             result += 'printf("' + l2 + '\\t%.10f\\n", ' + l2_value + ');\n'
 
         return result
-
-    def generate(self, filename, output=True, convergence=True):
-        """Generate code and write to output file"""
-        template = self.lookup.get_template('staggered3d_tmpl.cpp')
-        buf = StringIO()
-        dict1 = {'io': self.io, 'time_stepping': self.time_stepping(),
-                 'define_constants': self.define_variables(),
-                 'declare_fields': self.declare_fields(),
-                 'initialise': self.initialise(),
-                 'initialise_bc': self.initialise_boundary(),
-                 'stress_loop': self.stress_loop(),
-                 'velocity_loop': self.velocity_loop(),
-                 'stress_bc': self.stress_bc(),
-                 'velocity_bc': self.velocity_bc(),
-                 'output_step': self.output_step(),
-                 'output_final': self.converge_test()
-        }
-        ctx = Context(buf, **dict1)
-        template.render_context(ctx)
-        code = buf.getvalue()
-
-        # Generate compilable C++ source code
-        self._srcfile = filename
-        with file(self._srcfile, 'w') as f:
-            f.write(code)
-
-        print "Generated:", self._srcfile
-
-    def compile(self, filename, compiler='g++'):
-        if self._srcfile is None:
-            self.generate(filename)
-        if compiler in ['g++', 'gnu']:
-            self._compiler = GNUCompiler()
-            self._compiler.compile(self._srcfile)
