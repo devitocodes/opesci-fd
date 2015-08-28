@@ -44,13 +44,16 @@ class StaggeredGrid:
     * read: whether to read media parameters from input file, default False
     * expand: expand kernel fully (no factorisation), default True
     * eval_const: evaluate all constants in kernel in generated code default True
+    * output_vts: Output solution fields at every timestep
+    * converge: Generate code for computing analutical solution and L2 norms
     """
-    _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const']
+    _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const',
+                 'output_vts', 'converge']
 
     def __init__(self, dimension, domain_size=None, grid_size=None,
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
-                 expand=True, eval_const=True):
+                 expand=True, eval_const=True, output_vts=False, converge=False):
         self.dimension = dimension
 
         template_dir = path.join(get_package_dir(), "templates")
@@ -67,6 +70,8 @@ class StaggeredGrid:
         self.expand = expand
         self.eval_const = eval_const
         self.real_t = 'double' if self.double else 'float'
+        self.output_vts = output_vts
+        self.converge = converge
 
         # number of ghost cells for boundary
         self.margin = Variable('margin', 2, 'int', True)
@@ -959,7 +964,8 @@ class StaggeredGrid:
         - return generated code as string
         """
         result = ''
-        result += self.vfields[0].vtk_save_field()
+        if self.output_vts:
+            result += self.vfields[0].vtk_save_field()
         return result
 
     def converge_test(self):
@@ -970,8 +976,10 @@ class StaggeredGrid:
         - L2 norm of each field is calculated and output with printf()
         - return generated code as string
         """
-        tmpl = self.lookup.get_template('generic_loop.txt')
         result = ''
+        if not self.converge:
+            return result
+        tmpl = self.lookup.get_template('generic_loop.txt')
         m = self.margin.value
         ti = self.ntsteps.value % 2  # last updated grid
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
@@ -1031,8 +1039,8 @@ class StaggeredGrid:
                  'velocity_loop': self.velocity_loop(),
                  'stress_bc': self.stress_bc(),
                  'velocity_bc': self.velocity_bc(),
-                 'output_step': self.output_step() if output else "",
-                 'output_final': self.converge_test() if convergence else ""
+                 'output_step': self.output_step(),
+                 'output_final': self.converge_test()
         }
         ctx = Context(buf, **dict1)
         template.render_context(ctx)

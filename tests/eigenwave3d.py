@@ -63,8 +63,8 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     grid.set_time_step(dt, tmax)
 
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, io=io,
-                      double=double, expand=expand,
-                      eval_const=eval_const)
+                      double=double, expand=expand, eval_const=eval_const,
+                      output_vts=o_step, converge=o_converge)
 
     # define parameters
     rho, beta, lam, mu = symbols('rho beta lambda mu')
@@ -139,7 +139,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     grid.set_free_surface_boundary(dimension=3, side=1)
 
     # Generate code and write to output file
-    grid.generate(filename, o_step, o_converge)
+    grid.generate(filename)
 
     # Compile the auto-generated code
     grid.compile(filename, compiler='g++')
