@@ -49,6 +49,7 @@ class StaggeredGrid(Grid):
     template_base = 'staggered3d_tmpl.cpp'
 
     template_keys = ['io', 'time_stepping', 'define_constants', 'declare_fields',
+                     'define_fields', 'store_fields', 'load_fields',
                      'initialise', 'initialise_bc', 'stress_loop',
                      'velocity_loop', 'stress_bc', 'velocity_bc',
                      'output_step', 'converge_test']
@@ -66,6 +67,10 @@ class StaggeredGrid(Grid):
         staggered_dir = path.join(get_package_dir(), "templates/staggered")
         self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
         self.src_file = None
+
+        # List of associated fields
+        self.sfields = []
+        self.vfields = []
 
         # Switches
         self.omp = omp
@@ -117,6 +122,10 @@ class StaggeredGrid(Grid):
         self.defined_variable = {}
 
         self._update_spacing()
+
+    @property
+    def fields(self):
+        return self.sfields + self.vfields
 
     def set_accuracy(self, accuracy):
         """
@@ -550,6 +559,28 @@ class StaggeredGrid(Grid):
             line += v.type + ' ' + v.name + ' = ' + str(v.value) + ';\n'
             result += line
         return result
+
+    @property
+    def define_fields(self):
+        """Code fragment that defines field arrays"""
+        return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
+                          for f in self.fields])
+
+    @property
+    def store_fields(self):
+        """Code fragment that stores field arrays to 'grid' struct"""
+        return '\n'.join(['grid->%s = (%s*) %s;' %
+                          (ccode(f.label), self.real_t, ccode(f.label))
+                          for f in self.fields])
+
+    @property
+    def load_fields(self):
+        """Code fragment that loads field arrays from 'grid' struct"""
+        idxs = ''.join(['[%d]' % d.value for d in self.dim])
+        return '\n'.join(['%s (*%s)%s = (%s (*)%s) grid->%s;' %
+                          (self.real_t, ccode(f.label), idxs,
+                           self.real_t, idxs, ccode(f.label))
+                          for f in self.fields])
 
     @property
     def declare_fields(self):

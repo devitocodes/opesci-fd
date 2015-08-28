@@ -10,7 +10,11 @@
 #include <cstdio>
 #include <string>
 
-int main(){
+struct OpesciGrid {
+${define_fields}
+};
+
+int opesci_execute(OpesciGrid *grid) {
 
 ${define_constants}
 ${declare_fields}
@@ -34,7 +38,23 @@ ${output_step}
 } // end of time loop
 } // end of parallel section
 
-${converge_test}
+${store_fields}
 
 return 0;
+}
+
+int opesci_convergence(OpesciGrid *grid) {
+${define_constants}
+${load_fields}
+
+${converge_test}
+}
+
+int main(){
+  OpesciGrid grid;
+
+  opesci_execute(&grid);
+  opesci_convergence(&grid);
+
+  return 0;
 }
