@@ -51,8 +51,8 @@ class StaggeredGrid(Grid):
     template_keys = ['io', 'time_stepping', 'define_constants', 'declare_fields',
                      'define_fields', 'store_fields', 'load_fields',
                      'initialise', 'initialise_bc', 'stress_loop',
-                     'velocity_loop', 'stress_bc', 'velocity_bc',
-                     'output_step', 'converge_test']
+                     'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
+                     'define_convergence', 'converge_test', 'print_convergence']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const',
                  'output_vts', 'converge']
@@ -1015,6 +1015,19 @@ class StaggeredGrid(Grid):
         return result
 
     @property
+    def define_convergence(self):
+        """Code fragment that defines convergence norms"""
+        return '\n'.join(['%s %s_l2;' % (self.real_t, ccode(f.label))
+                          for f in self.fields])
+
+    @property
+    def print_convergence(self):
+        """Code fragment that prints convergence norms"""
+        return '\n'.join(['printf("%s %s", conv.%s_l2);' %
+                          (ccode(f.label), '\t%.10f', ccode(f.label))
+                          for f in self.fields])
+
+    @property
     def converge_test(self):
         """
         - generate code for convergence test
@@ -1069,6 +1082,6 @@ class StaggeredGrid(Grid):
             for i in range(len(self.spacing)):
                 volume *= self.spacing[i].value
             l2_value = 'pow(' + l2 + '*' + ccode(volume) + ', 0.5)'
-            result += 'printf("' + l2 + '\\t%.10f\\n", ' + l2_value + ');\n'
+            result += 'conv->%s = %s;\n' % (l2, l2_value)
 
         return result
