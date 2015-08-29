@@ -138,11 +138,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     grid.set_free_surface_boundary(dimension=3, side=0)
     grid.set_free_surface_boundary(dimension=3, side=1)
 
-    # Generate code and write to output file
-    grid.generate(filename)
-
-    # Compile the auto-generated code
-    grid.compile(filename, compiler='g++')
+    return grid
 
 
 def default():
@@ -155,9 +151,15 @@ def default():
     grid_size = (100, 100, 100)
     dt = 0.002
     tmax = 1.0
-    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
-              omp=True, simd=False, ivdep=True, io=False,
-              filename=path.join(_test_dir, 'eigenwave3d.cpp'))
+    filename = path.join(_test_dir, 'eigenwave3d.cpp')
+    grid = eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False,
+                       o_converge=True, omp=True, simd=False,
+                       ivdep=True, io=False, filename=filename)
+    grid.compile(filename, compiler='g++', shared=False)
+
+    # Test Python-based execution for the base test
+    grid.execute(filename, compiler='g++')
+    grid.convergence()
 
 
 def default_vtk():
@@ -170,9 +172,11 @@ def default_vtk():
     grid_size = (100, 100, 100)
     dt = 0.002
     tmax = 1.0
-    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=True, o_converge=True,
-              omp=True, simd=False, ivdep=True, io=True,
-              filename=path.join(_test_dir, 'eigenwave3d_vtk.cpp'))
+    filename = path.join(_test_dir, 'eigenwave3d_vtk.cpp')
+    grid = eigenwave3d(domain_size, grid_size, dt, tmax, o_step=True,
+                       o_converge=True, omp=True, simd=False,
+                       ivdep=True, io=True, filename=filename)
+    grid.compile(filename, compiler='g++', shared=False)
 
 
 def read_data():
@@ -184,12 +188,12 @@ def read_data():
     grid_size = (195, 195, 195)
     dt = 0.002
     tmax = 1.0
-    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=True, o_converge=False,
-              omp=True, simd=False, ivdep=True, io=True, read=True,
-              filename=path.join(_test_dir, 'eigenwave3d_read.cpp'),
-              rho_file='RHOhomogx200',
-              vp_file='VPhomogx200',
-              vs_file='VShomogx200')
+    filename=path.join(_test_dir, 'eigenwave3d_read.cpp')
+    grid = eigenwave3d(domain_size, grid_size, dt, tmax, o_step=True, o_converge=False,
+                       omp=True, simd=False, ivdep=True, io=True, read=True,
+                       filename=filename, rho_file='RHOhomogx200',
+                       vp_file='VPhomogx200', vs_file='VShomogx200')
+    grid.compile(filename, compiler='g++', shared=False)
 
 
 def cx1():
