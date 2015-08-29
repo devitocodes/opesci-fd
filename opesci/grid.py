@@ -1,7 +1,9 @@
 from compilation import GNUCompiler
+from codeprinter import ccode
 
 from StringIO import StringIO
 from mako.runtime import Context
+from ctypes import cdll, Structure, POINTER, c_float, pointer
 
 class Grid:
     """Base class for grid objects that provides the code generation,
@@ -51,3 +53,38 @@ class Grid:
             out = self._compiler.compile(self.src_file, shared=shared)
         if shared:
             self.src_lib = out
+
+    def execute(self, filename, compiler='g++'):
+        # Compile code if this hasn't been done yet
+        if self.src_lib is None:
+            self.compile(filename, compiler=compiler, shared=True)
+
+        # Load compiled binary
+        try:
+            library = cdll.LoadLibrary(self.src_lib)
+        except OSError as e:
+            print "Library load error: ", e
+            raise Exception("Failed to load %s" % self.src_lib)
+
+        # Define our custom OpesciGrid struct
+        class OpesciGrid(Structure):
+            _fields_ = [(ccode(f.label), POINTER(c_float)) for f in self.fields]
+
+        # Execute opesci_run function with grid struct
+        grid_arg = OpesciGrid()
+        grid_arg.values = [POINTER(c_float)() for f in self.fields]
+
+        # Load opesci_run, define it's arguments and run
+        print "Executing core computation..."
+        opesci_execute = library.opesci_execute
+        opesci_execute.argtypes = [POINTER(OpesciGrid)]
+        opesci_execute(pointer(grid_arg))
+
+        # Load opesci_convergence, define it's arguments and run
+        print "Computing convergence:"
+        opesci_convergence = library.opesci_convergence
+        opesci_convergence.argtypes = [POINTER(OpesciGrid)]
+        opesci_convergence(pointer(grid_arg))
+
+        # Close compiled kernel library
+        cdll.LoadLibrary('libdl.so').dlclose(library._handle)

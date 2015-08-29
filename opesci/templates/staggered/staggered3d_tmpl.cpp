@@ -10,11 +10,11 @@
 #include <cstdio>
 #include <string>
 
-struct OpesciGrid {
+extern "C" struct OpesciGrid {
 ${define_fields}
 };
 
-int opesci_execute(OpesciGrid *grid) {
+extern "C" int opesci_execute(OpesciGrid *grid) {
 
 ${define_constants}
 ${declare_fields}
@@ -43,7 +43,7 @@ ${store_fields}
 return 0;
 }
 
-int opesci_convergence(OpesciGrid *grid) {
+extern "C" int opesci_convergence(OpesciGrid *grid) {
 ${define_constants}
 ${load_fields}
 
