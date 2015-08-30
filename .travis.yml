@@ -15,6 +15,8 @@ install:
 
 script:
     - export PYTHONPATH=`pwd`:$PYTHONPATH
+    - flake8 opesci
+    - flake8 tests
     - python tests/eigenwave3d.py
     - python tests/eigenwave3d.py read
     - python tests/eigenwave3d.py vtk
