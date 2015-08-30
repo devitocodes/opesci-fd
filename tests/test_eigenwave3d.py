@@ -49,7 +49,7 @@ def test_parallel_single(grid, testdir, ivdep, simd, output):
 @pytest.mark.parametrize(('ivdep', 'simd', 'output'),
                          [(True, False, False),
                           (False, True, False),
-                          (False, False, True)])
+                          (False, False, False)])
 def test_parallel_double(grid, testdir, ivdep, simd, output):
     filename = path.join(testdir, 'eigenwave3d.cpp')
     grid.set_switches(omp=True, double=True, output_vts=output,
@@ -62,7 +62,7 @@ def test_parallel_double(grid, testdir, ivdep, simd, output):
 @pytest.mark.parametrize(('ivdep', 'simd', 'output'),
                          [(True, False, False),
                           (False, True, False),
-                          (False, False, True)])
+                          (False, False, False)])
 def test_static_compilation(grid, testdir, ivdep, simd, output):
     filename = path.join(testdir, 'eigenwave3d.cpp')
     grid.set_switches(omp=True, double=True, output_vts=output,
