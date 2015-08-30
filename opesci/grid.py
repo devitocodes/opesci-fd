@@ -5,6 +5,7 @@ from StringIO import StringIO
 from mako.runtime import Context
 from ctypes import cdll, Structure, POINTER, c_float, pointer
 
+
 class Grid:
     """Base class for grid objects that provides the code generation,
     compilation and execution infrastructure"""
