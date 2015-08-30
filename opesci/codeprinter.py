@@ -3,6 +3,7 @@ from sympy.mpmath.libmp import to_str, prec_to_dps
 from mako.runtime import Context
 from StringIO import StringIO
 
+
 class CodePrinter(CCodePrinter):
     """
     CodePrinter extends sympy.printing.ccode.CCodePrinter

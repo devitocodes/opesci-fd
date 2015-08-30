@@ -1,6 +1,7 @@
 from os import path, environ
 import subprocess
 
+
 def get_package_dir():
     return path.abspath(path.dirname(__file__))
 
@@ -23,7 +24,7 @@ class Compiler(object):
 
     def compile(self, src, out=None, shared=True):
         basename = src.split('.')[0]
-        outname = out or "%s.so"%basename if shared else basename
+        outname = out or "%s.so" % basename if shared else basename
         if shared:
             self._cppargs += ['-fPIC']
             self._ldargs += ['-shared']
@@ -32,7 +33,7 @@ class Compiler(object):
             logfile.write("Compiling: %s\n" % " ".join(cc))
             try:
                 subprocess.check_call(cc, stdout=logfile, stderr=logfile)
-            except subprocess.CalledProcessError as e:
+            except subprocess.CalledProcessError:
                 print "Compilation error with:", " ".join(cc)
                 print "Log file:", logfile.name
                 raise RuntimeError("Error during compilation")
@@ -48,7 +49,7 @@ class GNUCompiler(Compiler):
     :arg ldargs: A list of arguments to pass to the linker (optional)."""
     def __init__(self, cppargs=[], ldargs=[]):
         opt_flags = ['-g', '-O3', '-fno-tree-vectorize', '-fopenmp']
-        cppargs = ['-Wall', '-std=c++11', '-I%s/include'%get_package_dir()] + opt_flags + cppargs
-        ldargs = ['-lopesci', '-Wl,-rpath,%s/lib'%get_package_dir(),
-                  '-L%s/lib'%get_package_dir()] + ldargs
+        cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
+        ldargs = ['-lopesci', '-Wl,-rpath,%s/lib' % get_package_dir(),
+                  '-L%s/lib' % get_package_dir()] + ldargs
         super(GNUCompiler, self).__init__("g++", cppargs=cppargs, ldargs=ldargs)

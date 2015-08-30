@@ -1,6 +1,6 @@
 from grid import Grid
 from variable import Variable
-from fields import Field, VField
+from fields import Field, VField, get_ops_expr
 from codeprinter import ccode, render
 from compilation import get_package_dir
 
