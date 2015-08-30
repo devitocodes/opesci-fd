@@ -832,7 +832,7 @@ class StaggeredGrid(Grid):
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
-                    body = '#pragma ivdep\n' + body
+                    body = '%s\n' % self.compiler._ivdep + body
             if self.simd and d == self.dimension-1:
                     body = '#pragma simd\n' + body
 
@@ -870,7 +870,7 @@ class StaggeredGrid(Grid):
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
-                    body = '#pragma ivdep\n' + body
+                    body = '%s\n' % self.compiler._ivdep + body
             if self.simd and d == self.dimension-1:
                     body = '#pragma simd\n' + body
 
@@ -913,7 +913,7 @@ class StaggeredGrid(Grid):
                                 body = render(tmpl, dict1).replace('[t]',
                                                                    '[t1]')
                                 if self.ivdep:
-                                    body = '#pragma ivdep\n' + body
+                                    body = '%s\n' % self.compiler._ivdep + body
                                 if self.simd:
                                     body = '#pragma simd\n' + body
                             else:
@@ -964,7 +964,7 @@ class StaggeredGrid(Grid):
                                 body = render(tmpl, dict1).replace('[t]',
                                                                    '[t1]')
                                 if self.ivdep:
-                                    body = '#pragma ivdep\n' + body
+                                    body = '%s\n' % self.compiler._ivdep + body
                                 if self.simd:
                                     body = '#pragma simd\n' + body
                             else:

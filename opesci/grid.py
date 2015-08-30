@@ -20,6 +20,9 @@ class Grid:
     # property field in the derived grid class
     template_keys = []
 
+    # Default compiler is GNU
+    compiler = GNUCompiler()
+
     # Placeholders for generated code and associated files
     src_code = None
     src_file = None
@@ -63,14 +66,16 @@ class Grid:
         print "Generated:", self.src_file
 
     def compile(self, filename, compiler='g++', shared=True):
+        # First set appropriate compiler
+        if compiler in ['g++', 'gnu']:
+            self.compiler = GNUCompiler()
+
         # Generate code if this hasn't been done yet
         if self.src_file is None:
             self.generate(filename)
 
-        # Compile source file with appropriate compiler
-        if compiler in ['g++', 'gnu']:
-            self._compiler = GNUCompiler()
-            out = self._compiler.compile(self.src_file, shared=shared)
+        # Compile source file
+        out = self.compiler.compile(self.src_file, shared=shared)
         if shared:
             self.src_lib = out
 

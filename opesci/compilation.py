@@ -53,3 +53,7 @@ class GNUCompiler(Compiler):
         ldargs = ['-lopesci', '-Wl,-rpath,%s/lib' % get_package_dir(),
                   '-L%s/lib' % get_package_dir()] + ldargs
         super(GNUCompiler, self).__init__("g++", cppargs=cppargs, ldargs=ldargs)
+
+    @property
+    def _ivdep(self):
+        return '#pragma GCC ivdep'
