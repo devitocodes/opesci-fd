@@ -1,2 +1,2 @@
-sympy
-Mako
+sympy>=0.7.6
+Mako>=1.0.1
