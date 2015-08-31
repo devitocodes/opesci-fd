@@ -1,4 +1,4 @@
-from compilation import GNUCompiler
+from compilation import GNUCompiler, IntelCompiler
 from codeprinter import ccode
 
 from StringIO import StringIO
@@ -69,6 +69,8 @@ class Grid:
         # First set appropriate compiler
         if compiler in ['g++', 'gnu']:
             self.compiler = GNUCompiler()
+        elif compiler in ['icpc', 'intel']:
+            self.compiler = IntelCompiler()
 
         # Generate code if this hasn't been done yet
         if self.src_file is None:
