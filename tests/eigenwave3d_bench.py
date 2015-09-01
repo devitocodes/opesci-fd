@@ -3,6 +3,11 @@ from collections import defaultdict
 
 from eigenwave3d import eigenwave3d
 from pybench import Benchmark
+import numpy as np
+try:
+    import pypapi
+except ImportError:
+    pypapi = None
 
 
 class Eigenwave3DBench(Benchmark):
@@ -65,8 +70,20 @@ class Eigenwave3DBench(Benchmark):
             self.grid.compile(filename, compiler=compiler, shared=True)
             self._compiled[filename] = True
 
+        # Initialise PAPI hardware counters
+        if pypapi:
+            events = np.asarray([pypapi.Event.TOT_CYC], dtype=pypapi.EventType)
+            counts = np.zeros(1, dtype=pypapi.CountType)
+
         # Timed model execution
         with self.timed_region("execute"):
+            if pypapi:
+                pypapi.start_counters(events)
             self.grid.execute(filename)
+            if pypapi:
+                pypapi.stop_counters(counts)
+
+        # Register PAPI flop counts if we have them
+        self.register_timing('flops', counts[0] if pypapi else 0.)
 
 Eigenwave3DBench().main()
