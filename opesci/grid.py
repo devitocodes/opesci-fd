@@ -47,7 +47,13 @@ class Grid:
             print "Library load error: ", e
             raise Exception("Failed to load %s" % libname)
 
-    def generate(self, filename):
+    def generate(self, filename, compiler):
+        # First set appropriate compiler
+        if compiler in ['g++', 'gnu']:
+            self.compiler = GNUCompiler()
+        elif compiler in ['icpc', 'intel']:
+            self.compiler = IntelCompiler()
+
         # Generate a dictionary that maps template keys to code fragments
         template = self.lookup.get_template(self.template_base)
         template_keys = dict([(k, getattr(self, k)) for k in self.template_keys])

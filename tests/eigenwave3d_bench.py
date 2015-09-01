@@ -29,11 +29,12 @@ class Eigenwave3DBench(Benchmark):
         self.grid = eigenwave3d(domain_size, grid_size, dt, tmax)
 
     def opesci_run(self, basename='eigenwave3d', compiler='g++',
-                   nthreads=1, affinity='close'):
+                   nthreads=1, affinity='close', vectorise='ivdep'):
         self.series['basename'] = basename
         self.series['compiler'] = compiler
         self.series['nthreads'] = nthreads
         self.series['affinity'] = affinity
+        self.series['vectorise'] = vectorise
 
         # Parallel thread settings
         environ["OMP_NUM_THREADS"] = str(nthreads)
@@ -47,12 +48,22 @@ class Eigenwave3DBench(Benchmark):
  * KMP_AFFINITY: 'compact', 'scatter'"""
             raise ValueError("Unknown thread affinity setting: %s")
 
+        # Set vectorisation type
+        if vectorise =='ivdep':
+            switches = {'ivdep': True, 'simd': False}
+        if vectorise =='simd':
+            switches = {'ivdep': False, 'simd': True}
+        if vectorise in ['none', 'None']:
+            switches = {'ivdep': False, 'simd': False}
+        self.grid.set_switches(**switches)
+
         # Generate and compile the test model
         testdir = path.join(path.dirname(__file__), "src")
-        filename = path.join(testdir, '%s_%s.cpp' % (basename, compiler))
-        if not self._compiled[compiler]:
+        filename = path.join(testdir, '%s_%s_%s.cpp' % (basename, compiler, vectorise))
+        if not self._compiled[filename]:
+            self.grid.generate(filename, compiler=compiler)
             self.grid.compile(filename, compiler=compiler, shared=True)
-            self._compiled[compiler] = True
+            self._compiled[filename] = True
 
         # Timed model execution
         with self.timed_region("execute"):
