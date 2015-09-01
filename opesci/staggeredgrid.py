@@ -1,12 +1,11 @@
+from grid import Grid
 from variable import Variable
 from fields import Field, VField
 from codeprinter import ccode, render
-from compilation import get_package_dir, GNUCompiler
-from StringIO import StringIO
+from compilation import get_package_dir
 
 from sympy import Symbol, Rational, solve, expand
 from mako.lookup import TemplateLookup
-from mako.runtime import Context
 import mmap
 from os import path
 
@@ -15,7 +14,7 @@ __all__ = ['StaggeredGrid']
 hf = Rational(1, 2)  # 1/2
 
 
-class StaggeredGrid:
+class StaggeredGrid(Grid):
     """
     - Class to represent velocity-stress method on staggered grid
     - calculates the computation kernel
@@ -44,19 +43,33 @@ class StaggeredGrid:
     * read: whether to read media parameters from input file, default False
     * expand: expand kernel fully (no factorisation), default True
     * eval_const: evaluate all constants in kernel in generated code default True
+    * output_vts: Output solution fields at every timestep
+    * converge: Generate code for computing analutical solution and L2 norms
     """
-    _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const']
+    template_base = 'staggered3d_tmpl.cpp'
+
+    template_keys = ['io', 'time_stepping', 'define_constants', 'declare_fields',
+                     'define_fields', 'store_fields', 'load_fields',
+                     'initialise', 'initialise_bc', 'stress_loop',
+                     'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
+                     'define_convergence', 'converge_test', 'print_convergence']
+
+    _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const',
+                 'output_vts', 'converge']
 
     def __init__(self, dimension, domain_size=None, grid_size=None,
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
-                 expand=True, eval_const=True):
+                 expand=True, eval_const=True, output_vts=False, converge=False):
         self.dimension = dimension
 
         template_dir = path.join(get_package_dir(), "templates")
         staggered_dir = path.join(get_package_dir(), "templates/staggered")
         self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
-        self._srcfile = None
+
+        # List of associated fields
+        self.sfields = []
+        self.vfields = []
 
         # Switches
         self.omp = omp
@@ -67,6 +80,8 @@ class StaggeredGrid:
         self.expand = expand
         self.eval_const = eval_const
         self.real_t = 'double' if self.double else 'float'
+        self.output_vts = output_vts
+        self.converge = converge
 
         # number of ghost cells for boundary
         self.margin = Variable('margin', 2, 'int', True)
@@ -106,6 +121,10 @@ class StaggeredGrid:
         self.defined_variable = {}
 
         self._update_spacing()
+
+    @property
+    def fields(self):
+        return self.sfields + self.vfields
 
     def set_accuracy(self, accuracy):
         """
@@ -524,7 +543,8 @@ class StaggeredGrid:
 
     # ------------------- sub-routines for output -------------------- #
 
-    def define_variables(self):
+    @property
+    def define_constants(self):
         """
         - generate code for declaring variables
         - return the generated code as string
@@ -539,6 +559,29 @@ class StaggeredGrid:
             result += line
         return result
 
+    @property
+    def define_fields(self):
+        """Code fragment that defines field arrays"""
+        return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
+                          for f in self.fields])
+
+    @property
+    def store_fields(self):
+        """Code fragment that stores field arrays to 'grid' struct"""
+        return '\n'.join(['grid->%s = (%s*) %s;' %
+                          (ccode(f.label), self.real_t, ccode(f.label))
+                          for f in self.fields])
+
+    @property
+    def load_fields(self):
+        """Code fragment that loads field arrays from 'grid' struct"""
+        idxs = ''.join(['[%d]' % d.value for d in self.dim])
+        return '\n'.join(['%s (*%s)%s = (%s (*)%s) grid->%s;' %
+                          (self.real_t, ccode(f.label), idxs,
+                           self.real_t, idxs, ccode(f.label))
+                          for f in self.fields])
+
+    @property
     def declare_fields(self):
         """
         - generate code for delcaring fields
@@ -692,6 +735,7 @@ class StaggeredGrid:
             result = render(tmpl, dict1)
         return result
 
+    @property
     def initialise(self):
         """
         generate code for initialisation of the fields
@@ -743,17 +787,19 @@ class StaggeredGrid:
             result += body
         return result
 
-    def initialise_boundary(self):
+    @property
+    def initialise_bc(self):
         """
         - generate code for initialisation of boundary ghost cells
         - generate generic boundary cell code
         replace array indices [t] with [0]
-        - return gerneated code as string
+        - return generated code as string
         """
-        result = self.stress_bc().replace('[t1]', '[0]')
-        result += self.velocity_bc().replace('[t1]', '[0]')
+        result = self.stress_bc.replace('[t1]', '[0]')
+        result += self.velocity_bc.replace('[t1]', '[0]')
         return result
 
+    @property
     def stress_loop(self):
         """
         generate code for stress field update loop
@@ -791,6 +837,7 @@ class StaggeredGrid:
 
         return body
 
+    @property
     def velocity_loop(self):
         """
         generate code for velocity field update loop
@@ -828,6 +875,7 @@ class StaggeredGrid:
 
         return body
 
+    @property
     def stress_bc(self):
         """
         generate code for updating stress field boundary ghost cells
@@ -874,6 +922,7 @@ class StaggeredGrid:
 
         return result
 
+    @property
     def velocity_bc(self):
         """
         generate code for updating stress field boundary ghost cells
@@ -924,6 +973,7 @@ class StaggeredGrid:
 
         return result
 
+    @property
     def time_stepping(self):
         """
         generate time index variable for time stepping
@@ -952,6 +1002,7 @@ class StaggeredGrid:
         result = render(tmpl, dict1)
         return result
 
+    @property
     def output_step(self):
         """
         - generate code for output at each time step
@@ -959,9 +1010,24 @@ class StaggeredGrid:
         - return generated code as string
         """
         result = ''
-        result += self.vfields[0].vtk_save_field()
+        if self.output_vts:
+            result += self.vfields[0].vtk_save_field()
         return result
 
+    @property
+    def define_convergence(self):
+        """Code fragment that defines convergence norms"""
+        return '\n'.join(['%s %s_l2;' % (self.real_t, ccode(f.label))
+                          for f in self.fields])
+
+    @property
+    def print_convergence(self):
+        """Code fragment that prints convergence norms"""
+        return '\n'.join(['printf("%s %s", conv.%s_l2);' %
+                          (ccode(f.label), '\t%.10f', ccode(f.label))
+                          for f in self.fields])
+
+    @property
     def converge_test(self):
         """
         - generate code for convergence test
@@ -970,8 +1036,10 @@ class StaggeredGrid:
         - L2 norm of each field is calculated and output with printf()
         - return generated code as string
         """
-        tmpl = self.lookup.get_template('generic_loop.txt')
         result = ''
+        if not self.converge:
+            return result
+        tmpl = self.lookup.get_template('generic_loop.txt')
         m = self.margin.value
         ti = self.ntsteps.value % 2  # last updated grid
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
@@ -1014,40 +1082,6 @@ class StaggeredGrid:
             for i in range(len(self.spacing)):
                 volume *= self.spacing[i].value
             l2_value = 'pow(' + l2 + '*' + ccode(volume) + ', 0.5)'
-            result += 'printf("' + l2 + '\\t%.10f\\n", ' + l2_value + ');\n'
+            result += 'conv->%s = %s;\n' % (l2, l2_value)
 
         return result
-
-    def generate(self, filename, output=True, convergence=True):
-        """Generate code and write to output file"""
-        template = self.lookup.get_template('staggered3d_tmpl.cpp')
-        buf = StringIO()
-        dict1 = {'io': self.io, 'time_stepping': self.time_stepping(),
-                 'define_constants': self.define_variables(),
-                 'declare_fields': self.declare_fields(),
-                 'initialise': self.initialise(),
-                 'initialise_bc': self.initialise_boundary(),
-                 'stress_loop': self.stress_loop(),
-                 'velocity_loop': self.velocity_loop(),
-                 'stress_bc': self.stress_bc(),
-                 'velocity_bc': self.velocity_bc(),
-                 'output_step': self.output_step() if output else "",
-                 'output_final': self.converge_test() if convergence else ""
-        }
-        ctx = Context(buf, **dict1)
-        template.render_context(ctx)
-        code = buf.getvalue()
-
-        # Generate compilable C++ source code
-        self._srcfile = filename
-        with file(self._srcfile, 'w') as f:
-            f.write(code)
-
-        print "Generated:", self._srcfile
-
-    def compile(self, filename, compiler='g++'):
-        if self._srcfile is None:
-            self.generate(filename)
-        if compiler in ['g++', 'gnu']:
-            self._compiler = GNUCompiler()
-            self._compiler.compile(self._srcfile)
