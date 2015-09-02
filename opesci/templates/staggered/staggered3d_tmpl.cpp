@@ -6,6 +6,14 @@
 % if io==True:
 <%include file="io_include.txt"/>
 % endif
+% if profiling==True:
+#include "opesciProfiling.h"
+float real_time;
+float proc_time;
+float mflops;
+long long flpins;
+% endif
+
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -22,6 +30,10 @@ extern "C" int opesci_execute(OpesciGrid *grid) {
 
 ${define_constants}
 ${declare_fields}
+
+% if profiling==True:
+opesci_flops(&real_time, &proc_time, &flpins, &mflops);
+% endif
 
 #pragma omp parallel
 {
@@ -43,6 +55,14 @@ ${output_step}
 } // end of parallel section
 
 ${store_fields}
+
+% if profiling==True:
+opesci_flops(&real_time, &proc_time, &flpins, &mflops);
+printf("PAPI:: Total Flops:\n");
+printf("PAPI:: Total rtime: %f (sec)\n", (real_time));
+printf("PAPI:: Total ptime: %f (sec)\n", (proc_time));
+printf("PAPI:: MFlops/s: %f\n", mflops);
+% endif
 
 return 0;
 }

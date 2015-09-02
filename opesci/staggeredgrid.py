@@ -47,22 +47,25 @@ class StaggeredGrid(Grid):
     * eval_const: evaluate all constants in kernel in generated code default True
     * output_vts: Output solution fields at every timestep
     * converge: Generate code for computing analutical solution and L2 norms
+    * profiling: Generate code for gathering profiling information via PAPI
     """
     template_base = 'staggered3d_tmpl.cpp'
 
-    template_keys = ['io', 'time_stepping', 'define_constants', 'declare_fields',
+    template_keys = ['io', 'profiling',
+                     'time_stepping', 'define_constants', 'declare_fields',
                      'define_fields', 'store_fields', 'load_fields',
                      'initialise', 'initialise_bc', 'stress_loop',
                      'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
                      'define_convergence', 'converge_test', 'print_convergence']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
-                 'output_vts', 'converge']
+                 'output_vts', 'converge', 'profiling']
 
     def __init__(self, dimension, index=None, domain_size=None, grid_size=None,
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
-                 expand=True, eval_const=True, output_vts=False, converge=False):
+                 expand=True, eval_const=True, output_vts=False,
+                 converge=False, profiling=False):
         self.dimension = dimension
 
         template_dir = path.join(get_package_dir(), "templates")
@@ -83,6 +86,7 @@ class StaggeredGrid(Grid):
         self.real_t = 'double' if self.double else 'float'
         self.output_vts = output_vts
         self.converge = converge
+        self.profiling = profiling
 
         # number of ghost cells for boundary
         self.margin = Variable('margin', 2, 'int', True)
