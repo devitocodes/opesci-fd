@@ -141,7 +141,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     return grid
 
 
-def default(execute=False, output=False):
+def default(execute=False, nthreads=1, output=False):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
@@ -156,11 +156,11 @@ def default(execute=False, output=False):
     grid.compile(filename, compiler='g++', shared=False)
     if execute:
         # Test Python-based execution for the base test
-        grid.execute(filename, compiler='g++')
+        grid.execute(filename, compiler='g++', nthreads=nthreads)
         grid.convergence()
 
 
-def read_data(execute=False, output=False):
+def read_data(execute=False, nthreads=1, output=False):
     """Test for model intialisation from input file
 
     Computes eigenwave on a unit cube grid (200 x 200 x 200)
@@ -178,7 +178,7 @@ def read_data(execute=False, output=False):
     grid.compile(filename, compiler='g++', shared=False)
     if execute:
         # Test Python-based execution for the base test
-        grid.execute(filename, compiler='g++')
+        grid.execute(filename, compiler='g++', nthreads=nthreads)
         grid.convergence()
 
 
@@ -251,6 +251,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                    nargs='?', default='default', help=ModeHelp)
     p.add_argument('-x', '--execute', action='store_true', default=False,
                    help='Dynamically execute the generated model')
+    p.add_argument('-n', '--nthreads', type=int, default=1,
+                   help='Number of threads for dynamic execution')
     p.add_argument('-o', '--output', action='store_true', default=False,
                    help='Activate solution output in .vts format')
 
@@ -258,9 +260,9 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     print "Eigenwave3D example (mode=%s)" % args.mode
 
     if args.mode == 'default':
-        default(execute=args.execute, output=args.output)
+        default(execute=args.execute, nthreads=args.nthreads, output=args.output)
     elif args.mode == 'read':
-        read_data(execute=args.execute, output=args.output)
+        read_data(execute=args.execute, nthreads=args.nthreads, output=args.output)
     elif args.mode == 'converge':
         converge_test()
     elif args.mode == 'cx1':
