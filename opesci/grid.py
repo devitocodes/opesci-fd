@@ -1,4 +1,4 @@
-from compilation import GNUCompiler
+from compilation import GNUCompiler,ClangCompiler,PollyCompiler
 from codeprinter import ccode
 
 from StringIO import StringIO
@@ -71,6 +71,13 @@ class Grid:
         if compiler in ['g++', 'gnu']:
             self._compiler = GNUCompiler()
             out = self._compiler.compile(self.src_file, shared=shared)
+        elif compiler in ['clang','clang++']:
+            self._compiler = ClangCompiler()
+            out = self._compiler.compile(self.src_file, shared=shared)
+        elif compiler in ['polly']:
+            self._compiler = PollyCompiler()
+            out = self._compiler.compile(self.src_file, shared=shared)
+
         if shared:
             self.src_lib = out
 
