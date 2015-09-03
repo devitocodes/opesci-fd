@@ -1,5 +1,5 @@
 from sympy.printing.ccode import CCodePrinter
-from sympy.mpmath.libmp import to_str, prec_to_dps
+from mpmath.libmp import to_str, prec_to_dps
 from mako.runtime import Context
 from StringIO import StringIO
 
