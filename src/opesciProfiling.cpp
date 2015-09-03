@@ -37,12 +37,30 @@
 #if defined(OPESCI_HAVE_PAPI)
 #include "papi.h"
 #endif
+#include "omp.h"
+
+#define OPESCI_PAPI_WARN "WARNING:: PAPI error: Flops/s counters are not reliable!\n"
+#define OPESCI_PAPI_MISSING "WARNING:: PAPI not found: Please re-build Opesci-FD with PAPI libraries\n"
+
+int opesci_papi_init() {
+#if defined(OPESCI_HAVE_PAPI)
+  int err, version;
+  version = PAPI_library_init(PAPI_VER_CURRENT);
+  if (version != PAPI_VER_CURRENT) printf(OPESCI_PAPI_WARN);
+
+  err = PAPI_thread_init((unsigned long (*)()) omp_get_thread_num);
+  if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
+  return err;
+#else
+  printf(OPESCI_PAPI_MISSING);
+#endif
+}
 
 void opesci_flops(float *rtime, float *ptime, long long *flpins, float *mflops) {
 #if defined(OPESCI_HAVE_PAPI)
   int err = PAPI_flops(rtime, ptime, flpins, mflops);
-  if (err != PAPI_OK) printf("WARNING: PAPI error: Flops/s counters are not reliable!\n");
+  if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
 #else
-  printf("WARNING:: PAPI not found: Please re-build Opesci-FD with PAPI libraries\n");
+  printf(OPESCI_PAPI_MISSING);
 #endif
 }

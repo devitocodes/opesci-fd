@@ -37,6 +37,7 @@
 #define OPESCIPROFILING_H
 #include <cstdio>
 
+int opesci_papi_init();
 void opesci_flops(float*, float*, long long*, float*);
 
 #endif
