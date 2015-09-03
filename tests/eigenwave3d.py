@@ -141,7 +141,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     return grid
 
 
-def default(execute=False, nthreads=1, output=False):
+def default(compiler='g++', execute=False, nthreads=1, output=False):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
@@ -153,14 +153,14 @@ def default(execute=False, nthreads=1, output=False):
                        o_converge=True, omp=True, simd=False,
                        ivdep=True, filename=filename)
     grid.set_switches(output_vts=output)
-    grid.compile(filename, compiler='g++', shared=False)
+    grid.compile(filename, compiler=compiler, shared=False)
     if execute:
         # Test Python-based execution for the base test
-        grid.execute(filename, compiler='g++', nthreads=nthreads)
+        grid.execute(filename, compiler=compiler, nthreads=nthreads)
         grid.convergence()
 
 
-def read_data(execute=False, nthreads=1, output=False):
+def read_data(compiler='g++', execute=False, nthreads=1, output=False):
     """Test for model intialisation from input file
 
     Computes eigenwave on a unit cube grid (200 x 200 x 200)
@@ -175,10 +175,10 @@ def read_data(execute=False, nthreads=1, output=False):
                        filename=filename, rho_file='RHOhomogx200',
                        vp_file='VPhomogx200', vs_file='VShomogx200')
     grid.set_switches(output_vts=output)
-    grid.compile(filename, compiler='g++', shared=False)
+    grid.compile(filename, compiler=compiler, shared=False)
     if execute:
         # Test Python-based execution for the base test
-        grid.execute(filename, compiler='g++', nthreads=nthreads)
+        grid.execute(filename, compiler=compiler, nthreads=nthreads)
         grid.convergence()
 
 
@@ -249,6 +249,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                        formatter_class=RawTextHelpFormatter)
     p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
+    p.add_argument('-c', '--compiler', default='g++',
+                   help='C++ Compiler to use for model compilation, eg. g++ or icpc')
     p.add_argument('-x', '--execute', action='store_true', default=False,
                    help='Dynamically execute the generated model')
     p.add_argument('-n', '--nthreads', type=int, default=1,
@@ -260,9 +262,11 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     print "Eigenwave3D example (mode=%s)" % args.mode
 
     if args.mode == 'default':
-        default(execute=args.execute, nthreads=args.nthreads, output=args.output)
+        default(compiler=args.compiler, execute=args.execute,
+                nthreads=args.nthreads, output=args.output)
     elif args.mode == 'read':
-        read_data(execute=args.execute, nthreads=args.nthreads, output=args.output)
+        read_data(compiler=args.compiler, execute=args.execute,
+                  nthreads=args.nthreads, output=args.output)
     elif args.mode == 'converge':
         converge_test()
     elif args.mode == 'cx1':
