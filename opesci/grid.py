@@ -1,4 +1,4 @@
-from compilation import GNUCompiler, IntelCompiler
+from compilation import GNUCompiler,ClangCompiler,PollyCompiler,IntelCompiler
 from codeprinter import ccode
 
 from StringIO import StringIO

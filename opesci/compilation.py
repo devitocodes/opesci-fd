@@ -6,6 +6,17 @@ def get_package_dir():
     return path.abspath(path.dirname(__file__))
 
 
+def getTilesize(tiles):
+    # tiles has to be length of 3
+    if len(tiles)!= 3:
+        raise AssertionError()
+    tile = '-polly-tile-sizes='
+    tile += str(tiles[0]) + ','
+    tile += str(tiles[1]) + ','
+    tile += str(tiles[2])
+    return tile
+
+
 class Compiler(object):
     """A compiler object for creating and loading shared libraries.
 
@@ -75,3 +86,18 @@ class IntelCompiler(Compiler):
     @property
     def _ivdep(self):
         return '#pragma ivdep'
+
+class ClangCompiler(Compiler):
+    def __init__(self,cppargs=[],ldargs=[]):
+        opt_flags = ['-g','-O3','-fopenmp']
+        cppargs = []+opt_flags
+        ldargs = []
+        super(ClangCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
+
+class PollyCompiler(Compiler):
+    def __init__(self,tile=[4,4,1000],cppargs=[],ldargs=[]):
+        load_flags = ['-O3','-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
+        polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm', '-march=native','-mllvm',getTilesize(tile)]
+        cppargs = []+load_flags+polly_flags
+        ldargs = []
+        super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
