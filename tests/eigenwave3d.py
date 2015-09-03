@@ -1,6 +1,7 @@
 from opesci import *
 from os import path
-import sys
+from argparse import ArgumentParser, RawTextHelpFormatter
+
 
 _test_dir = path.join(path.dirname(__file__), "src")
 
@@ -248,29 +249,35 @@ def converge_test():
 
 
 def main():
-    if len(sys.argv) > 2:
-        print 'too many arguments!'
-        return
+    ModeHelp = """Avalable testing modes:
+default:   Eigenwave test case on a unit cube grid (100 x 100 x 100)
 
-    if len(sys.argv) == 1:
+read:      Test for model intialisation from input file; computes
+           eigenwave on a unit cube grid (200 x 200 x 200)
+
+converge:  Convergence test of the (2,4) scheme, which is 2nd order
+           in time and 4th order in space. The test halves spacing
+           starting from 0.1 and reduces dt by a factor of 4 for
+           each step
+"""
+    p = ArgumentParser(description="Standalone testing script for the Eigenwave3D example",
+                       formatter_class=RawTextHelpFormatter)
+    p.add_argument('mode', choices=('default', 'read', 'vtk', 'converge', 'cx1'),
+                   nargs='?', default='default', help=ModeHelp)
+
+    args = p.parse_args()
+    print "Eigenwave3D example (mode=%s)" % args.mode
+
+    if args.mode == 'default':
         default()
-        return
-
-    if sys.argv[1] == 'cx1':
-        cx1()
-        return
-
-    if sys.argv[1] == 'converge':
-        converge_test()
-        return
-
-    if sys.argv[1] == 'read':
+    elif args.mode == 'read':
         read_data()
-        return
-
-    if sys.argv[1] == 'vtk':
+    elif args.mode == 'vtk':
         default_vtk()
-        return
+    elif args.mode == 'converge':
+        converge_test()
+    elif args.mode == 'cx1':
+        cx1()
 
 if __name__ == "__main__":
     main()
