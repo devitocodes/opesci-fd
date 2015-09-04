@@ -126,6 +126,7 @@ def Deriv_half(U, i, k, d, n):
     """
     M = Taylor_half(d, n)
     s = [0]*len(i)
+    #print s
     s[k] = 1  # switch on kth dimension
     # generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
     if len(i) == 1:
@@ -413,6 +414,7 @@ class VField(Field):
         """
         # use this stress field to solve for ghost cell expression
         field = self.sfields[d]
+       # print ', '.join("%s: %s" % item for item in vars(field).items())
         idx = list(indices)
         if not field.staggered[d]:
             # if not staggered, solve ghost cell using T'[b]=0
