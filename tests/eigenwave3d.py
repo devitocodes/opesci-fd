@@ -8,7 +8,7 @@ _test_dir = path.join(path.dirname(__file__), "src")
 def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
                 omp=True, simd=False, ivdep=True, io=False, double=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
-                rho_file='', vp_file='', vs_file=''):
+                rho_file='', vp_file='', vs_file='',polly=False):
     """
     create 3D eigen waves and run FD simulation
     :param domain_size: define size of domain
@@ -56,6 +56,8 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     V = VField('V', dimension=3, direction=2)
     W = VField('W', dimension=3, direction=3)
 
+
+
     grid = StaggeredGrid(dimension=3, domain_size=domain_size,
                          grid_size=grid_size,
                          stress_fields=[Txx, Tyy, Tzz, Txy, Tyz, Txz],
@@ -64,7 +66,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
 
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, io=io,
                       double=double, expand=expand, eval_const=eval_const,
-                      output_vts=o_step, converge=o_converge)
+                      output_vts=o_step, converge=o_converge,polly=polly)
 
     # define parameters
     rho, beta, lam, mu = symbols('rho beta lambda mu')
@@ -162,6 +164,28 @@ def default():
     grid.convergence()
 
 
+
+
+def polly():
+    """
+    default test case
+    eigen wave in unit cube, 100 x 100 x 100 grids
+    output L2 norm
+    """
+    domain_size = (1.0, 1.0, 1.0)
+    grid_size = (100, 100, 100)
+    dt = 0.002
+    tmax = 1.0
+    filename = path.join(_test_dir, 'eigenwave3d.cpp')
+    grid = eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False,
+                       o_converge=True, omp=True, simd=False,
+                       ivdep=True, io=False, filename=filename,polly=True)
+    grid.compile(filename, compiler='polly', shared=False)
+
+    # Test Python-based execution for the base test
+    grid.execute(filename)
+    grid.convergence()
+
 def default_vtk():
     """
     default test case
@@ -254,6 +278,10 @@ def main():
 
     if len(sys.argv) == 1:
         default()
+        return
+
+    if sys.argv[1] == 'polly':
+        polly()
         return
 
     if sys.argv[1] == 'cx1':
