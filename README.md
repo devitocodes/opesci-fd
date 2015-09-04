@@ -17,6 +17,7 @@ locally. To get the latests updates for your local copy simply add
 run:
 ```
 git clone https://github.com/opesci/opesci-fd.git
+cd opesci-fd; pip install -r requirements.txt
 export PYTHONPATH=`pwd`:$PYTHONPATH
 python setup.py build_clib --build-clib=`pwd`
 ```
