@@ -281,7 +281,11 @@ class StaggeredGrid(Grid):
                 h = Symbol(l[k].name)
                 for o in range(1, self.order[k]+1):
                     # loop through order of derivatives
+                    # if self.polly:
+                    #     field.calc_derivative(self.index, k, h, o)
+                   # else:
                     field.calc_derivative([self.t]+self.index, k, h, o)
+
 
     def get_all_variables(self):
         """
@@ -362,8 +366,13 @@ class StaggeredGrid(Grid):
         side=0 for bottom surface, side=1 for top surface
         """
         self.associate_fields()
+
         index = [self.t] + self.index
+        # if self.polly:
+        #     index = index[1:]       
+
         for field in self.sfields+self.vfields:
+
             if side == 0:
                 field.set_free_surface(index, dimension,
                                        self.margin.value, side, self.read)
@@ -568,7 +577,8 @@ class StaggeredGrid(Grid):
             return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
                           for f in self.fields])
         else :
-            return '\n'.join(['%s *%s, *%s_0, *%s_1;' % (self.real_t, ccode(f.label),ccode(f.label),ccode(f.label))
+            return '\n'.join(['%s *%s_0, *%s_1;' 
+                % (self.real_t, ccode(f.label),ccode(f.label))
                           for f in self.fields])
 
     @property
@@ -597,29 +607,80 @@ class StaggeredGrid(Grid):
         """
         result = ''
         arr = ''  # = [dim1][dim2][dim3]...
-        for d in self.dim:
-            arr += '[' + d.name + ']'
+        if self.polly:
+            for d in self.dim[1:]:
+                arr += '[' + d.name + ']'
+        else:
+            for d in self.dim:
+                arr += '[' + d.name + ']'
+
         vsize = 1
         for d in self.dim:
             vsize *= d.value
         vsize *= self.order[0]*2
-        for field in self.sfields + self.vfields:
-            vec = '_' + ccode(field.label) + '_vec'
-            # alloc aligned memory (on windows and linux)
-            result += self.real_t + ' *' + vec + ';\n'
-            result += '#ifdef _MSC_VER\n'
-            result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
-                + '*sizeof(' + self.real_t + '), ' + str(self.alignment) + ');\n'
-            result += '#else\n'
-            result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.alignment) \
-                + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
-            result += '#endif\n'
-            # cast pointer to multidimensional array
-            result += self.real_t + ' (*' + ccode(field.label) + ')' + arr \
-                + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
+
+        if self.polly:
+            vsize /=2 
+            for field in self.sfields + self.vfields:
+                vec = '_' + ccode(field.label) + '_vec_0'
+                # alloc aligned memory (on windows and linux)
+                result += self.real_t + ' *' + vec + ';\n'
+                result += '#ifdef _MSC_VER\n'
+                result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
+                    + '*sizeof(' + self.real_t + '), ' + str(self.alignment) + ');\n'
+                result += '#else\n'
+                result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.alignment) \
+                    + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
+                result += '#endif\n'
+                # cast pointer to multidimensional array
+                result += self.real_t + ' (*' + ccode(field.label) + '_0)' + arr \
+                    + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
+            
+            result += '\n'
+
+            for field in self.sfields + self.vfields:
+                vec = '_' + ccode(field.label) + '_vec_1'
+                # alloc aligned memory (on windows and linux)
+                result += self.real_t + ' *' + vec + ';\n'
+                result += '#ifdef _MSC_VER\n'
+                result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
+                    + '*sizeof(' + self.real_t + '), ' + str(self.alignment) + ');\n'
+                result += '#else\n'
+                result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.alignment) \
+                    + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
+                result += '#endif\n'
+                # cast pointer to multidimensional array
+                result += self.real_t + ' (*' + ccode(field.label) + '_1)' + arr \
+                    + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
+            
+            result += '\n'
+
+            for field in self.sfields + self.vfields:
+                result += self.real_t + ' (*' + ccode(field.label) + ')[' \
+                        + str(self.dim[1])+'][' + str(self.dim[2])+'];\n'
+            for field in self.sfields + self.vfields:
+                result += self.real_t + ' (*' + ccode(field.label) + '_old)[' \
+                        + str(self.dim[1])+'][' + str(self.dim[2])+'];\n'            
+
+        else :   
+            for field in self.sfields + self.vfields:
+                vec = '_' + ccode(field.label) + '_vec'
+                # alloc aligned memory (on windows and linux)
+                result += self.real_t + ' *' + vec + ';\n'
+                result += '#ifdef _MSC_VER\n'
+                result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
+                    + '*sizeof(' + self.real_t + '), ' + str(self.alignment) + ');\n'
+                result += '#else\n'
+                result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.alignment) \
+                    + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
+                result += '#endif\n'
+                # cast pointer to multidimensional array
+                result += self.real_t + ' (*' + ccode(field.label) + ')' + arr \
+                    + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
 
         if self.read:
             # add code to read data
+            
             result += self.read_data()
 
         return result
@@ -758,6 +819,19 @@ class StaggeredGrid(Grid):
         m = self.margin.value
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
 
+        #refine later
+        if self.polly:
+            result += """
+        Txx = Txx_0;
+        Tyy = Tyy_0;
+        Tzz = Tzz_0;
+        Txy = Txy_0;
+        Tyz = Tyz_0;
+        Txz = Txz_0;
+        U = U_0;
+        V = V_0;
+        W = W_0;
+    """
         for field in self.sfields+self.vfields:
             body = ''
             if self.omp:
@@ -784,8 +858,13 @@ class StaggeredGrid(Grid):
                         sol = sol.subs(field.media_param)
                         for idx in self.index:
                             sol = sol.subs(idx, '_'+idx.name)
-                    body = ccode(field[[0]+loop]) + '=' \
-                        + ccode(sol) + ';\n'
+                    if(self.polly):
+                        body = ccode(field[loop]) + '=' \
+                            + ccode(sol) + ';\n'
+
+                    else:
+                        body = ccode(field[[0]+loop]) + '=' \
+                            + ccode(sol) + ';\n'
                 body = pre + body + post
                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
                 body = render(tmpl, dict1)
@@ -801,8 +880,12 @@ class StaggeredGrid(Grid):
         replace array indices [t] with [0]
         - return generated code as string
         """
-        result = self.stress_bc.replace('[t1]', '[0]')
-        result += self.velocity_bc.replace('[t1]', '[0]')
+        if(self.polly):
+            result = self.stress_bc.replace('[t1]', '')
+            result += self.velocity_bc.replace('[t1]', '')
+        else:
+            result = self.stress_bc.replace('[t1]', '[0]')
+            result += self.velocity_bc.replace('[t1]', '[0]')
         return result
 
     @property
@@ -824,7 +907,11 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
-                for field in self.sfields:
+                # if self.polly:
+                #     idx = self.index
+
+                for field in self.sfields: 
+               #     print ', '.join("%s: %s" % item for item in vars(field).items())
                     body += ccode(field[idx]) + '=' \
                         + ccode(field.fd_align.xreplace({self.t+1:
                                                         self.time[1],
@@ -862,6 +949,8 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
+                # if self.polly:
+                #     idx = self.index
                 for field in self.vfields:
                     body += ccode(field[idx]) + '=' \
                         + ccode(field.fd_align.xreplace({self.t+1:
@@ -996,13 +1085,37 @@ class StaggeredGrid(Grid):
         _ti = Symbol('_ti')
         body = ''
 
-        for i in range(len(self.time)):
-            lhs = self.time[i].name
-            if i == 0:
-                rhs = ccode(_ti % self.tp)
-            else:
-                rhs = ccode((self.time[i-1]+1) % self.tp)
-            body += lhs + ' = ' + rhs + ';\n'
+        if self.polly:
+            body =  'if('
+            body += ccode(_ti)
+            body += '%2==0){\n'
+            for t in self.sfields:
+                body += '\t\t' +ccode(t.label) + ' = ' + '%s_1;\n'%t.label
+            for t in self.sfields:
+                body += '\t\t' +ccode(t.label) + '_old = ' + '%s_0;\n'%t.label
+            for t in self.vfields:
+                body += '\t\t' +ccode(t.label) + ' = ' + '%s_0;\n'%t.label
+            for t in self.vfields:
+                body += '\t\t' +ccode(t.label) + '_old = ' + '%s_1;\n'%t.label
+            body += '}else{'
+            for t in self.sfields:
+                body += '\t\t' +ccode(t.label) + ' = ' + '%s_0;\n'%t.label
+            for t in self.sfields:
+                body += '\t\t' +ccode(t.label) + '_old = ' + '%s_1;\n'%t.label
+            for t in self.vfields:
+                body += '\t\t' +ccode(t.label) + ' = ' + '%s_1;\n'%t.label
+            for t in self.vfields:
+                body += '\t\t' +ccode(t.label) + '_old = ' + '%s_0;\n'%t.label
+            body += '}\n'
+
+        else:
+            for i in range(len(self.time)):
+                lhs = self.time[i].name
+                if i == 0:
+                    rhs = ccode(_ti % self.tp)
+                else:
+                    rhs = ccode((self.time[i-1]+1) % self.tp)
+                body += lhs + ' = ' + rhs + ';\n'
 
         dict1 = {'body': body}
         result = render(tmpl, dict1)
