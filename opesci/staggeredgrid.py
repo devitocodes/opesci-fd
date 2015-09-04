@@ -55,12 +55,13 @@ class StaggeredGrid(Grid):
                      'define_convergence', 'converge_test', 'print_convergence']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const',
-                 'output_vts', 'converge']
+                 'output_vts', 'converge','polly']
+
 
     def __init__(self, dimension, domain_size=None, grid_size=None,
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
-                 expand=True, eval_const=True, output_vts=False, converge=False):
+                 expand=True, eval_const=True, output_vts=False, converge=False,polly=False):
         self.dimension = dimension
 
         template_dir = path.join(get_package_dir(), "templates")
@@ -72,6 +73,7 @@ class StaggeredGrid(Grid):
         self.vfields = []
 
         # Switches
+        self.polly = polly
         self.omp = omp
         self.ivdep = ivdep
         self.simd = simd
@@ -562,7 +564,11 @@ class StaggeredGrid(Grid):
     @property
     def define_fields(self):
         """Code fragment that defines field arrays"""
-        return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
+        if(not self.polly):
+            return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
+                          for f in self.fields])
+        else :
+            return '\n'.join(['%s *%s, *%s_0, *%s_1;' % (self.real_t, ccode(f.label),ccode(f.label),ccode(f.label))
                           for f in self.fields])
 
     @property
