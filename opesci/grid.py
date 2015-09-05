@@ -6,7 +6,7 @@ from mako.runtime import Context
 from ctypes import cdll, Structure, POINTER, c_float, pointer
 
 
-class Grid:
+class Grid(object):
     """Base class for grid objects that provides the code generation,
     compilation and execution infrastructure"""
 
@@ -21,7 +21,7 @@ class Grid:
     template_keys = []
 
     # Default compiler is GNU
-    compiler = GNUCompiler()
+    _compiler = GNUCompiler()
 
     # Placeholders for generated code and associated files
     src_code = None
@@ -47,7 +47,23 @@ class Grid:
             print "Library load error: ", e
             raise Exception("Failed to load %s" % libname)
 
-    def generate(self, filename):
+    @property
+    def compiler(self):
+        return self._compiler
+
+    @compiler.setter
+    def compiler(self, compiler):
+        if compiler in ['g++', 'gnu']:
+            self.compiler = GNUCompiler()
+        elif compiler in ['icpc', 'intel']:
+            self.compiler = IntelCompiler()
+        else:
+            raise ValueError("Unknown compiler.")
+
+    def generate(self, filename, compiler=None):
+        if compiler:
+            compiler = compiler
+
         # Generate a dictionary that maps template keys to code fragments
         template = self.lookup.get_template(self.template_base)
         template_keys = dict([(k, getattr(self, k)) for k in self.template_keys])
@@ -65,14 +81,9 @@ class Grid:
 
         print "Generated:", self.src_file
 
-    def compile(self, filename, compiler='g++', shared=True):
-        # First set appropriate compiler
-        if compiler in ['g++', 'gnu']:
-            self.compiler = GNUCompiler()
-        elif compiler in ['icpc', 'intel']:
-            self.compiler = IntelCompiler()
-        else:
-            raise ValueError("Unknown compiler.")
+    def compile(self, filename, compiler=None, shared=True):
+        if compiler:
+            compiler = compiler
 
         # Generate code if this hasn't been done yet
         if self.src_file is None:
