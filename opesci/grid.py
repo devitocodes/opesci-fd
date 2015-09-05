@@ -71,6 +71,8 @@ class Grid:
             self.compiler = GNUCompiler()
         elif compiler in ['icpc', 'intel']:
             self.compiler = IntelCompiler()
+        else:
+            raise ValueError("Unknown compiler.")
 
         # Generate code if this hasn't been done yet
         if self.src_file is None:
