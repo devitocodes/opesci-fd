@@ -1027,7 +1027,7 @@ class StaggeredGrid(Grid):
     @property
     def print_convergence(self):
         """Code fragment that prints convergence norms"""
-        return '\n'.join(['printf("%s %s", conv.%s_l2);' %
+        return '\n'.join(['printf("%s %s\\n", conv.%s_l2);' %
                           (ccode(f.label), '\t%.10f', ccode(f.label))
                           for f in self.fields])
 
