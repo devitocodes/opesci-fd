@@ -22,12 +22,13 @@ extern "C" struct OpesciConvergence {
 ${define_convergence}
 };
 
-extern "C" int opesci_execute(OpesciGrid *grid) {
+extern "C" struct OpesciProfiling {
+${define_profiling}
+};
+
+extern "C" int opesci_execute(OpesciGrid *grid, OpesciProfiling *profiling) {
 % if profiling==True:
 int err = opesci_papi_init();
-float g_rtime = 0.0;
-float g_ptime = 0.0;
-float g_mflops = 0.0;
 % endif
 
 ${define_constants}
@@ -63,21 +64,15 @@ ${output_step}
 opesci_flops(&real_time, &proc_time, &flpins, &mflops);
 #pragma omp critical
 {
-g_rtime = fmax(g_rtime, real_time);
-g_ptime = fmax(g_ptime, proc_time);
-g_mflops += mflops;
+profiling->g_rtime = fmax(profiling->g_rtime, real_time);
+profiling->g_ptime = fmax(profiling->g_ptime, proc_time);
+profiling->g_mflops += mflops;
 }
 % endif
 
 } // end of parallel section
 
 ${store_fields}
-
-% if profiling==True:
-printf("PAPI:: Max real_time: %f (sec)\n", g_rtime);
-printf("PAPI:: Max proc_time: %f (sec)\n", g_ptime);
-printf("PAPI:: Total MFlops/s: %f\n", g_mflops);
-% endif
 
 return 0;
 }
@@ -93,10 +88,17 @@ return 0;
 int main(){
 OpesciGrid grid;
 OpesciConvergence conv;
+OpesciProfiling profiling;
 
-opesci_execute(&grid);
+ opesci_execute(&grid, &profiling);
 opesci_convergence(&grid, &conv);
 ${print_convergence}
+
+% if profiling==True:
+printf("PAPI:: Max real_time: %f (sec)\n", profiling.g_rtime);
+printf("PAPI:: Max proc_time: %f (sec)\n", profiling.g_ptime);
+printf("PAPI:: Total MFlops/s: %f\n", profiling.g_mflops);
+% endif
 
 return 0;
 }

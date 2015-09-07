@@ -56,7 +56,8 @@ class StaggeredGrid(Grid):
                      'define_fields', 'store_fields', 'load_fields',
                      'initialise', 'initialise_bc', 'stress_loop',
                      'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
-                     'define_convergence', 'converge_test', 'print_convergence']
+                     'define_convergence', 'converge_test', 'print_convergence',
+                     'define_profiling']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
                  'output_vts', 'converge', 'profiling']
@@ -1192,3 +1193,9 @@ class StaggeredGrid(Grid):
             result += 'conv->%s = %s;\n' % (l2, l2_value)
 
         return result
+
+    @property
+    def define_profiling(self):
+        """Code fragment that defines global PAPI counters and events"""
+        return '\n'.join('float g_%s = 0.0;' % v for v in
+                         ['rtime', 'ptime', 'mflops'])
