@@ -54,9 +54,9 @@ class StaggeredGrid(Grid):
                      'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
                      'define_convergence', 'converge_test', 'print_convergence']
 
-    _switches = ['omp', 'ivdep', 'simd', 'double', 'io', 'expand', 'eval_const',
-                 'output_vts', 'converge','polly']
 
+    _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
+                 'output_vts', 'converge']
 
     def __init__(self, dimension, domain_size=None, grid_size=None,
                  time_step=None, stress_fields=None, velocity_fields=None,
@@ -78,7 +78,6 @@ class StaggeredGrid(Grid):
         self.ivdep = ivdep
         self.simd = simd
         self.double = double
-        self.io = io
         self.expand = expand
         self.eval_const = eval_const
         self.real_t = 'double' if self.double else 'float'
@@ -127,6 +126,11 @@ class StaggeredGrid(Grid):
     @property
     def fields(self):
         return self.sfields + self.vfields
+
+    @property
+    def io(self):
+        """Flag whether to include I/O headers"""
+        return self.read or self.output_vts
 
     def set_accuracy(self, accuracy):
         """
@@ -1206,7 +1210,7 @@ class StaggeredGrid(Grid):
     @property
     def print_convergence(self):
         """Code fragment that prints convergence norms"""
-        return '\n'.join(['printf("%s %s", conv.%s_l2);' %
+        return '\n'.join(['printf("%s %s\\n", conv.%s_l2);' %
                           (ccode(f.label), '\t%.10f', ccode(f.label))
                           for f in self.fields])
 

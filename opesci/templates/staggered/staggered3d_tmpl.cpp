@@ -52,6 +52,7 @@ ${define_constants}
 ${load_fields}
 
 ${converge_test}
+return 0;
 }
 
 int main(){

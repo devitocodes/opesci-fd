@@ -4,6 +4,7 @@ from codeprinter import ccode
 from StringIO import StringIO
 from mako.runtime import Context
 from ctypes import cdll, Structure, POINTER, c_float, pointer
+from os import environ
 
 
 class Grid(object):
@@ -94,7 +95,19 @@ class Grid(object):
         if shared:
             self.src_lib = out
 
-    def execute(self, filename, compiler='g++'):
+    def execute(self, filename, compiler='g++', nthreads=1, affinity='close'):
+        # Parallel thread settings
+        environ["OMP_NUM_THREADS"] = str(nthreads)
+        if affinity in ['close', 'spread']:
+            environ["OMP_PROC_BIND"] = affinity
+        elif affinity in ['compact', 'scatter']:
+            environ["KMP_AFFINITY"] = "granularity=thread,%s" % affinity
+        else:
+            print """ERROR: Only the following affinity settings are supported:
+ * OMP_PROC_BIND: 'close', 'spread'
+ * KMP_AFFINITY: 'compact', 'scatter'"""
+            raise ValueError("Unknown thread affinity setting: %s")
+
         # Compile code if this hasn't been done yet
         if self.src_lib is None:
             self.compile(filename, compiler=compiler, shared=True)
@@ -110,10 +123,11 @@ class Grid(object):
         self._arg_grid = OpesciGrid()
         self._arg_grid.values = [POINTER(c_float)() for f in self.fields]
 
-        # Load opesci_run, define it's arguments and run
-        print "Executing core computation..."
+        # Load opesci_run and define it's arguments
         opesci_execute = self._library.opesci_execute
         opesci_execute.argtypes = [POINTER(OpesciGrid)]
+
+        print "Executing with %d threads (affinity=%s)" % (nthreads, affinity)
         opesci_execute(pointer(self._arg_grid))
 
     def convergence(self):

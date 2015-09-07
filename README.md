@@ -17,6 +17,7 @@ locally. To get the latests updates for your local copy simply add
 run:
 ```
 git clone https://github.com/opesci/opesci-fd.git
+cd opesci-fd; pip install -r requirements.txt
 export PYTHONPATH=`pwd`:$PYTHONPATH
 python setup.py build_clib --build-clib=`pwd`
 ```
@@ -39,6 +40,22 @@ generated binary can now be executed with:
 cd tests/src
 ./eigenwave3d
 ```
+
+##### Automatic execution
+
+Opesci-FD also provides automatic compilation and execution that
+allows developers to test their code directly from the Python
+environment. To execute the above test case in parallel run:
+```
+python tests/eigenwave3d.py --compiler <cc> --execute --nthreads <nt>
+```
+where `<cc>` is either `g++` or `icpc` and `<nt>` is the number of
+threads to use during execution. For additional options please see:
+```
+python tests/eigenwave3d.py --help
+```
+
+##### Manual compilation
 
 The generated source file can also be compiled by hand using the
 provided CMake file:

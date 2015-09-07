@@ -44,10 +44,16 @@ class Compiler(object):
             logfile.write("Compiling: %s\n" % " ".join(cc))
             try:
                 subprocess.check_call(cc, stdout=logfile, stderr=logfile)
+            except OSError:
+                err = """OSError during compilation
+Please check if compiler exists: %s""" % self._cc
+                raise RuntimeError(err)
             except subprocess.CalledProcessError:
-                print "Compilation error with:", " ".join(cc)
-                print "Log file:", logfile.name
-                raise RuntimeError("Error during compilation")
+                err = """Error during compilation:
+Compilation command: %s
+Source file: %s
+Log file: %s""" % (" ".join(cc), src, logfile.name)
+                raise RuntimeError(err)
         print "Compiled:", outname
         return outname
 
