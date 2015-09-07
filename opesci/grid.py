@@ -89,7 +89,6 @@ class Grid(object):
         # Generate code if this hasn't been done yet
         if self.src_file is None:
             self.generate(filename)
-
         # Compile source file
         out = self.compiler.compile(self.src_file, shared=shared)
         if shared:

@@ -126,6 +126,7 @@ def Deriv_half(U, i, k, d, n, p=False):
     """
     M = Taylor_half(d, n)
     s = [0]*len(i)
+    #print s
     s[k] = 1  # switch on kth dimension
     # generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
     if len(i) == 1:

@@ -54,7 +54,6 @@ class StaggeredGrid(Grid):
                      'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
                      'define_convergence', 'converge_test', 'print_convergence']
 
-
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
                  'output_vts', 'converge']
 
@@ -285,10 +284,7 @@ class StaggeredGrid(Grid):
                 h = Symbol(l[k].name)
                 for o in range(1, self.order[k]+1):
                     # loop through order of derivatives
-                    if self.polly:
-                        field.calc_derivative([self.t]+self.index,k, h, o,p=True)
-                    else:
-                        field.calc_derivative([self.t]+self.index, k, h, o)
+                    field.calc_derivative([self.t]+self.index, k, h, o)
 
 
     def get_all_variables(self):
@@ -583,7 +579,6 @@ class StaggeredGrid(Grid):
     @property
     def define_fields(self):
         """Code fragment that defines field arrays"""
-        # if(not self.polly):
         return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
                       for f in self.fields])
 
@@ -913,8 +908,6 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
-                # if self.polly:
-                #     idx = self.index
                 for field in self.sfields: 
                #     print ', '.join("%s: %s" % item for item in vars(field).items())
                     body += ccode(field[idx]) + '=' \
@@ -955,8 +948,6 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
-                if self.polly:
-                    idx = self.index
                 for field in self.vfields:
                     body += ccode(field[idx]) + '=' \
                         + ccode(field.fd_align.xreplace({self.t+1:
@@ -1161,6 +1152,7 @@ class StaggeredGrid(Grid):
                 body += '\t\t' +ccode(t.label) + ' = ' + '%s_0;\n'%t.label
             for t in self.sfields:
                 body += '\t\t' +ccode(t.label) + '_old = ' + '%s_1;\n'%t.label
+
             for t in self.vfields:
                 body += '\t\t' +ccode(t.label) + ' = ' + '%s_0;\n'%t.label
             for t in self.vfields:
@@ -1170,6 +1162,7 @@ class StaggeredGrid(Grid):
                 body += '\t\t' +ccode(t.label) + ' = ' + '%s_1;\n'%t.label
             for t in self.sfields:
                 body += '\t\t' +ccode(t.label) + '_old = ' + '%s_0;\n'%t.label
+
             for t in self.vfields:
                 body += '\t\t' +ccode(t.label) + ' = ' + '%s_1;\n'%t.label
             for t in self.vfields:
