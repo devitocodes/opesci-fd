@@ -40,4 +40,7 @@
 int opesci_papi_init();
 void opesci_flops(float*, float*, long long*, float*);
 
+int opesci_papi_name2event(char *, int*);
+int opesci_papi_start_counters(int, int*);
+int opesci_papi_read_counters(int, long long*);
 #endif

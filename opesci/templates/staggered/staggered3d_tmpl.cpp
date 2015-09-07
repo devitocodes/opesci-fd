@@ -42,6 +42,8 @@ float proc_time;
 float mflops;
 long long flpins;
 opesci_flops(&real_time, &proc_time, &flpins, &mflops);
+${define_papi_events}
+opesci_papi_start_counters(numevents, events);
 % endif
 
 ${initialise}
@@ -62,11 +64,13 @@ ${output_step}
 
 % if profiling==True:
 opesci_flops(&real_time, &proc_time, &flpins, &mflops);
+opesci_papi_read_counters(numevents, counters);
 #pragma omp critical
 {
 profiling->g_rtime = fmax(profiling->g_rtime, real_time);
 profiling->g_ptime = fmax(profiling->g_ptime, proc_time);
 profiling->g_mflops += mflops;
+${sum_papi_events}
 }
 % endif
 

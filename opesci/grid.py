@@ -3,7 +3,7 @@ from codeprinter import ccode
 
 from StringIO import StringIO
 from mako.runtime import Context
-from ctypes import cdll, Structure, POINTER, c_float, pointer
+from ctypes import cdll, Structure, POINTER, c_float, pointer, c_longlong
 from os import environ
 
 
@@ -126,6 +126,7 @@ class Grid(object):
         # Define OpesciProfiling struct and generate "profiling" argument
         class OpesciProfiling(Structure):
             _fields_ = [(var, c_float) for var in ['rtime', 'ptime', 'mflops']]
+            _fields_ += [(ev, c_longlong) for ev in self._papi_events]
         self._arg_profiling = OpesciProfiling()
         self._arg_profiling.values = [0., 0., 0.]
 
@@ -137,6 +138,8 @@ class Grid(object):
         opesci_execute(pointer(self._arg_grid), pointer(self._arg_profiling))
 
         if self.profiling:
+            for ev in self._papi_events:
+                print "PAPI:: %s: %ld" % (ev, getattr(self._arg_profiling, ev))
             print "PAPI:: Max real_time: %f (sec)" % self._arg_profiling.rtime
             print "PAPI:: Max proc_time: %f (sec)" % self._arg_profiling.ptime
             print "PAPI:: Total MFlops/s: %f" % self._arg_profiling.mflops

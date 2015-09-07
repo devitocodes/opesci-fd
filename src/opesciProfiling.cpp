@@ -56,6 +56,36 @@ int opesci_papi_init() {
 #endif
 }
 
+int opesci_papi_start_counters(int numevents, int *events) {
+#if defined(OPESCI_HAVE_PAPI)
+  if (PAPI_num_counters() < numevents) {
+    printf("WARNING: More events specified that hardware counters available\n");
+    printf(OPESCI_PAPI_WARN);
+  }
+  int err = PAPI_start_counters(events, numevents);
+  if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
+#else
+  printf(OPESCI_PAPI_MISSING);
+#endif
+}
+
+int opesci_papi_name2event(char *name, int *event) {
+#if defined(OPESCI_HAVE_PAPI)
+  return PAPI_event_name_to_code(name, event);
+#else
+  printf(OPESCI_PAPI_MISSING);
+#endif
+}
+
+int opesci_papi_read_counters(int numevents, long long *counters) {
+#if defined(OPESCI_HAVE_PAPI)
+  int err = PAPI_read_counters(counters, numevents);
+  if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
+#else
+  printf(OPESCI_PAPI_MISSING);
+#endif
+}
+
 void opesci_flops(float *rtime, float *ptime, long long *flpins, float *mflops) {
 #if defined(OPESCI_HAVE_PAPI)
   int err = PAPI_flops(rtime, ptime, flpins, mflops);
