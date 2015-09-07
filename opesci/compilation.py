@@ -101,3 +101,18 @@ class IntelCompiler(Compiler):
     @property
     def _ivdep(self):
         return '#pragma ivdep'
+
+class ClangCompiler(Compiler):
+    def __init__(self,cppargs=[],ldargs=[]):
+        opt_flags = ['-g','-O3','-fopenmp']
+        cppargs = []+opt_flags
+        ldargs = []
+        super(ClangCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
+
+class PollyCompiler(Compiler):
+    def __init__(self,tile=[4,4,1000],cppargs=[],ldargs=[]):
+        load_flags = ['-O3','-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
+        polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm', '-march=native','-mllvm',getTilesize(tile)]
+        cppargs = []+load_flags+polly_flags
+        ldargs = []
+        super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)

@@ -582,10 +582,7 @@ class StaggeredGrid(Grid):
         # if(not self.polly):
         return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
                       for f in self.fields])
-        # else :
-        #     return '\n'.join(['%s *%s_0, *%s_1;' 
-        #         % (self.real_t, ccode(f.label),ccode(f.label))
-        #                   for f in self.fields])
+
 
     @property
     def store_fields(self):
@@ -834,6 +831,7 @@ class StaggeredGrid(Grid):
             for f in self.sfields+self.vfields:
                 result += str(f) + " = " + str(f)+ "_0;\n"
 
+
         for field in self.sfields+self.vfields:
             body = ''
             if self.omp:
@@ -911,9 +909,8 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
-                if self.polly:
-                    idx = self.index
-
+                # if self.polly:
+                #     idx = self.index
                 for field in self.sfields: 
                #     print ', '.join("%s: %s" % item for item in vars(field).items())
                     body += ccode(field[idx]) + '=' \
