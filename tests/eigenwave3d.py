@@ -1,12 +1,13 @@
 from opesci import *
 from os import path
-import sys
+from argparse import ArgumentParser, RawTextHelpFormatter
+
 
 _test_dir = path.join(path.dirname(__file__), "src")
 
 
-def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
-                omp=True, simd=False, ivdep=True, io=False, double=False,
+def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
+                omp=True, simd=False, ivdep=True, double=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
                 rho_file='', vp_file='', vs_file=''):
     """
@@ -16,7 +17,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     :param grid_size: define grid size, e.g. (10, 10, 10)
     :param dt: define time step
     :param tmax: define simulation time
-    :param o_step: switch for code to output at each time step
+    :param output_vts: switch for code to output at each time step
     (such as save field as vtk file), default False (no output)
     :param o_converge: switch for code to calculate L2 norms
     for convergence test, default True (output)
@@ -26,7 +27,6 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     default False (do not use simd)
     :param ivddp: switch for inserting #praga ivdep before inner loop
     default True (use ivdep)
-    :param io: switch for include io header files
     default False (not include vtk header files)
     :param double: switch for using double as real number variables
     default False (use float)
@@ -62,9 +62,9 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
                          velocity_fields=[U, V, W])
     grid.set_time_step(dt, tmax)
 
-    grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, io=io,
-                      double=double, expand=expand, eval_const=eval_const,
-                      output_vts=o_step, converge=o_converge)
+    grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, double=double,
+                      expand=expand, eval_const=eval_const,
+                      output_vts=output_vts, converge=o_converge)
 
     # define parameters
     rho, beta, lam, mu = symbols('rho beta lambda mu')
@@ -141,59 +141,45 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=True,
     return grid
 
 
-def default():
-    """
-    default test case
-    eigen wave in unit cube, 100 x 100 x 100 grids
-    output L2 norm
+def default(compiler='g++', execute=False, nthreads=1, output=False):
+    """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
     grid_size = (100, 100, 100)
     dt = 0.002
     tmax = 1.0
     filename = path.join(_test_dir, 'eigenwave3d.cpp')
-    grid = eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False,
+    grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        o_converge=True, omp=True, simd=False,
-                       ivdep=True, io=False, filename=filename)
-    grid.compile(filename, compiler='g++', shared=False)
-
-    # Test Python-based execution for the base test
-    grid.execute(filename, compiler='g++')
-    grid.convergence()
-
-
-def default_vtk():
-    """
-    default test case
-    eigen wave in unit cube, 100 x 100 x 100 grids
-    output L2 norm
-    """
-    domain_size = (1.0, 1.0, 1.0)
-    grid_size = (100, 100, 100)
-    dt = 0.002
-    tmax = 1.0
-    filename = path.join(_test_dir, 'eigenwave3d_vtk.cpp')
-    grid = eigenwave3d(domain_size, grid_size, dt, tmax, o_step=True,
-                       o_converge=True, omp=True, simd=False,
-                       ivdep=True, io=True, filename=filename)
-    grid.compile(filename, compiler='g++', shared=False)
+                       ivdep=True, filename=filename)
+    grid.set_switches(output_vts=output)
+    grid.compile(filename, compiler=compiler, shared=False)
+    if execute:
+        # Test Python-based execution for the base test
+        grid.execute(filename, compiler=compiler, nthreads=nthreads)
+        grid.convergence()
 
 
-def read_data():
-    """
-    test case for reading data (media parameters) from input file
-    eigen wave in unit cube, 200 x 200 x 200 grids
+def read_data(compiler='g++', execute=False, nthreads=1, output=False):
+    """Test for model intialisation from input file
+
+    Computes eigenwave on a unit cube grid (200 x 200 x 200)
     """
     domain_size = (1.0, 1.0, 1.0)
     grid_size = (195, 195, 195)
     dt = 0.002
     tmax = 1.0
     filename = path.join(_test_dir, 'eigenwave3d_read.cpp')
-    grid = eigenwave3d(domain_size, grid_size, dt, tmax, o_step=True, o_converge=False,
-                       omp=True, simd=False, ivdep=True, io=True, read=True,
+    grid = eigenwave3d(domain_size, grid_size, dt, tmax, read=True,
+                       o_converge=False, omp=True, simd=False, ivdep=True,
                        filename=filename, rho_file='RHOhomogx200',
                        vp_file='VPhomogx200', vs_file='VShomogx200')
-    grid.compile(filename, compiler='g++', shared=False)
+    grid.set_switches(output_vts=output)
+    grid.compile(filename, compiler=compiler, shared=False)
+    if execute:
+        # Test Python-based execution for the base test
+        grid.execute(filename, compiler=compiler, nthreads=nthreads)
+        grid.convergence()
 
 
 def cx1():
@@ -204,11 +190,11 @@ def cx1():
     grid_size = (200, 200, 200)
     dt = 0.001
     tmax = 5.0
-    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=False,
-                omp=True, simd=False, ivdep=True, io=False,
+    eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=False,
+                omp=True, simd=False, ivdep=True,
                 filename=path.join(_test_dir, 'eigenwave3d_ivdep.cpp'))
-    eigenwave3d(domain_size, grid_size, dt, tmax, o_step=False, o_converge=False,
-                omp=True, simd=True, ivdep=False, io=False,
+    eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=False,
+                omp=True, simd=True, ivdep=False,
                 filename=path.join(_test_dir, 'eigenwave3d_simd.cpp'))
 
 
@@ -224,53 +210,67 @@ def converge_test():
     c = 0.4*s
     dt = c/(s**2)
     tmax = 5.0
-    eigenwave3d(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
-                omp=True, simd=False, ivdep=True, io=False,
+    eigenwave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
+                omp=True, simd=False, ivdep=True,
                 filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    eigenwave3d(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
-                omp=True, simd=False, ivdep=True, io=False,
+    eigenwave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
+                omp=True, simd=False, ivdep=True,
                 filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    eigenwave3d(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
-                omp=True, simd=False, ivdep=True, io=False,
+    eigenwave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
+                omp=True, simd=False, ivdep=True,
                 filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    eigenwave3d(domain_size, (s, s, s), dt, tmax, o_step=False, o_converge=True,
-                omp=True, simd=False, ivdep=True, io=False,
+    eigenwave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
+                omp=True, simd=False, ivdep=True,
                 filename='tmp/test3d_'+str(s)+'.cpp')
 
 
 def main():
-    if len(sys.argv) > 2:
-        print 'too many arguments!'
-        return
+    ModeHelp = """Avalable testing modes:
+default:   Eigenwave test case on a unit cube grid (100 x 100 x 100)
 
-    if len(sys.argv) == 1:
-        default()
-        return
+read:      Test for model intialisation from input file; computes
+           eigenwave on a unit cube grid (200 x 200 x 200)
 
-    if sys.argv[1] == 'cx1':
-        cx1()
-        return
+converge:  Convergence test of the (2,4) scheme, which is 2nd order
+           in time and 4th order in space. The test halves spacing
+           starting from 0.1 and reduces dt by a factor of 4 for
+           each step
+"""
+    p = ArgumentParser(description="Standalone testing script for the Eigenwave3D example",
+                       formatter_class=RawTextHelpFormatter)
+    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
+                   nargs='?', default='default', help=ModeHelp)
+    p.add_argument('-c', '--compiler', default='g++',
+                   help='C++ Compiler to use for model compilation, eg. g++ or icpc')
+    p.add_argument('-x', '--execute', action='store_true', default=False,
+                   help='Dynamically execute the generated model')
+    p.add_argument('-n', '--nthreads', type=int, default=1,
+                   help='Number of threads for dynamic execution')
+    p.add_argument('-o', '--output', action='store_true', default=False,
+                   help='Activate solution output in .vts format')
 
-    if sys.argv[1] == 'converge':
+    args = p.parse_args()
+    print "Eigenwave3D example (mode=%s)" % args.mode
+
+    if args.mode == 'default':
+        default(compiler=args.compiler, execute=args.execute,
+                nthreads=args.nthreads, output=args.output)
+    elif args.mode == 'read':
+        read_data(compiler=args.compiler, execute=args.execute,
+                  nthreads=args.nthreads, output=args.output)
+    elif args.mode == 'converge':
         converge_test()
-        return
-
-    if sys.argv[1] == 'read':
-        read_data()
-        return
-
-    if sys.argv[1] == 'vtk':
-        default_vtk()
-        return
+    elif args.mode == 'cx1':
+        cx1()
 
 if __name__ == "__main__":
     main()
