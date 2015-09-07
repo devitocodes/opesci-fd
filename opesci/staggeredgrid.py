@@ -281,10 +281,10 @@ class StaggeredGrid(Grid):
                 h = Symbol(l[k].name)
                 for o in range(1, self.order[k]+1):
                     # loop through order of derivatives
-                    # if self.polly:
-                    #     field.calc_derivative(self.index, k, h, o)
-                   # else:
-                    field.calc_derivative([self.t]+self.index, k, h, o)
+                    if self.polly:
+                        field.calc_derivative([self.t]+self.index,k, h, o,p=True)
+                    else:
+                        field.calc_derivative([self.t]+self.index, k, h, o)
 
 
     def get_all_variables(self):
@@ -307,7 +307,10 @@ class StaggeredGrid(Grid):
         """
         t = self.t
         t1 = t+hf+(self.order[0]-1)  # the most advanced time index
-        index = [t1] + self.index
+        if self.polly:
+            index = [t1]+self.index#polly
+        else:
+            index = [t1] + self.index
         self.eqs = eqs
         # populate substitution dictionary if evluating constants in kernel
         if self.eval_const:
@@ -319,7 +322,10 @@ class StaggeredGrid(Grid):
 
         for field, eq in zip(self.vfields+self.sfields, eqs):
             # want the LHS of express to be at time t+1
+            #print eq
+            #print field[index]
             kernel = solve(eq, field[index])[0]
+           # print kernel
             kernel = kernel.subs({t: t+1-hf-(self.order[0]-1)})
 
             if self.expand:
@@ -949,8 +955,8 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
-                # if self.polly:
-                #     idx = self.index
+                if self.polly:
+                    idx = self.index
                 for field in self.vfields:
                     body += ccode(field[idx]) + '=' \
                         + ccode(field.fd_align.xreplace({self.t+1:
