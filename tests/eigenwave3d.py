@@ -161,6 +161,23 @@ def default(compiler='g++', execute=False, nthreads=1, output=False):
         grid.execute(filename, compiler=compiler, nthreads=nthreads)
         grid.convergence()
 
+def polly(compiler='g++', execute=False, nthreads=1, output=False):
+    """Eigenwave test case on a unit cube grid (100 x 100 x 100)
+    """
+    domain_size = (1.0, 1.0, 1.0)
+    grid_size = (100, 100, 100)
+    dt = 0.002
+    tmax = 1.0
+    filename = path.join(_test_dir, 'eigenwave3d.cpp')
+    grid = eigenwave3d(domain_size, grid_size, dt, tmax,
+                       o_converge=True, omp=True, simd=False,
+                       ivdep=True, filename=filename)
+    grid.set_switches(output_vts=output,polly = True)
+    grid.compile(filename, compiler=compiler, shared=False)
+    if execute:
+        # Test Python-based execution for the base test
+        grid.execute(filename, compiler=compiler, nthreads=nthreads)
+        grid.convergence()
 
 def read_data(compiler='g++', execute=False, nthreads=1, output=False):
     """Test for model intialisation from input file
@@ -249,7 +266,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
 """
     p = ArgumentParser(description="Standalone testing script for the Eigenwave3D example",
                        formatter_class=RawTextHelpFormatter)
-    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
+    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1','polly'),
                    nargs='?', default='default', help=ModeHelp)
     p.add_argument('-c', '--compiler', default='g++',
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
@@ -273,6 +290,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         converge_test()
     elif args.mode == 'cx1':
         cx1()
-
+    elif args.mode == 'polly':
+        polly()
 if __name__ == "__main__":
     main()

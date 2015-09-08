@@ -909,6 +909,7 @@ class StaggeredGrid(Grid):
                 # inner loop
                 idx = [self.time[1]] + self.index
                 for field in self.sfields: 
+                    print field[idx]
                #     print ', '.join("%s: %s" % item for item in vars(field).items())
                     body += ccode(field[idx]) + '=' \
                         + ccode(field.fd_align.xreplace({self.t+1:
