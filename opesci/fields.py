@@ -2,11 +2,11 @@ from compilation import get_package_dir
 from sympy import Indexed, IndexedBase, solve, Eq
 from util import *
 from derivative import *
-from codeprinter import ccode, ccode_eq, render
+from codeprinter import ccode, render
 from mako.lookup import TemplateLookup
 from os import path
 
-__all__ = ['SField', 'VField']
+__all__ = ['SField', 'VField', 'Media']
 
 
 class Field(IndexedBase):
@@ -106,8 +106,14 @@ class Field(IndexedBase):
             return expr
         if isinstance(expr, Indexed):
             b = expr.base
-            if not (isinstance(b, VField) or isinstance(b, SField)):
+            if not (isinstance(b, VField) or isinstance(b, SField) or isinstance(b, Media)):
                 return expr
+            if isinstance(b, Media):
+                idx = list(expr.indices)
+                for d in range(self.dimension):
+                    if self.staggered[d+1]:
+                        idx[d] += hf
+                return b[idx]
             # align indices if input field staggered different from this field
             idx = []
             for k in range(len(expr.indices)):
@@ -123,7 +129,7 @@ class Field(IndexedBase):
                 # in direction k, shift by -1/2
                 else:
                     idx += [expr.indices[k]-hf]
-            tmp = Indexed(b, *idx)
+            tmp = b[idx]
             return tmp
         # recursive call for all arguments of expr
         args = tuple([self.align(arg) for arg in expr.args])
@@ -161,14 +167,6 @@ class Field(IndexedBase):
         """
         self.dt = dt
 
-    def set_media_param(self, media_param):
-        """
-        - set the media parameters beta, lambda, mu
-        - these parameters should be used for the updating kernel
-        - only needed when read data from file
-        """
-        self.media_param = media_param
-
     def associate_stress_fields(self, sfields):
         """
         link this velocity field to a list of stress field
@@ -203,7 +201,7 @@ class VField(Field):
         staggered[direction] = True
         Field.set(self, dimension, staggered)
 
-    def set_free_surface(self, d, b, side, read=False):
+    def set_free_surface(self, d, b, side):
         """
         - set free surface boundary condition to boundary d, at index b
         :param d: direction of the boundary surface normal
@@ -212,7 +210,7 @@ class VField(Field):
         - e.g. set_free_surface([t,x,y,z],1,2,0)
         set y-z plane at x=2 to be lower free surface
         - ghost cells are calculated using reflection of stress fields
-        - store the code to populate ghost cells to self.bc
+        - store the symbolic equations to populate ghost cells in self.bc
         """
         # use this stress field to solve for ghost cell expression
         field = self.sfields[d]
@@ -248,11 +246,11 @@ class VField(Field):
         rhs = solve(eq, lhs)[0]
         lhs = lhs.subs(self.indices[d], t)
         rhs = self.align(rhs.subs(self.indices[d], t))
-        # if read data from file, replace media parameters with array
-        # replace particular index with boundary
-        if read:
-            rhs = rhs.subs(self.media_param)
-            rhs = rhs.subs(self.indices[d], b)
+        # # if read data from file, replace media parameters with array
+        # # replace particular index with boundary
+        # if read:
+        #     rhs = rhs.subs(self.media_param)
+        #     rhs = rhs.subs(self.indices[d], b)
         # change ti to t+1
         lhs = lhs.subs(idx[0], idx[0]+1)
         rhs = rhs.subs(idx[0], idx[0]+1)
@@ -290,7 +288,7 @@ class SField(Field):
                 staggered[direction[i]] = True
             Field.set(self, dimension, staggered)
 
-    def set_free_surface(self, d, b, side, read=False):
+    def set_free_surface(self, d, b, side):
         """
         set free surface boundary condition to boundary d, at index b
         :param indices: list of indices, e.g. [t,x,y,z] for 3D
@@ -342,7 +340,6 @@ class SField(Field):
                 lhs = lhs.subs(t, t+hf)
                 rhs = rhs.subs(t, t+hf)
                 eq2 = Eq(lhs, rhs)
-                # self.bc[d][side] = ccode_eq(eq2) + ';\n'
                 self.bc[d][side] = [eq2]
                 return
 
@@ -368,3 +365,28 @@ class SField(Field):
         eq2 = eq2.subs(idx[0], idx[0]+1)
         # self.bc[d][side] = ccode_eq(eq1) + ';\n' + ccode_eq(eq2) + ';\n'
         self.bc[d][side] = [eq1, eq2]
+
+
+class Media(IndexedBase):
+    """
+    Class to represent media parameters, e.g. rho, vp, vs, lambda, mu (plus effective media parameters)
+    """
+
+    def __new__(typ, name, **kwargs):
+        obj = IndexedBase.__new__(typ, name)
+        return obj
+
+    def __init__(self, *args, **kwargs):
+        super(Media, self).__init__()
+
+        # Pass additional arguments to self.set()
+        if len(kwargs) > 0:
+            self.set(**kwargs)
+
+    def set(self, dimension, staggered, index):
+        """
+        set the dimension, staggered-ness and indices of the media parameter
+        """
+        self.dimension = dimension
+        self.staggered = staggered
+        self.index = index
