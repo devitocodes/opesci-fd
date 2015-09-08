@@ -55,7 +55,7 @@ class StaggeredGrid(Grid):
                      'define_convergence', 'converge_test', 'print_convergence']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
-                 'output_vts', 'converge']
+                 'output_vts', 'converge','polly']
 
     def __init__(self, dimension, domain_size=None, grid_size=None,
                  time_step=None, stress_fields=None, velocity_fields=None,

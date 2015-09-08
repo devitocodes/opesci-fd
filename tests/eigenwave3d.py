@@ -153,7 +153,6 @@ def default(compiler='g++', execute=False, nthreads=1, output=False):
     filename = path.join(_test_dir, 'eigenwave3d.cpp')
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        o_converge=True, omp=True, simd=False,
-<<<<<<< HEAD
                        ivdep=True, filename=filename)
     grid.set_switches(output_vts=output)
     grid.compile(filename, compiler=compiler, shared=False)

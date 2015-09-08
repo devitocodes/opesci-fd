@@ -70,12 +70,9 @@ class GNUCompiler(Compiler):
         ldargs = ['-lopesci', '-Wl,-rpath,%s/lib' % get_package_dir(),
                   '-L%s/lib' % get_package_dir()] + ldargs
         super(GNUCompiler, self).__init__("g++", cppargs=cppargs, ldargs=ldargs)
-<<<<<<< HEAD
     @property
     def _ivdep(self):
         return '#pragma GCC ivdep'
-=======
->>>>>>> b105cb10de2fc4c0921b30400e21f6397beb2179
 
 
 class ClangCompiler(Compiler):
@@ -92,7 +89,6 @@ class PollyCompiler(Compiler):
         cppargs = []+load_flags+polly_flags
         ldargs = []
         super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
-<<<<<<< HEAD
     
 
 class IntelCompiler(Compiler):
@@ -126,5 +122,3 @@ class PollyCompiler(Compiler):
         cppargs = []+load_flags+polly_flags
         ldargs = []
         super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
-=======
->>>>>>> b105cb10de2fc4c0921b30400e21f6397beb2179
