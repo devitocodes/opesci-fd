@@ -65,6 +65,13 @@ class GNUCompiler(Compiler):
         return '#pragma GCC ivdep'
 
 class ClangCompiler(Compiler):
+    """A compiler object for Clang compiler tollchain.
+    
+    :arg cppargs: A list of arguments to pass to the C compiler
+         (optional).
+    :arg ldargs: A list of arguments to pass to the linker (optional).
+    """
+
     def __init__(self,cppargs=[],ldargs=[]):
         opt_flags = ['-g','-O3','-fopenmp']
         cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
