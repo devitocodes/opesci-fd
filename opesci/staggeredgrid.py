@@ -829,8 +829,8 @@ class StaggeredGrid(Grid):
         replace array indices [t] with [0]
         - return generated code as string
         """
-        result = self.stress_bc(init=True).replace('[t1]', '[0]')
-        result += self.velocity_bc().replace('[t1]', '[0]')
+        result = self.stress_bc_getter(init=True).replace('[t1]', '[0]')
+        result += self.velocity_bc.replace('[t1]', '[0]')
         return result
 
     @property
@@ -910,7 +910,10 @@ class StaggeredGrid(Grid):
         return body
 
     @property
-    def stress_bc(self, init=False):
+    def stress_bc(self):
+        return self.stress_bc_getter()
+
+    def stress_bc_getter(self, init=False):
         """
         generate code for updating stress field boundary ghost cells
         - generate inner loop by inserting boundary code (saved in field.bc)
