@@ -45,8 +45,9 @@ To compile the generted souce code:
 ```
 python tests/eigenwave3d.py --compiler <cc>
 ```
-where `<cc>` is either `g++` or `icpc`, indicating which compiler to
-use.
+where `<cc>` is either `g++`,`clang` or `icpc`, indicating which compiler to
+use.Make sure your [clang](http://clang-omp.github.io/) compiler support openmp 
+for multithreads program.
 To compile and execute the above test case in parallel run:
 ```
 python tests/eigenwave3d.py --compiler <cc> --execute --nthreads <nt>

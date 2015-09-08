@@ -73,7 +73,7 @@ class ClangCompiler(Compiler):
         super(ClangCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
     @property
     def _ivdep(self):
-        return '#pragma GCC ivdep'
+        return '#pragma ivdep'
 
 class IntelCompiler(Compiler):
     """A compiler object for the Intel compiler toolchain.
