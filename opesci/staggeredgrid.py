@@ -1,7 +1,7 @@
 from grid import Grid
 from variable import Variable
 from fields import Field, VField
-from codeprinter import ccode, render
+from codeprinter import ccode, render, ccode_eq
 from derivative import DDerivative
 from util import *
 from compilation import get_package_dir
@@ -337,32 +337,44 @@ class StaggeredGrid(Grid):
         t = self.t
         t1 = t+hf+(self.order[0]-1)  # the most advanced time index
         index = [t1] + self.index
-        # populate substitution dictionary if evluating constants in kernel
-        if self.eval_const:
-            dict1 = {}
-            variables = self.get_all_variables()
-            for v in variables:
-                if v.constant:
-                    dict1[Symbol(v.name)] = v.value
 
         for field, eq in zip(self.vfields+self.sfields, eqs):
             # want the LHS of express to be at time t+1
             kernel = solve(eq, field[index])[0]
             kernel = kernel.subs({t: t+1-hf-(self.order[0]-1)})
 
-            if self.expand:
-                # expanding kernel (de-factorisation)
-                kernel = expand(kernel)
-
-            if self.eval_const:
-                # substitute constants with values
-                kernel = kernel.subs(dict1)
-
-            if self.read:
-                # replace with effective media parameters
-                # if reading data from file (i.e. parameters not constant)
-                kernel = kernel.subs(field.media_param)
             field.set_fd_kernel(kernel)
+
+    def create_const_dict(self):
+        """
+        create the dictionary of all constants with their values, store in self.const_dict
+        this is used to pre-evaluate all constants in the kernel (and bc)
+        """
+        dict1 = {}
+        variables = self.get_all_variables()
+        for v in variables:
+            if v.constant:
+                dict1[Symbol(v.name)] = v.value
+        self.const_dict = dict1
+
+    def transform_kernel(self, field):
+        """
+        transform the kernel of field based on setting of grid, such as expand, eval_const, read
+        """
+        kernel_new = field.kernel_aligned
+        if self.expand:
+            # expanding kernel (de-factorisation)
+            kernel_new = expand(kernel_new)
+
+        if self.eval_const:
+            # substitute constants with values
+            kernel_new = kernel_new.subs(self.const_dict)
+
+        if self.read:
+            # replace with effective media parameters
+            # if reading data from file (i.e. parameters not constant)
+            kernel_new = kernel_new.subs(field.media_param)
+        return kernel_new
 
     def associate_fields(self):
         """
@@ -523,13 +535,15 @@ class StaggeredGrid(Grid):
         - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
         - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
         """
+        if self.eval_const:
+            self.create_const_dict()
         store = 0
         add = 0
         mul = 0
         arrays = []  # to store name of arrays loaded
         for field in self.vfields:
             store += 1  # increment STORE by 1 (assignment)
-            expr = field.fd_align
+            expr = self.transform_kernel(field)
             add2, mul2, arrays2 = get_ops_expr(expr, arrays)
             add += add2  # accumulate # ADD
             mul += mul2  # accumulate # MUL
@@ -554,13 +568,15 @@ class StaggeredGrid(Grid):
         - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
         - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
         """
+        if self.eval_const:
+            self.create_const_dict()
         store = 0
         add = 0
         mul = 0
         arrays = []  # to store name of arrays loaded
         for field in self.sfields:
             store += 1  # increment STORE by 1 (assignment)
-            expr = field.fd_align
+            expr = self.transform_kernel(field)
             add2, mul2, arrays2 = get_ops_expr(expr, arrays)
             add += add2  # accumulate # ADD
             mul += mul2  # accumulate # MUL
@@ -843,6 +859,8 @@ class StaggeredGrid(Grid):
         return generated code as string
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
+        if self.eval_const:
+            self.create_const_dict()
         m = self.margin.value
         body = ''
         for d in range(self.dimension-1, -1, -1):
@@ -853,12 +871,9 @@ class StaggeredGrid(Grid):
                 # inner loop
                 idx = [self.time[1]] + self.index
                 for field in self.sfields:
+                    kernel = self.transform_kernel(field)
                     body += ccode(field[idx]) + '=' \
-                        + ccode(field.fd_align.xreplace({self.t+1:
-                                                        self.time[1],
-                                                        self.t:
-                                                        self.time[0]})) \
-                        + ';\n'
+                        + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
@@ -881,6 +896,8 @@ class StaggeredGrid(Grid):
         return generated code as string
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
+        if self.eval_const:
+            self.create_const_dict()
         m = self.margin.value
         body = ''
         for d in range(self.dimension-1, -1, -1):
@@ -891,12 +908,9 @@ class StaggeredGrid(Grid):
                 # inner loop
                 idx = [self.time[1]] + self.index
                 for field in self.vfields:
+                    kernel = self.transform_kernel(field)
                     body += ccode(field[idx]) + '=' \
-                        + ccode(field.fd_align.xreplace({self.t+1:
-                                                        self.time[1],
-                                                        self.t:
-                                                        self.time[0]})) \
-                        + ';\n'
+                        + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
@@ -925,15 +939,15 @@ class StaggeredGrid(Grid):
         tmpl = self.lookup.get_template('generic_loop.txt')
         result = ''
         for field in self.sfields:
-            # compression stress, not shear stress
-            compression = field.direction[0] == field.direction[1]
+            # normal stress, not shear stress
+            normal = field.direction[0] == field.direction[1]
             for d in range(self.dimension):
-                if init and compression and (not field.direction[0] == d+1):
+                if init and normal and (not field.direction[0] == d+1):
                     # skip re-calc Txx, Tyy at z plane etc, when initialisation
                     continue
                 for side in range(2):
                     # skip if this boundary calculation is not needed
-                    if field.bc[d+1][side] == '':
+                    if field.bc[d+1][side] == []:
                         continue
                     if self.omp:
                         result += '#pragma omp for\n'
@@ -942,7 +956,7 @@ class StaggeredGrid(Grid):
                         # loop through other dimensions
                         if not d2 == d:
                             i = self.index[d2]
-                            if compression:
+                            if normal:
                                 if field.direction[0] == d+1:
                                     # Txx in x plane
                                     i0 = 0
@@ -956,7 +970,8 @@ class StaggeredGrid(Grid):
                                 i1 = self.dim[d2]
                             if body == '':
                                 # inner loop, populate ghost cell calculation
-                                body = field.bc[d+1][side]
+                                # body = field.bc[d+1][side]
+                                body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
                                 body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
@@ -1005,7 +1020,8 @@ class StaggeredGrid(Grid):
                             i1 = self.dim[d2]-1
                             if body == '':
                                 # inner loop, populate ghost cell calculation
-                                body = field.bc[d+1][side]
+                                # body = field.bc[d+1][side]
+                                body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
                                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
                                 body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
                                 if self.ivdep:

@@ -130,16 +130,16 @@ class Field(IndexedBase):
         result = expr.func(*args)
         return result
 
-    def set_fd_kernel(self, fd):
+    def set_fd_kernel(self, kernel):
         """
         set the updating kernel of this field
         e.g. the expression to calculate U[t+1,x,y,z]
         store the kernel to self.fd
         store the aligned expression to self.fd_align
         """
-        self.fd = fd
-        tmp = self.align(fd)
-        self.fd_align = tmp
+        self.kernel = kernel
+        tmp = self.align(kernel)
+        self.kernel_aligned = tmp
 
     def vtk_save_field(self):
         """
@@ -257,7 +257,7 @@ class VField(Field):
         lhs = lhs.subs(idx[0], idx[0]+1)
         rhs = rhs.subs(idx[0], idx[0]+1)
 
-        self.bc[d][side] = ccode(lhs) + ' = ' + ccode(rhs) + ';\n'
+        self.bc[d][side] = [Eq(lhs, rhs)]
 
 
 class SField(Field):
@@ -306,10 +306,10 @@ class SField(Field):
         if d not in self.direction:
             if not self.direction[0] == self.direction[1]:
                 # shear stress, e.g. Tyz no need to recalculate at x boundary (only depends on dV/dz and dW/dy)
-                self.bc[d][side] = ''
+                self.bc[d][side] = []
                 return
             else:
-                # compression stress, need to recalcuate Tyy, Tzz at x boundary
+                # normal stress, need to recalcuate Tyy, Tzz at x boundary
                 expr = self.dt
                 derivatives = get_all_objects(expr, DDerivative)
                 for deriv in derivatives:
@@ -342,7 +342,8 @@ class SField(Field):
                 lhs = lhs.subs(t, t+hf)
                 rhs = rhs.subs(t, t+hf)
                 eq2 = Eq(lhs, rhs)
-                self.bc[d][side] = ccode_eq(eq2) + ';\n'
+                # self.bc[d][side] = ccode_eq(eq2) + ';\n'
+                self.bc[d][side] = [eq2]
                 return
 
         idx = list(self.indices)  # ghost cell
@@ -365,4 +366,5 @@ class SField(Field):
         # change t to t+1
         eq1 = eq1.subs(idx[0], idx[0]+1)
         eq2 = eq2.subs(idx[0], idx[0]+1)
-        self.bc[d][side] = ccode_eq(eq1) + ';\n' + ccode_eq(eq2) + ';\n'
+        # self.bc[d][side] = ccode_eq(eq1) + ';\n' + ccode_eq(eq2) + ';\n'
+        self.bc[d][side] = [eq1, eq2]

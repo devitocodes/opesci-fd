@@ -1,4 +1,5 @@
 from sympy.printing.ccode import CCodePrinter
+from sympy import Eq
 from mpmath.libmp import to_str, prec_to_dps
 from mako.runtime import Context
 from StringIO import StringIO
@@ -69,6 +70,8 @@ def ccode(expr, **settings):
     generate C++ code from expression expr
     calling CodePrinter class
     """
+    if isinstance(expr, Eq):
+        return ccode_eq(expr)
     return CodePrinter(settings).doprint(expr, None)
 
 
