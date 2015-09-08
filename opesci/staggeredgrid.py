@@ -1,6 +1,6 @@
 from grid import Grid
 from variable import Variable
-from fields import VField, Media
+from fields import Media
 from codeprinter import ccode, render, ccode_eq
 from derivative import DDerivative
 from util import *
