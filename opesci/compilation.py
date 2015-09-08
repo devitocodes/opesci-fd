@@ -78,18 +78,23 @@ class GNUCompiler(Compiler):
 class ClangCompiler(Compiler):
     def __init__(self,cppargs=[],ldargs=[]):
         opt_flags = ['-g','-O3','-fopenmp']
-        cppargs = []+opt_flags
+        cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
         ldargs = []
         super(ClangCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
+    @property
+    def _ivdep(self):
+        return '#pragma GCC ivdep'
 
 class PollyCompiler(Compiler):
     def __init__(self,tile=[4,4,1000],cppargs=[],ldargs=[]):
         load_flags = ['-O3','-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
         polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm', '-march=native','-mllvm',getTilesize(tile)]
-        cppargs = []+load_flags+polly_flags
+        cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
         ldargs = []
         super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
-    
+    @property
+    def _ivdep(self):
+        return '#pragma GCC ivdep'
 
 class IntelCompiler(Compiler):
     """A compiler object for the Intel compiler toolchain.
@@ -107,18 +112,3 @@ class IntelCompiler(Compiler):
     @property
     def _ivdep(self):
         return '#pragma ivdep'
-
-class ClangCompiler(Compiler):
-    def __init__(self,cppargs=[],ldargs=[]):
-        opt_flags = ['-g','-O3','-fopenmp']
-        cppargs = []+opt_flags
-        ldargs = []
-        super(ClangCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
-
-class PollyCompiler(Compiler):
-    def __init__(self,tile=[4,4,1000],cppargs=[],ldargs=[]):
-        load_flags = ['-O3','-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
-        polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm', '-march=native','-mllvm',getTilesize(tile)]
-        cppargs = []+load_flags+polly_flags
-        ldargs = []
-        super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
