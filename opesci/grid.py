@@ -55,15 +55,15 @@ class Grid(object):
     @compiler.setter
     def compiler(self, compiler):
         if compiler in ['g++', 'gnu']:
-            self.compiler = GNUCompiler()
+            self._compiler = GNUCompiler()
         elif compiler in ['icpc', 'intel']:
-            self.compiler = IntelCompiler()
+            self._compiler = IntelCompiler()
         else:
             raise ValueError("Unknown compiler.")
 
     def generate(self, filename, compiler=None):
         if compiler:
-            compiler = compiler
+            self.compiler = compiler
 
         # Generate a dictionary that maps template keys to code fragments
         template = self.lookup.get_template(self.template_base)
@@ -84,7 +84,7 @@ class Grid(object):
 
     def compile(self, filename, compiler=None, shared=True):
         if compiler:
-            compiler = compiler
+            self.compiler = compiler
 
         # Generate code if this hasn't been done yet
         if self.src_file is None:
