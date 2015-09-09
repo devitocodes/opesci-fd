@@ -64,23 +64,26 @@ class GNUCompiler(Compiler):
     def _ivdep(self):
         return '#pragma GCC ivdep'
 
+
 class ClangCompiler(Compiler):
     """A compiler object for Clang compiler tollchain.
-    
+
     :arg cppargs: A list of arguments to pass to the C compiler
          (optional).
     :arg ldargs: A list of arguments to pass to the linker (optional).
     """
 
-    def __init__(self,cppargs=[],ldargs=[]):
-        opt_flags = ['-g','-O3','-fopenmp']
+    def __init__(self, cppargs=[], ldargs=[]):
+        opt_flags = ['-g', '-O3', '-fopenmp']
         cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
         ldargs = ['-lopesci', '-Wl,-rpath,%s/lib' % get_package_dir(),
                   '-L%s/lib' % get_package_dir()] + ldargs
-        super(ClangCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
+        super(ClangCompiler, self).__init__("clang++", cppargs=cppargs, ldargs=ldargs)
+
     @property
     def _ivdep(self):
         return '#pragma ivdep'
+
 
 class IntelCompiler(Compiler):
     """A compiler object for the Intel compiler toolchain.
