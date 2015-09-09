@@ -105,31 +105,18 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     grid.calc_derivatives()
 
     # PDEs: momentum equations
-    eq1 = Eq(U.d[0][1], beta*(Txx.d[1][2] + Txy.d[2][2] + Txz.d[3][2]))
-    eq2 = Eq(V.d[0][1], beta*(Txy.d[1][2] + Tyy.d[2][2] + Tyz.d[3][2]))
-    eq3 = Eq(W.d[0][1], beta*(Txz.d[1][2] + Tyz.d[2][2] + Tzz.d[3][2]))
+    eq1 = Eq(U.d[0][1], beta*(Txx.d[1][1] + Txy.d[2][1] + Txz.d[3][1]))
+    eq2 = Eq(V.d[0][1], beta*(Txy.d[1][1] + Tyy.d[2][1] + Tyz.d[3][1]))
+    eq3 = Eq(W.d[0][1], beta*(Txz.d[1][1] + Tyz.d[2][1] + Tzz.d[3][1]))
     # PDEs: stress-strain equations
-    eq4 = Eq(Txx.d[0][1], (lam + 2*mu)*U.d[1][2] + lam*(V.d[2][2]+W.d[3][2]))
-    eq5 = Eq(Tyy.d[0][1], (lam + 2*mu)*V.d[2][2] + lam*(U.d[1][2]+W.d[3][2]))
-    eq6 = Eq(Tzz.d[0][1], (lam + 2*mu)*W.d[3][2] + lam*(U.d[1][2]+V.d[2][2]))
-    eq7 = Eq(Txy.d[0][1], mu*(U.d[2][2] + V.d[1][2]))
-    eq8 = Eq(Tyz.d[0][1], mu*(V.d[3][2] + W.d[2][2]))
-    eq9 = Eq(Txz.d[0][1], mu*(U.d[3][2] + W.d[1][2]))
+    eq4 = Eq(Txx.d[0][1], (lam + 2*mu)*U.d[1][1] + lam*(V.d[2][1]+W.d[3][1]))
+    eq5 = Eq(Tyy.d[0][1], (lam + 2*mu)*V.d[2][1] + lam*(U.d[1][1]+W.d[3][1]))
+    eq6 = Eq(Tzz.d[0][1], (lam + 2*mu)*W.d[3][1] + lam*(U.d[1][1]+V.d[2][1]))
+    eq7 = Eq(Txy.d[0][1], mu*(U.d[2][1] + V.d[1][1]))
+    eq8 = Eq(Tyz.d[0][1], mu*(V.d[3][1] + W.d[2][1]))
+    eq9 = Eq(Txz.d[0][1], mu*(U.d[3][1] + W.d[1][1]))
 
     grid.solve_fd([eq1, eq2, eq3, eq4, eq5, eq6, eq7, eq8, eq9])
-
-    Txx_expr = (lam + 2*mu)*U.d[1][1] + lam*(V.d[2][1]+W.d[3][1])
-    Txx.set_dt(Txx_expr)
-    Tyy_expr = (lam + 2*mu)*V.d[2][1] + lam*(U.d[1][1]+W.d[3][1])
-    Tyy.set_dt(Tyy_expr)
-    Tzz_expr = (lam + 2*mu)*W.d[3][1] + lam*(U.d[1][1]+V.d[2][1])
-    Tzz.set_dt(Tzz_expr)
-    Txy_expr = mu*(U.d[2][1] + V.d[1][1])
-    Txy.set_dt(Txy_expr)
-    Tyz_expr = mu*(V.d[3][1] + W.d[2][1])
-    Tyz.set_dt(Tyz_expr)
-    Txz_expr = mu*(U.d[3][1] + W.d[1][1])
-    Txz.set_dt(Txz_expr)
 
     grid.set_free_surface_boundary(dimension=1, side=0)
     grid.set_free_surface_boundary(dimension=1, side=1)
@@ -141,7 +128,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     return grid
 
 
-def default(compiler='g++', execute=False, nthreads=1, output=False):
+def default(compiler=None, execute=False, nthreads=1, output=False):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
@@ -153,14 +140,17 @@ def default(compiler='g++', execute=False, nthreads=1, output=False):
                        o_converge=True, omp=True, simd=False,
                        ivdep=True, filename=filename)
     grid.set_switches(output_vts=output)
-    grid.compile(filename, compiler=compiler, shared=False)
+    if compiler is None:
+        grid.generate(filename)
+    else:
+        grid.compile(filename, compiler=compiler, shared=False)
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename, compiler=compiler, nthreads=nthreads)
         grid.convergence()
 
 
-def read_data(compiler='g++', execute=False, nthreads=1, output=False):
+def read_data(compiler=None, execute=False, nthreads=1, output=False):
     """Test for model intialisation from input file
 
     Computes eigenwave on a unit cube grid (200 x 200 x 200)
@@ -175,7 +165,10 @@ def read_data(compiler='g++', execute=False, nthreads=1, output=False):
                        filename=filename, rho_file='RHOhomogx200',
                        vp_file='VPhomogx200', vs_file='VShomogx200')
     grid.set_switches(output_vts=output)
-    grid.compile(filename, compiler=compiler, shared=False)
+    if compiler is None:
+        grid.generate(filename)
+    else:
+        grid.compile(filename, compiler=compiler, shared=False)
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename, compiler=compiler, nthreads=nthreads)
@@ -249,7 +242,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                        formatter_class=RawTextHelpFormatter)
     p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
-    p.add_argument('-c', '--compiler', default='g++',
+    p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
     p.add_argument('-x', '--execute', action='store_true', default=False,
                    help='Dynamically execute the generated model')

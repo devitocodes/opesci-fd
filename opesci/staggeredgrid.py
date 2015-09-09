@@ -1,10 +1,12 @@
 from grid import Grid
 from variable import Variable
-from fields import Field, VField, get_ops_expr
-from codeprinter import ccode, render
+from fields import Media
+from codeprinter import ccode, render, ccode_eq
+from derivative import DDerivative
+from util import *
 from compilation import get_package_dir
 
-from sympy import Symbol, Rational, solve, expand
+from sympy import Symbol, Rational, solve, expand, Eq
 from mako.lookup import TemplateLookup
 import mmap
 from os import path
@@ -57,7 +59,7 @@ class StaggeredGrid(Grid):
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
                  'output_vts', 'converge']
 
-    def __init__(self, dimension, domain_size=None, grid_size=None,
+    def __init__(self, dimension, index=None, domain_size=None, grid_size=None,
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
                  expand=True, eval_const=True, output_vts=False, converge=False):
@@ -94,11 +96,17 @@ class StaggeredGrid(Grid):
                         int(self.size[k] /
                             (self.dim[k].value-1-self.margin.value*2)),
                         self.real_t, True) for k in range(self.dimension)]
-        # indices symbols, x1, x2 ...
-        self.index = [Symbol('x'+str(k+1)) for k in range(dimension)]
+
+        self.t = Symbol('t')
+        self.set_index(index)
+
         # default 2nd order in time, 4th order in space, i.e. (2,4) scheme
         default_accuracy = [1] + [2]*self.dimension
         self.set_accuracy(default_accuracy)
+
+        self.dt = Variable('dt', 0.01, self.real_t, True)
+        self.ntsteps = Variable('ntsteps', 100, 'int', True)
+        self.alignment = mmap.PAGESIZE  # default alignment for malloc
 
         # Optional further grid settings
         if stress_fields:
@@ -110,15 +118,10 @@ class StaggeredGrid(Grid):
         if grid_size:
             self.set_grid_size(grid_size)
 
-        self.t = Symbol('t')
-        self.dt = Variable('dt', 0.01, self.real_t, True)
-        self.ntsteps = Variable('ntsteps', 100, 'int', True)
-        self.alignment = mmap.PAGESIZE  # default alignment for malloc
-
         # user defined variables
         # use dictionary because of potential duplication
         self.defined_variable = {}
-
+        self.update_field_accuracy()
         self._update_spacing()
 
     @property
@@ -141,12 +144,21 @@ class StaggeredGrid(Grid):
         self.order = accuracy
         # periodicity for time stepping
         self.tp = Variable('tp', self.order[0]*2, 'int', True)
-        # add time variables for time stepping
+        # add time variables for time stepping: t0, t1 ...
         self.time = []
         for k in range(self.order[0]*2):
             name = 't' + str(k)
             v = Variable(name, 0, 'int', False)
             self.time.append(v)
+        self.update_field_accuracy()
+
+    def update_field_accuracy(self):
+        """
+        update the order of acuracy of the fields
+        """
+        if hasattr(self, 'sfields') and hasattr(self, 'vfields'):
+            for field in self.sfields + self.vfields:
+                field.set_accuracy(self.order)
 
     def set_switches(self, **kwargs):
         for switch, value in kwargs.items():
@@ -195,12 +207,21 @@ class StaggeredGrid(Grid):
 
         self._update_spacing()
 
-    def set_index(self, indices):
+    def set_index(self, index):
         """
         set indices of the grid
-        :param indices: list of symbols as indices, e.g. [t,x,y,z]
+        :param indices: list of symbols as indices, e.g. [x,y,z]
         """
-        self.index = indices
+        if index is None:
+            # default to indices symbols x1, x2 ...
+            self.index = [Symbol('x'+str(k+1)) for k in range(self.dimension)]
+        else:
+            self.index = index
+
+        if hasattr(self, 'sfields') and hasattr(self, 'vfields'):
+            for field in self.sfields + self.vfields:
+                # update the fields with new indices
+                field.set_indices([self.t]+self.index)
 
     def set_variable(self, var, value=0, type='int', constant=False):
         """
@@ -259,6 +280,8 @@ class StaggeredGrid(Grid):
             raise Exception('wrong number of stress fields: '
                             + str(num) + ' fields required.')
         self.sfields = sfields
+        for field in self.sfields:
+            field.set_spacing(variable_to_symbol([self.dt]+self.spacing))
 
     def set_velocity_fields(self, vfields):
         """
@@ -270,20 +293,15 @@ class StaggeredGrid(Grid):
             raise Exception('wrong number of velocity fields: '
                             + str(num) + ' fields required.')
         self.vfields = vfields
+        for field in self.vfields:
+            field.set_spacing(variable_to_symbol([self.dt]+self.spacing))
 
     def calc_derivatives(self):
         """
-        calculate the FD approximation of derivatives
-        save the calculated expressions in field.d lists
+        populate field.d lists with Derivative objects
         """
-        l = [self.dt] + self.spacing
         for field in self.sfields+self.vfields:
-            for k in range(self.dimension+1):
-                # loop through dimensions
-                h = Symbol(l[k].name)
-                for o in range(1, self.order[k]+1):
-                    # loop through order of derivatives
-                    field.calc_derivative([self.t]+self.index, k, h, o)
+            field.populate_derivatives(max_order=1)  # VS scheme only requare 1st derivatives
 
     def get_all_variables(self):
         """
@@ -294,7 +312,7 @@ class StaggeredGrid(Grid):
             + self.defined_variable.values()
         return variables
 
-    def solve_fd(self, eqs):
+    def solve_fd(self, equations):
         """
         - from the input PDEs, solve for the time stepping compuation kernel
         of all stress and velocity fields of the grid
@@ -303,36 +321,78 @@ class StaggeredGrid(Grid):
         containing Indexed objects
         need to pass one equation to eqch field to solve
         """
+        self.eq = []
+        # save the equation
+        for field, eq in zip(self.vfields+self.sfields, equations):
+            if self.read:
+                eq = eq.subs(self.media_dict)
+            field.set_dt(eq.rhs)
+            self.eq.append(eq)
+
+        # replace derivatives in equations with FD approximations
+        eqs = []
+        for eq in self.eq:
+            derivatives = get_all_objects(eq, DDerivative)
+            for deriv in derivatives:
+                # this might need changing for higher order scheme
+                eq = eq.subs(deriv, deriv.fd[deriv.max_accuracy])
+            eqs += [eq]
+
         t = self.t
         t1 = t+hf+(self.order[0]-1)  # the most advanced time index
         index = [t1] + self.index
-        self.eqs = eqs
-        # populate substitution dictionary if evluating constants in kernel
-        if self.eval_const:
-            dict1 = {}
-            variables = self.get_all_variables()
-            for v in variables:
-                if v.constant:
-                    dict1[Symbol(v.name)] = v.value
 
         for field, eq in zip(self.vfields+self.sfields, eqs):
             # want the LHS of express to be at time t+1
             kernel = solve(eq, field[index])[0]
             kernel = kernel.subs({t: t+1-hf-(self.order[0]-1)})
 
+            field.set_fd_kernel(kernel)
+
+    def create_const_dict(self):
+        """
+        create the dictionary of all constants with their values, store in self.const_dict
+        this is used to pre-evaluate all constants in the kernel (and bc)
+        """
+        dict1 = {}
+        variables = self.get_all_variables()
+        for v in variables:
+            if v.constant:
+                dict1[Symbol(v.name)] = v.value
+        self.const_dict = dict1
+
+    def transform_kernel(self, field):
+        """
+        transform the kernel of field based on setting of grid, such as expand, eval_const, read
+        """
+        kernel_new = field.kernel_aligned
+        if self.expand:
+            # expanding kernel (de-factorisation)
+            kernel_new = expand(kernel_new)
+
+        if self.eval_const:
+            # substitute constants with values
+            kernel_new = kernel_new.subs(self.const_dict)
+
+        return kernel_new
+
+    def transform_bc(self, field, dimension, side):
+        """
+        transform the bc[dimension][side] item of field based on setting of grid, such as expand, eval_const, read
+        """
+        bc_new_list = []
+        for bc in field.bc[dimension][side]:
+            bc_new = bc
             if self.expand:
                 # expanding kernel (de-factorisation)
-                kernel = expand(kernel)
+                bc_new = expand(bc_new)
 
             if self.eval_const:
                 # substitute constants with values
-                kernel = kernel.subs(dict1)
+                bc_new = bc_new.subs(self.const_dict)
 
-            if self.read:
-                # replace with effective media parameters
-                # if reading data from file (i.e. parameters not constant)
-                kernel = kernel.subs(field.media_param)
-            field.set_fd_kernel(kernel)
+            bc_new_list.append(bc_new)
+        return kernel_new
 
     def associate_fields(self):
         """
@@ -354,6 +414,11 @@ class StaggeredGrid(Grid):
                 raise Exception('error in field directions')
             v.associate_stress_fields(fields)
 
+        # all stress fields
+        fields = [None] + [f for f in self.sfields if f.direction[0] == f.direction[1]]
+        for s in fields[1:]:
+            s.associate_stress_fields(fields)
+
     def set_free_surface_boundary(self, dimension, side):
         """
         set free surface boundary condition
@@ -364,16 +429,11 @@ class StaggeredGrid(Grid):
         side=0 for bottom surface, side=1 for top surface
         """
         self.associate_fields()
-        index = [self.t] + self.index
         for field in self.sfields+self.vfields:
             if side == 0:
-                field.set_free_surface(index, dimension,
-                                       self.margin.value, side, self.read)
+                field.set_free_surface(dimension, self.margin.value, side)
             else:
-                field.set_free_surface(index, dimension,
-                                       self.dim[dimension-1]
-                                       - self.margin.value - 1,
-                                       side, self.read)
+                field.set_free_surface(dimension, self.dim[dimension-1]-self.margin.value-1, side)
 
     def set_media_params(self, read=False, rho=1.0, vp=1.0, vs=0.5,
                          rho_file='', vp_file='', vs_file=''):
@@ -396,19 +456,28 @@ class StaggeredGrid(Grid):
             self.vp_file = vp_file
             self.vs_file = vs_file
             # input data
-            self.rho = Field('rho')  # field to store rho
-            self.vp = Field('vp')  # field to store vp
-            self.vs = Field('vs')  # field to store vs
+            # field to store rho
+            self.rho = Media('rho', dimension=3, staggered=[False, False, False], index=self.index)
+            # field to store vp
+            self.vp = Media('vp', dimension=3, staggered=[False, False, False], index=self.index)
+            # field to store vs
+            self.vs = Media('vs', dimension=3, staggered=[False, False, False], index=self.index)
+
             # calculated from input data
             # list of fields to store beta (buoyancy and effective buoyancy)
-            self.beta = [Field('beta')]\
-                + [Field('beta'+str(k+1)) for k in range(self.dimension)]
-            self.lam = Field('lambda')  # field to store lambda
+            self.beta = [Media('beta', dimension=3, staggered=[False, False, False], index=self.index),
+                         Media('beta1', dimension=3, staggered=[False, False, False], index=self.index),
+                         Media('beta2', dimension=3, staggered=[False, False, False], index=self.index),
+                         Media('beta3', dimension=3, staggered=[False, False, False], index=self.index)]
+            # field to store lambda
+            self.lam = Media('lambda', dimension=3, staggered=[False, False, False], index=self.index)
             # list of fields to store mu
             # (shear modulus and effective shear modulus)
-            self.mu = [Field('mu')] + [Field('mu12'), Field('mu13'),
-                                       Field('mu23')]
-            self.assign_media_param()
+            self.mu = [Media('mu', dimension=3, staggered=[False, False, False], index=self.index),
+                       Media('mu12', dimension=3, staggered=[False, False, False], index=self.index),
+                       Media('mu13', dimension=3, staggered=[False, False, False], index=self.index),
+                       Media('mu23', dimension=3, staggered=[False, False, False], index=self.index)]
+            self.create_media_dict()
 
         else:
             self.set_variable('rho', rho, 'float', True)
@@ -416,72 +485,75 @@ class StaggeredGrid(Grid):
             self.set_variable('lambda', rho*(vp**2-2*vs**2), 'float', True)
             self.set_variable('mu', rho*(vs**2), 'float', True)
 
-    def assign_media_param(self):
+    def create_media_dict(self):
         """
-        - assign media parameters (beta, lambda, mu)
-        to the stress fields and velocity fields
-        - decide which media parameters should be used for the updating kernel
-        - create dictionary used to map the parameters
+        create the dictionary of media parameters (for reading data)
+        the parameter symbols in PDEs are substituted with Media objects
         """
-        for f in self.vfields + self.sfields:
-            if isinstance(f, VField):
-                if f.staggered[1]:
-                    # Vx
-                    f.set_media_param({Symbol('beta'):
-                                       self.beta[1][self.index],
-                                       Symbol('lambda'):
-                                       self.lam[self.index],
-                                       Symbol('mu'):
-                                       self.mu[0][self.index]})
-                elif f.staggered[2]:
-                    # Vy
-                    f.set_media_param({Symbol('beta'):
-                                       self.beta[2][self.index],
-                                       Symbol('lambda'):
-                                       self.lam[self.index],
-                                       Symbol('mu'):
-                                       self.mu[0][self.index]})
-                else:
-                    # Vz
-                    f.set_media_param({Symbol('beta'):
-                                       self.beta[3][self.index],
-                                       Symbol('lambda'):
-                                       self.lam[self.index],
-                                       Symbol('mu'):
-                                       self.mu[0][self.index]})
+        self.media_dict = {Symbol('beta'): self.beta[0][self.index],
+                           Symbol('lambda'): self.lam[self.index],
+                           Symbol('mu'): self.mu[0][self.index]}
+
+    def resolve_individual_media_param(self, expr):
+        """
+        map individual media parameter to the effective media parameter
+        """
+        idx = list(expr.indices)
+        if str(expr.base.label) == 'beta':
+            if is_half(idx[0]):
+                # replace with beta1
+                idx[0] -= hf
+                return self.beta[1][idx]
+            elif is_half(idx[1]):
+                # replace with beta2
+                idx[1] -= hf
+                return self.beta[2][idx]
+            elif is_half(idx[2]):
+                # replace with beta1
+                idx[2] -= hf
+                return self.beta[3][idx]
             else:
-                if f.staggered[1] and f.staggered[2]:
-                    # Txy
-                    f.set_media_param({Symbol('beta'):
-                                       self.beta[0][self.index],
-                                       Symbol('lambda'):
-                                       self.lam[self.index],
-                                       Symbol('mu'):
-                                       self.mu[1][self.index]})
-                elif f.staggered[1] and f.staggered[3]:
-                    # Txz
-                    f.set_media_param({Symbol('beta'):
-                                       self.beta[0][self.index],
-                                       Symbol('lambda'):
-                                       self.lam[self.index],
-                                       Symbol('mu'):
-                                       self.mu[2][self.index]})
-                elif f.staggered[2] and f.staggered[3]:
-                    # Tyz
-                    f.set_media_param({Symbol('beta'):
-                                       self.beta[0][self.index],
-                                       Symbol('lambda'):
-                                       self.lam[self.index],
-                                       Symbol('mu'):
-                                       self.mu[3][self.index]})
+                return expr
+        if str(expr.base.label) == 'mu':
+            if is_half(idx[0]):
+                idx[0] -= hf
+                if is_half(idx[1]):
+                    # replace with mu12
+                    idx[1] -= hf
+                    return self.mu[1][idx]
                 else:
-                    # Txx, Tyy, Tzz
-                    f.set_media_param({Symbol('beta'):
-                                       self.beta[0][self.index],
-                                       Symbol('lambda'):
-                                       self.lam[self.index],
-                                       Symbol('mu'):
-                                       self.mu[0][self.index]})
+                    # replace with m13
+                    idx[2] -= hf
+                    return self.mu[2][idx]
+            elif is_half(idx[1]):
+                # replace with mu23
+                idx[1] -= hf
+                idx[2] -= hf
+                return self.mu[3][idx]
+            else:
+                return expr
+        return expr
+
+    def resolve_media_params(self, expr):
+        """
+        resolve the media parameters in a kernel by replacing with effective media parameters
+        e.g. mu[x,y+1/2,z+1/2] replaced with mu23[x,y,z]
+        """
+        if expr.is_Equality:
+            rhs = self.resolve_media_params(expr.rhs)
+            return Eq(expr.lhs, rhs)
+        if expr.is_Symbol or expr.is_Number:
+            return expr
+        if isinstance(expr, Indexed):
+            b = expr.base
+            if not (isinstance(b, Media)):
+                return expr
+            else:
+                return self.resolve_individual_media_param(expr)
+
+        args = tuple([self.resolve_media_params(arg) for arg in expr.args])
+        result = expr.func(*args)
+        return result
 
     def get_velocity_kernel_ai(self):
         """
@@ -493,13 +565,15 @@ class StaggeredGrid(Grid):
         - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
         - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
         """
+        if self.eval_const:
+            self.create_const_dict()
         store = 0
         add = 0
         mul = 0
         arrays = []  # to store name of arrays loaded
         for field in self.vfields:
             store += 1  # increment STORE by 1 (assignment)
-            expr = field.fd_align
+            expr = self.transform_kernel(field)
             add2, mul2, arrays2 = get_ops_expr(expr, arrays)
             add += add2  # accumulate # ADD
             mul += mul2  # accumulate # MUL
@@ -524,13 +598,15 @@ class StaggeredGrid(Grid):
         - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
         - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
         """
+        if self.eval_const:
+            self.create_const_dict()
         store = 0
         add = 0
         mul = 0
         arrays = []  # to store name of arrays loaded
         for field in self.sfields:
             store += 1  # increment STORE by 1 (assignment)
-            expr = field.fd_align
+            expr = self.transform_kernel(field)
             add2, mul2, arrays2 = get_ops_expr(expr, arrays)
             add += add2  # accumulate # ADD
             mul += mul2  # accumulate # MUL
@@ -779,11 +855,11 @@ class StaggeredGrid(Grid):
                     t0 = self.dt.value/2 if field.staggered[0] else 0
                     sol = field.sol.subs(self.t, t0)
                     if self.read:
-                        sol = sol.subs(field.media_param)
+                        sol = sol.subs(self.media_dict)
+                        sol = self.resolve_media_params(sol)
                         for idx in self.index:
                             sol = sol.subs(idx, '_'+idx.name)
-                    body = ccode(field[[0]+loop]) + '=' \
-                        + ccode(sol) + ';\n'
+                    body = ccode(field[[0]+loop]) + '=' + ccode(sol) + ';\n'
                 body = pre + body + post
                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
                 body = render(tmpl, dict1)
@@ -799,7 +875,7 @@ class StaggeredGrid(Grid):
         replace array indices [t] with [0]
         - return generated code as string
         """
-        result = self.stress_bc.replace('[t1]', '[0]')
+        result = self.stress_bc_getter(init=True).replace('[t1]', '[0]')
         result += self.velocity_bc.replace('[t1]', '[0]')
         return result
 
@@ -813,6 +889,8 @@ class StaggeredGrid(Grid):
         return generated code as string
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
+        if self.eval_const:
+            self.create_const_dict()
         m = self.margin.value
         body = ''
         for d in range(self.dimension-1, -1, -1):
@@ -823,12 +901,11 @@ class StaggeredGrid(Grid):
                 # inner loop
                 idx = [self.time[1]] + self.index
                 for field in self.sfields:
+                    kernel = self.transform_kernel(field)
+                    if self.read:
+                        kernel = self.resolve_media_params(kernel)
                     body += ccode(field[idx]) + '=' \
-                        + ccode(field.fd_align.xreplace({self.t+1:
-                                                        self.time[1],
-                                                        self.t:
-                                                        self.time[0]})) \
-                        + ';\n'
+                        + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
@@ -851,6 +928,8 @@ class StaggeredGrid(Grid):
         return generated code as string
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
+        if self.eval_const:
+            self.create_const_dict()
         m = self.margin.value
         body = ''
         for d in range(self.dimension-1, -1, -1):
@@ -861,12 +940,11 @@ class StaggeredGrid(Grid):
                 # inner loop
                 idx = [self.time[1]] + self.index
                 for field in self.vfields:
+                    kernel = self.transform_kernel(field)
+                    if self.read:
+                        kernel = self.resolve_media_params(kernel)
                     body += ccode(field[idx]) + '=' \
-                        + ccode(field.fd_align.xreplace({self.t+1:
-                                                        self.time[1],
-                                                        self.t:
-                                                        self.time[0]})) \
-                        + ';\n'
+                        + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
@@ -881,20 +959,29 @@ class StaggeredGrid(Grid):
 
     @property
     def stress_bc(self):
+        return self.stress_bc_getter()
+
+    def stress_bc_getter(self, init=False):
         """
         generate code for updating stress field boundary ghost cells
         - generate inner loop by inserting boundary code (saved in field.bc)
         - recursive insertion to generate nested loop
         - loop through all stress fields and sides
+        - if init=True (initialisation), no need to generate code to overwrite Txx, Tyy, Tzz
         return generated code as string
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
         result = ''
         for field in self.sfields:
+            # normal stress, not shear stress
+            normal = field.direction[0] == field.direction[1]
             for d in range(self.dimension):
+                if init and normal and (not field.direction[0] == d+1):
+                    # skip re-calc Txx, Tyy at z plane etc, when initialisation
+                    continue
                 for side in range(2):
                     # skip if this boundary calculation is not needed
-                    if field.bc[d+1][side] == '':
+                    if field.bc[d+1][side] == []:
                         continue
                     if self.omp:
                         result += '#pragma omp for\n'
@@ -903,24 +990,36 @@ class StaggeredGrid(Grid):
                         # loop through other dimensions
                         if not d2 == d:
                             i = self.index[d2]
-                            i0 = 0
-                            i1 = self.dim[d2]
+                            if normal:
+                                if field.direction[0] == d+1:
+                                    # Txx in x plane
+                                    i0 = 0
+                                    i1 = self.dim[d2]
+                                else:
+                                    # Txx in y, z plane
+                                    i0 = self.margin.value+1
+                                    i1 = self.dim[d2]-self.margin.value-1
+                            else:
+                                i0 = 0
+                                i1 = self.dim[d2]
                             if body == '':
                                 # inner loop, populate ghost cell calculation
-                                body = field.bc[d+1][side]
+                                # body = field.bc[d+1][side]
+                                if self.read:
+                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in field.bc[d+1][side])
+                                else:
+                                    body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t]',
-                                                                   '[t1]')
+                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
                                 if self.ivdep:
-                                    body = '%s\n' % self.compiler._ivdep + body
+                                    body = '#pragma ivdep\n' + body
                                 if self.simd:
                                     body = '#pragma simd\n' + body
                             else:
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t]',
-                                                                   '[t1]')
+                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
 
                     result += body
 
@@ -958,20 +1057,20 @@ class StaggeredGrid(Grid):
                             i1 = self.dim[d2]-1
                             if body == '':
                                 # inner loop, populate ghost cell calculation
-                                body = field.bc[d+1][side]
-                                dict1 = {'i': i, 'i0': i0,
-                                         'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t]',
-                                                                   '[t1]')
+                                # body = field.bc[d+1][side]
+                                if self.read:
+                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in field.bc[d+1][side])
+                                else:
+                                    body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
+                                dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
+                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
                                 if self.ivdep:
                                     body = '%s\n' % self.compiler._ivdep + body
                                 if self.simd:
                                     body = '#pragma simd\n' + body
                             else:
-                                dict1 = {'i': i, 'i0': i0,
-                                         'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t]',
-                                                                   '[t1]')
+                                dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
+                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
 
                     result += body
 
