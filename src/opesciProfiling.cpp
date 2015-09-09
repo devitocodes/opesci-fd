@@ -63,7 +63,7 @@ int opesci_papi_start_counters(int numevents, int *events) {
     printf(OPESCI_PAPI_WARN);
   }
   int err = PAPI_start_counters(events, numevents);
-  if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
+  if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
 #else
   printf(OPESCI_PAPI_MISSING);
 #endif
@@ -80,7 +80,7 @@ int opesci_papi_name2event(char *name, int *event) {
 int opesci_papi_read_counters(int numevents, long long *counters) {
 #if defined(OPESCI_HAVE_PAPI)
   int err = PAPI_read_counters(counters, numevents);
-  if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
+  if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
 #else
   printf(OPESCI_PAPI_MISSING);
 #endif
@@ -89,7 +89,7 @@ int opesci_papi_read_counters(int numevents, long long *counters) {
 void opesci_flops(float *rtime, float *ptime, long long *flpins, float *mflops) {
 #if defined(OPESCI_HAVE_PAPI)
   int err = PAPI_flops(rtime, ptime, flpins, mflops);
-  if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
+  if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
 #else
   printf(OPESCI_PAPI_MISSING);
 #endif
