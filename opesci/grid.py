@@ -1,6 +1,6 @@
 from compilation import GNUCompiler, IntelCompiler, ClangCompiler
 from codeprinter import ccode
-
+import subprocess
 from StringIO import StringIO
 from mako.runtime import Context
 from ctypes import cdll, Structure, POINTER, c_float, pointer, c_longlong
@@ -171,3 +171,23 @@ You need to you run grid.execute() first!""")
         opesci_convergence(pointer(self._arg_grid), pointer(arg_conv))
         for field, _ in arg_conv._fields_:
             print "%s: %.10f" % (field, getattr(arg_conv, field))
+
+    def pluto_op(self, filename):
+        out = filename.split('.')[0]+"_pluto.c"
+        cc = 'polycc %s --tile --parallel'%filename + " -o " +out
+        subprocess.check_call(cc,shell=True)
+        with file('%s.log' % filename, 'w') as logfile:
+            logfile.write("Compiling: %s\n" % " ".join(cc))
+            try:
+                subprocess.check_call(cc, shell=True, stdout=logfile, stderr=logfile)
+            except OSError:
+                err = """OSError during compilation""" 
+                raise RuntimeError(err)
+            except subprocess.CalledProcessError:
+                err = """Error during compilation:
+Compilation command: %s
+Source file: %s
+Log file: %s""" % (" ".join(cc), src, logfile.name)
+                raise RuntimeError(err)
+        
+        return out

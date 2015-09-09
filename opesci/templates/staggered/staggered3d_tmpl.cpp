@@ -13,6 +13,9 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+% if pluto==True:
+<%include file ="pluto_include.txt"/>
+% endif
 
 extern "C" struct OpesciGrid {
 ${define_fields}

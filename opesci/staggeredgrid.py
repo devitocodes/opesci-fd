@@ -68,9 +68,14 @@ class StaggeredGrid(Grid):
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
                  expand=True, eval_const=True, output_vts=False,
-                 converge=False, profiling=False):
+                 converge=False, profiling=False, pluto=False):
+
         self.dimension = dimension
 
+        if(pluto):
+            print "---------------------------------"
+            self.template_keys.append('pluto')
+        
         template_dir = path.join(get_package_dir(), "templates")
         staggered_dir = path.join(get_package_dir(), "templates/staggered")
         self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
@@ -80,6 +85,7 @@ class StaggeredGrid(Grid):
         self.vfields = []
 
         # Switches
+        self.pluto = pluto
         self.omp = omp
         self.ivdep = ivdep
         self.simd = simd
@@ -915,12 +921,15 @@ class StaggeredGrid(Grid):
                         + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
-            if self.ivdep and d == self.dimension-1:
+            if not self.pluto and self.ivdep and d == self.dimension-1:
                     body = '%s\n' % self.compiler._ivdep + body
-            if self.simd and d == self.dimension-1:
+            if not self.pluto and self.simd and d == self.dimension-1:
                     body = '#pragma simd\n' + body
 
-        if self.omp:
+        if self.pluto:
+            body = '#pragma scop\n'+body
+            body += '#pragma endscop'
+        elif self.omp:
             body = '#pragma omp for\n' + body
 
         return body
