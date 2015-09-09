@@ -157,6 +157,7 @@ class StaggeredGrid(Grid):
             name = 't' + str(k)
             v = Variable(name, 0, 'int', False)
             self.time.append(v)
+        self.margin.value = self.order[1]
         self.update_field_accuracy()
 
     def update_field_accuracy(self):
@@ -435,12 +436,16 @@ class StaggeredGrid(Grid):
         :param side: the side of the surface
         side=0 for bottom surface, side=1 for top surface
         """
+        algo = 0
+        if self.order[dimension] > 2:
+            # using different algorithm for free surface for higher order (>4)
+            algo = 1
         self.associate_fields()
         for field in self.sfields+self.vfields:
             if side == 0:
-                field.set_free_surface(dimension, self.margin.value, side)
+                field.set_free_surface(dimension, self.margin.value, side, algo)
             else:
-                field.set_free_surface(dimension, self.dim[dimension-1]-self.margin.value-1, side)
+                field.set_free_surface(dimension, self.dim[dimension-1]-self.margin.value-1, side, algo)
 
     def set_media_params(self, read=False, rho=1.0, vp=1.0, vs=0.5,
                          rho_file='', vp_file='', vs_file=''):

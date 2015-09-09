@@ -201,51 +201,70 @@ class VField(Field):
         staggered[direction] = True
         Field.set(self, dimension, staggered)
 
-    def set_free_surface(self, d, b, side):
+    def set_free_surface(self, d, b, side, algo=0):
         """
         - set free surface boundary condition to boundary d, at index b
         :param d: direction of the boundary surface normal
         :param b: location of the boundary (index)
         :param side: lower boundary (0) or upper boundary (1)
+        :param algo: which algorithm to use to compute ghost cells
         - e.g. set_free_surface([t,x,y,z],1,2,0)
         set y-z plane at x=2 to be lower free surface
         - ghost cells are calculated using reflection of stress fields
         - store the symbolic equations to populate ghost cells in self.bc
         """
-        # use this stress field to solve for ghost cell expression
-        field = self.sfields[d]
-        expr = field.dt
-        idx = list(self.indices)
-        # create substituion dictionary
-        dict1 = {}
-        derivatives = get_all_objects(expr, DDerivative)
-        for deriv in derivatives:
-            # using 2nd order approximation
-            dict1[deriv] = deriv.fd[1]
-        expr = expr.subs(dict1)
-        if self.staggered[d]:
-            # if staggered, solve ghost cell using T'[b]=0 (e.g. W at z surface, using Tzz)
-            eq = Eq(expr)
-            shift = hf
-            t = b - hf  # real boundary location
-        else:
-            # if not staggered, solve ghost cell using T'[b-1/2]=T'[b+1/2] (e.g. U at z surface, using Txz)
-            eq = Eq(expr.subs(idx[d], idx[d]-hf),
-                    expr.subs(idx[d], idx[d]+hf))
-            shift = 1
-            t = b
+        if algo == 0:
+            # use this stress field to solve for ghost cell expression
+            field = self.sfields[d]
+            expr = field.dt
+            idx = list(self.indices)
+            # create substituion dictionary
+            dict1 = {}
+            derivatives = get_all_objects(expr, DDerivative)
+            for deriv in derivatives:
+                # using 2nd order approximation
+                dict1[deriv] = deriv.fd[1]
+            expr = expr.subs(dict1)
+            if self.staggered[d]:
+                # if staggered, solve ghost cell using T'[b]=0 (e.g. W at z surface, using Tzz)
+                eq = Eq(expr)
+                shift = hf
+                t = b - hf  # real boundary location
+            else:
+                # if not staggered, solve ghost cell using T'[b-1/2]=T'[b+1/2] (e.g. U at z surface, using Txz)
+                eq = Eq(expr.subs(idx[d], idx[d]-hf),
+                        expr.subs(idx[d], idx[d]+hf))
+                shift = 1
+                t = b
 
-        idx[d] -= ((-1)**side)*shift
-        lhs = self[idx]
-        rhs = solve(eq, lhs)[0]
-        lhs = lhs.subs(self.indices[d], t)
-        rhs = self.align(rhs.subs(self.indices[d], t))
+            idx[d] -= ((-1)**side)*shift
+            lhs = self[idx]
+            rhs = solve(eq, lhs)[0]
+            lhs = lhs.subs(self.indices[d], t)
+            rhs = self.align(rhs.subs(self.indices[d], t))
 
-        # change ti to t+1
-        lhs = lhs.subs(idx[0], idx[0]+1)
-        rhs = rhs.subs(idx[0], idx[0]+1)
+            # change ti to t+1
+            lhs = lhs.subs(idx[0], idx[0]+1)
+            rhs = rhs.subs(idx[0], idx[0]+1)
 
-        self.bc[d][side] = [Eq(lhs, rhs)]
+            self.bc[d][side] = [Eq(lhs, rhs)]
+        elif algo == 1:
+            idx = list(self.indices)
+            if self.staggered[d]:
+                # e.g. W at z boundary
+                idx[d] = b - (1-side)
+            else:
+                # e.g. U at z boundary
+                idx[d] = b - (-1)**side
+            eq = Eq(self[idx])
+            eq = eq.subs(idx[0], idx[0]+1)
+            self.bc[d][side] = [eq]
+            # populate all ghost cells
+            for depth in range(self.accuracy[d]-1):
+                idx[d] -= (-1)**side
+                eq = Eq(self[idx])
+                eq = eq.subs(idx[0], idx[0]+1)
+                self.bc[d][side].append(eq)
 
 
 class SField(Field):
@@ -278,7 +297,7 @@ class SField(Field):
                 staggered[direction[i]] = True
             Field.set(self, dimension, staggered)
 
-    def set_free_surface(self, d, b, side):
+    def set_free_surface(self, d, b, side, algo=0):
         """
         set free surface boundary condition to boundary d, at index b
         :param indices: list of indices, e.g. [t,x,y,z] for 3D
@@ -291,8 +310,9 @@ class SField(Field):
         store the code to populate ghost cells to self.bc
         """
         idx = list(self.indices)
+
         if d not in self.direction:
-            if not self.direction[0] == self.direction[1]:
+            if (not algo == 0) or (not self.direction[0] == self.direction[1]):
                 # shear stress, e.g. Tyz no need to recalculate at x boundary (only depends on dV/dz and dW/dy)
                 self.bc[d][side] = []
                 return
@@ -333,6 +353,9 @@ class SField(Field):
                 self.bc[d][side] = [eq2]
                 return
 
+        # use anti-symmetry to ensure stress at boundary=0
+        # apply for all algorithms
+
         idx = list(self.indices)  # ghost cell
         idx2 = list(self.indices)  # cell inside domain
 
@@ -346,15 +369,17 @@ class SField(Field):
             idx[d] = b - (1-side)
             idx2[d] = idx[d] + (-1)**side
             eq1 = Eq(self[idx], -self[idx2])
-
-        idx[d] -= (-1)**side
-        idx2[d] += (-1)**side
-        eq2 = Eq(self[idx], -self[idx2])
-        # change t to t+1
         eq1 = eq1.subs(idx[0], idx[0]+1)
-        eq2 = eq2.subs(idx[0], idx[0]+1)
-        # self.bc[d][side] = ccode_eq(eq1) + ';\n' + ccode_eq(eq2) + ';\n'
-        self.bc[d][side] = [eq1, eq2]
+        self.bc[d][side] = [eq1]
+
+        for depth in range(self.accuracy[d]-1):
+            # populate ghost cells
+            idx[d] -= (-1)**side
+            idx2[d] += (-1)**side
+            eq = Eq(self[idx], -self[idx2])
+            # change t to t+1
+            eq = eq.subs(idx[0], idx[0]+1)
+            self.bc[d][side].append(eq)
 
 
 class Media(IndexedBase):
