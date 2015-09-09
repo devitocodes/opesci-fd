@@ -51,7 +51,7 @@ class StaggeredGrid(Grid):
     """
     template_base = 'staggered3d_tmpl.cpp'
 
-    template_keys = ['io', 'profiling',
+    template_keys = ['io', 'profiling', 'numevents_papi',
                      'time_stepping', 'define_constants', 'declare_fields',
                      'define_fields', 'store_fields', 'load_fields',
                      'initialise', 'initialise_bc', 'stress_loop',
@@ -1211,12 +1211,15 @@ class StaggeredGrid(Grid):
         return code
 
     @property
+    def numevents_papi(self):
+        return len(self._papi_events)
+
+    @property
     def define_papi_events(self):
         """Code fragment that starts PAPI counters for specified events"""
-        numevents = len(self._papi_events)
-        code = 'int numevents = %d;\n' % numevents
-        code += 'int events[%d];\n' % numevents
-        code += 'long long counters[%d];\n' % numevents
+        code = 'int numevents = %d;\n' % self.numevents_papi
+        code += 'int events[%d];\n' % self.numevents_papi
+        code += 'long long counters[%d];\n' % self.numevents_papi
         code += '\n'.join(['opesci_papi_name2event("%s", &(events[%d]));' % (e, i)
                           for i, e in enumerate(self._papi_events)])
         return code
