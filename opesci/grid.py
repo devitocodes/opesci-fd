@@ -1,4 +1,4 @@
-from compilation import GNUCompiler, IntelCompiler
+from compilation import GNUCompiler, IntelCompiler, ClangCompiler
 from codeprinter import ccode
 
 from StringIO import StringIO
@@ -58,6 +58,8 @@ class Grid(object):
             self._compiler = GNUCompiler()
         elif compiler in ['icpc', 'intel']:
             self._compiler = IntelCompiler()
+        elif compiler in ['clang', 'clang++']:
+            self._compiler = ClangCompiler()
         else:
             raise ValueError("Unknown compiler.")
 
