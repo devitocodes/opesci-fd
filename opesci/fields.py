@@ -222,12 +222,6 @@ class VField(Field):
         for deriv in derivatives:
             # using 2nd order approximation
             dict1[deriv] = deriv.fd[1]
-            # if deriv.var == idx[self.direction]:
-            #     # e.g. using 2nd order approximation for dW/dz at z surface
-            #     dict1[deriv] = deriv.fd[1]
-            # else:
-            #     # e.g. using 4th order approximation for dU/dz at z surface
-            #     dict1[deriv] = deriv.fd[2]
         expr = expr.subs(dict1)
         if self.staggered[d]:
             # if staggered, solve ghost cell using T'[b]=0 (e.g. W at z surface, using Tzz)
@@ -246,11 +240,7 @@ class VField(Field):
         rhs = solve(eq, lhs)[0]
         lhs = lhs.subs(self.indices[d], t)
         rhs = self.align(rhs.subs(self.indices[d], t))
-        # # if read data from file, replace media parameters with array
-        # # replace particular index with boundary
-        # if read:
-        #     rhs = rhs.subs(self.media_param)
-        #     rhs = rhs.subs(self.indices[d], b)
+
         # change ti to t+1
         lhs = lhs.subs(idx[0], idx[0]+1)
         rhs = rhs.subs(idx[0], idx[0]+1)

@@ -33,24 +33,26 @@ code run:
 python tests/eigenwave3d.py
 ```
 
-This will generate the mode source code in `tests/src/eigenwave3d.cpp`,
-as well as the compiled executable `tests/src/eigenwave3d`. The
-generated binary can now be executed with:
-```
-cd tests/src
-./eigenwave3d
-```
+This will generate the mode source code in `tests/src/eigenwave3d.cpp`.
+The source code can be compiled and executed either manually or 
+automatically.
 
-##### Automatic execution
+##### Automatic compilation and execution
 
-Opesci-FD also provides automatic compilation and execution that
-allows developers to test their code directly from the Python
-environment. To execute the above test case in parallel run:
+Opesci-FD provides automatic compilation and execution that allows 
+developers to test their code directly from the Python environment. 
+To compile the generted souce code:
+```
+python tests/eigenwave3d.py --compiler <cc>
+```
+where `<cc>` is either `g++` or `icpc`, indicating which compiler to
+use.
+To compile and execute the above test case in parallel run:
 ```
 python tests/eigenwave3d.py --compiler <cc> --execute --nthreads <nt>
 ```
-where `<cc>` is either `g++` or `icpc` and `<nt>` is the number of
-threads to use during execution. For additional options please see:
+where `<nt>` is the number of threads to use during execution. 
+For additional options please see:
 ```
 python tests/eigenwave3d.py --help
 ```
