@@ -3,6 +3,10 @@ python:
     - "2.7"
 
 before_install:
+    - sudo apt-get install texinfo
+    - sudo apt-get install  libgmp3-dev
+    - wget http://sourceforge.net/projects/pluto-compiler/files/pluto-0.11.3.tar.gz
+    - tar zxvf pluto-0.11.3.tar.gz
     - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
     - sudo apt-get update -qq
     - sudo apt-get install -y libvtk5-dev libvtk5.8
@@ -10,6 +14,12 @@ before_install:
     - sudo apt-get install clang
 
 install:
+    - cd pluto-0.11.3
+    - ./configure
+    - make -j4
+    - chmod +x polycc
+    - export PATH=$PATH:`pwd`
+    - cd ..
     - pip install -r requirements.txt
     - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
     - python setup.py build_clib --build-clib=`pwd`
@@ -18,11 +28,7 @@ script:
     - export PYTHONPATH=`pwd`:$PYTHONPATH
     - flake8 opesci
     - flake8 tests
-    - python tests/eigenwave3d.py default --compiler=g++ --execute --nthreads=4
-    - OMP_NUM_THREADS=4 tests/src/eigenwave3d
-    - python tests/eigenwave3d.py default --compiler=g++ --output
-    - python tests/eigenwave3d.py read --compiler=g++
-    - python tests/eigenwave3d.py default --execute --compiler clang --nthreads=1
-    - OMP_NUM_THREADS=1 tests/src/eigenwave3d
+    - python tests/eigenwave3d.py pluto --execute --nthreads=4
+    - OMP_NUM_THREADS=4 tests/src/eigenwave3d_pluto
     - python tests/eigenwave3d.py default --output
     - python tests/eigenwave3d.py read
