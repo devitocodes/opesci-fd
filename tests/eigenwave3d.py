@@ -152,7 +152,8 @@ def default(compiler=None, execute=False, nthreads=1,
         grid.convergence()
 
 
-def pluto(compiler='g++', execute=False, nthreads=1, output=False):
+def pluto(compiler=None, execute=False, nthreads=1,
+          output=False, profiling=False, papi_events=[]):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
@@ -163,9 +164,9 @@ def pluto(compiler='g++', execute=False, nthreads=1, output=False):
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        o_converge=True, omp=True, simd=False,
                        ivdep=True, filename=filename, pluto=True)
-
-    grid.set_switches(output_vts=output)
-    grid.compile(filename, compiler=compiler, shared=False)
+    grid.set_switches(output_vts=output, profiling=profiling)
+    grid.set_papi_events(papi_events)
+    grid.generate(filename, compiler=compiler)
     filename_p = grid.pluto_op(filename)
     grid.src_file = filename_p
     if compiler in ['clang', 'clang++']:
@@ -177,7 +178,6 @@ def pluto(compiler='g++', execute=False, nthreads=1, output=False):
             fout.writelines(data[1:])
     grid.compile(filename_p, compiler=compiler, shared=False)
     if execute:
-        print 'executing'
         # Test Python-based execution for the base test
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
         grid.convergence()
@@ -308,7 +308,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         cx1()
     elif args.mode == 'pluto':
         pluto(compiler=args.compiler, execute=args.execute,
-              nthreads=args.nthreads, output=args.output)
+              nthreads=args.nthreads, output=args.output,
+              profiling=args.profiling, papi_events=args.papi_events)
 
 if __name__ == "__main__":
     main()

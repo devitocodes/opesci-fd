@@ -51,7 +51,7 @@ class StaggeredGrid(Grid):
     """
     template_base = 'staggered3d_tmpl.cpp'
 
-    template_keys = ['io', 'profiling', 'numevents_papi',
+    template_keys = ['pluto', 'io', 'profiling', 'numevents_papi',
                      'time_stepping', 'define_constants', 'declare_fields',
                      'define_fields', 'store_fields', 'load_fields',
                      'initialise', 'initialise_bc', 'stress_loop',
@@ -71,9 +71,6 @@ class StaggeredGrid(Grid):
                  converge=False, profiling=False, pluto=False):
 
         self.dimension = dimension
-
-        if(pluto):
-            self.template_keys.append('pluto')
 
         template_dir = path.join(get_package_dir(), "templates")
         staggered_dir = path.join(get_package_dir(), "templates/staggered")

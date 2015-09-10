@@ -39,4 +39,3 @@ script:
     - python tests/eigenwave3d.py pluto --execute --nthreads=4
     - OMP_NUM_THREADS=4 tests/src/eigenwave3d_pluto
     - python tests/eigenwave3d.py pluto --output
-    - python tests/eigenwave3d.py read
