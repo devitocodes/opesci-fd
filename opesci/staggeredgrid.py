@@ -47,22 +47,28 @@ class StaggeredGrid(Grid):
     * eval_const: evaluate all constants in kernel in generated code default True
     * output_vts: Output solution fields at every timestep
     * converge: Generate code for computing analutical solution and L2 norms
+    * profiling: Generate code for gathering profiling information via PAPI
     """
     template_base = 'staggered3d_tmpl.cpp'
 
-    template_keys = ['io', 'time_stepping', 'define_constants', 'declare_fields',
+    template_keys = ['io', 'profiling', 'numevents_papi',
+                     'time_stepping', 'define_constants', 'declare_fields',
                      'define_fields', 'store_fields', 'load_fields',
                      'initialise', 'initialise_bc', 'stress_loop',
                      'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
-                     'define_convergence', 'converge_test', 'print_convergence']
+                     'define_convergence', 'converge_test', 'print_convergence',
+                     'define_profiling', 'define_papi_events', 'sum_papi_events']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
-                 'output_vts', 'converge']
+                 'output_vts', 'converge', 'profiling']
+
+    _papi_events = []
 
     def __init__(self, dimension, index=None, domain_size=None, grid_size=None,
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
-                 expand=True, eval_const=True, output_vts=False, converge=False):
+                 expand=True, eval_const=True, output_vts=False,
+                 converge=False, profiling=False):
         self.dimension = dimension
 
         template_dir = path.join(get_package_dir(), "templates")
@@ -83,6 +89,7 @@ class StaggeredGrid(Grid):
         self.real_t = 'double' if self.double else 'float'
         self.output_vts = output_vts
         self.converge = converge
+        self.profiling = profiling
 
         # number of ghost cells for boundary
         self.margin = Variable('margin', 2, 'int', True)
@@ -1188,3 +1195,37 @@ class StaggeredGrid(Grid):
             result += 'conv->%s = %s;\n' % (l2, l2_value)
 
         return result
+
+    # ------------------- sub-routines for PAPI profiling ------------ #
+
+    def set_papi_events(self, events=[]):
+        self._papi_events = events
+
+    @property
+    def define_profiling(self):
+        """Code fragment that defines global PAPI counters and events"""
+        code = '\n'.join('float g_%s = 0.0;' % v for v in
+                         ['rtime', 'ptime', 'mflops'])
+        code += '\n' + '\n'.join('long long g_%s = 0;' % e for e in
+                                 self._papi_events)
+        return code
+
+    @property
+    def numevents_papi(self):
+        return len(self._papi_events)
+
+    @property
+    def define_papi_events(self):
+        """Code fragment that starts PAPI counters for specified events"""
+        code = 'int numevents = %d;\n' % self.numevents_papi
+        code += 'int events[%d];\n' % self.numevents_papi
+        code += 'long long counters[%d];\n' % self.numevents_papi
+        code += '\n'.join(['opesci_papi_name2event("%s", &(events[%d]));' % (e, i)
+                          for i, e in enumerate(self._papi_events)])
+        return code
+
+    @property
+    def sum_papi_events(self):
+        """Code fragment that reads PAPI counters for specified events"""
+        return '\n'.join(['profiling->g_%s += counters[%d];' % (e, i)
+                          for i, e in enumerate(self._papi_events)])

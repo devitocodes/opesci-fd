@@ -58,6 +58,21 @@ For additional options please see:
 python tests/eigenwave3d.py --help
 ```
 
+##### Profiling
+
+If the PAPI library is found on your system during the initial build,
+Opesci-FD can also provide profiling information, such as the achieved
+number of MFlops/s during automated runs. To enable this feature
+simply add the `--profiling` flag to the example command above. The
+user can also supply a list of PAPI event names, for example
+`PAPI_TOT_CYC` or `PAPI_FP_OPS`, via the `--papi-events` flag:
+```
+python tests/eigenwave3d.py -c g++ -x --n 4 --profiling --papi-events PAPI_TOT_CYC PAPI_FP_OPS
+```
+
+Please note that the availability of PAPI events is highly dependent
+on the hardware you are running on and the local PAPI install.
+
 ##### Manual compilation
 
 The generated source file can also be compiled by hand using the

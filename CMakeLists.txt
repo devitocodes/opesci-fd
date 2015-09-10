@@ -5,7 +5,7 @@ PROJECT(OPESCI)
 set (OPESCI_VERSION_MAJOR 0)
 set (OPESCI_VERSION_MINOR 1)
 
-set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/CMake/Modules ${CMAKE_MODULE_PATH})
+set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -49,6 +49,13 @@ find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     add_definitions(-DOPENMP_FOUND)
+endif()
+
+find_package(PAPI)
+if(PAPI_FOUND)
+  include_directories(${PAPI_INCLUDE_DIRS})
+  set (OPESCI_LIBRARIES ${PAPI_LIBRARIES} ${OPESCI_LIBRARIES})
+  add_definitions(-DOPESCI_HAVE_PAPI)
 endif()
 
 include_directories(include)

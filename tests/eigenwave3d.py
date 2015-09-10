@@ -128,7 +128,8 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     return grid
 
 
-def default(compiler=None, execute=False, nthreads=1, output=False):
+def default(compiler=None, execute=False, nthreads=1,
+            output=False, profiling=False, papi_events=[]):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
@@ -139,7 +140,8 @@ def default(compiler=None, execute=False, nthreads=1, output=False):
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        o_converge=True, omp=True, simd=False,
                        ivdep=True, filename=filename)
-    grid.set_switches(output_vts=output)
+    grid.set_switches(output_vts=output, profiling=profiling)
+    grid.set_papi_events(papi_events)
     if compiler is None:
         grid.generate(filename)
     else:
@@ -150,7 +152,8 @@ def default(compiler=None, execute=False, nthreads=1, output=False):
         grid.convergence()
 
 
-def read_data(compiler=None, execute=False, nthreads=1, output=False):
+def read_data(compiler=None, execute=False, nthreads=1,
+              output=False, profiling=False, papi_events=[]):
     """Test for model intialisation from input file
 
     Computes eigenwave on a unit cube grid (200 x 200 x 200)
@@ -164,7 +167,8 @@ def read_data(compiler=None, execute=False, nthreads=1, output=False):
                        o_converge=False, omp=True, simd=False, ivdep=True,
                        filename=filename, rho_file='RHOhomogx200',
                        vp_file='VPhomogx200', vs_file='VShomogx200')
-    grid.set_switches(output_vts=output)
+    grid.set_switches(output_vts=output, profiling=profiling)
+    grid.set_papi_events(papi_events)
     if compiler is None:
         grid.generate(filename)
     else:
@@ -250,16 +254,22 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                    help='Number of threads for dynamic execution')
     p.add_argument('-o', '--output', action='store_true', default=False,
                    help='Activate solution output in .vts format')
+    p.add_argument('-p', '--profiling', action='store_true', default=False,
+                   help='Activate performance profiling from PAPI')
+    p.add_argument('--papi-events', dest='papi_events', nargs='+', default=[],
+                   help='Specific PAPI events to measure')
 
     args = p.parse_args()
     print "Eigenwave3D example (mode=%s)" % args.mode
 
     if args.mode == 'default':
         default(compiler=args.compiler, execute=args.execute,
-                nthreads=args.nthreads, output=args.output)
+                nthreads=args.nthreads, output=args.output,
+                profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
-                  nthreads=args.nthreads, output=args.output)
+                  nthreads=args.nthreads, output=args.output,
+                  profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'converge':
         converge_test()
     elif args.mode == 'cx1':
