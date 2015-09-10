@@ -71,7 +71,8 @@ class Field(IndexedBase):
         return FD approximations field derivatives
         input param description same as Deriv_half()
         """
-        return Deriv_half(self, l, k, d, n)[1]
+        # return Deriv_half(self, l, k, d, n)[1]
+        return Deriv(self, l, k, d, n*2)[1]
 
     def populate_derivatives(self, max_order=1):
         """
