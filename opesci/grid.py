@@ -174,20 +174,19 @@ You need to you run grid.execute() first!""")
 
     def pluto_op(self, filename):
         out = filename.split('.')[0]+"_pluto.c"
-        cc = 'polycc %s --tile --parallel'%filename + " -o " +out
-        subprocess.check_call(cc,shell=True)
-        with file('%s.log' % filename, 'w') as logfile:
+        cc = 'polycc %s --tile --parallel' % filename + " -o " + out
+        with file('%s_pluto_opt.log' % filename, 'w') as logfile:
             logfile.write("Compiling: %s\n" % " ".join(cc))
             try:
                 subprocess.check_call(cc, shell=True, stdout=logfile, stderr=logfile)
             except OSError:
-                err = """OSError during compilation""" 
+                err = """OSError during compilation"""
                 raise RuntimeError(err)
             except subprocess.CalledProcessError:
                 err = """Error during compilation:
 Compilation command: %s
 Source file: %s
-Log file: %s""" % (" ".join(cc), src, logfile.name)
+Log file: %s""" % (" ".join(cc), filename, logfile.name)
                 raise RuntimeError(err)
-        
+
         return out

@@ -7,7 +7,7 @@ _test_dir = path.join(path.dirname(__file__), "src")
 
 
 def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
-                omp=True, simd=False, ivdep=True, double=False,pluto=False,
+                omp=True, simd=False, ivdep=True, double=False, pluto=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
                 rho_file='', vp_file='', vs_file=''):
     """
@@ -59,7 +59,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     grid = StaggeredGrid(dimension=3, domain_size=domain_size,
                          grid_size=grid_size,
                          stress_fields=[Txx, Tyy, Tzz, Txy, Tyz, Txz],
-                         velocity_fields=[U, V, W],pluto=pluto)
+                         velocity_fields=[U, V, W], pluto=pluto)
     grid.set_time_step(dt, tmax)
 
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, double=double,
@@ -68,7 +68,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
     # define parameters
     rho, beta, lam, mu = symbols('rho beta lambda mu')
-    t, x, y, z = symbols('t x y z')
+    t, x, y, z = symbols('_t x y z')
     grid.set_index([x, y, z])
 
     if read:
@@ -151,6 +151,7 @@ def default(compiler=None, execute=False, nthreads=1,
         grid.execute(filename, compiler=compiler, nthreads=nthreads)
         grid.convergence()
 
+
 def pluto(compiler='g++', execute=False, nthreads=1, output=False):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
@@ -161,13 +162,13 @@ def pluto(compiler='g++', execute=False, nthreads=1, output=False):
     filename = path.join(_test_dir, 'eigenwave3d.cpp')
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        o_converge=True, omp=True, simd=False,
-                       ivdep=True, filename=filename,pluto=True)
+                       ivdep=True, filename=filename, pluto=True)
 
     grid.set_switches(output_vts=output)
     grid.compile(filename, compiler=compiler, shared=False)
     filename_p = grid.pluto_op(filename)
     grid.src_file = filename_p
-    grid.compile(filename_p,compiler=compiler,shared = False)
+    grid.compile(filename_p, compiler=compiler, shared=False)
     if execute:
         print 'executing'
         # Test Python-based execution for the base test
@@ -176,6 +177,7 @@ def pluto(compiler='g++', execute=False, nthreads=1, output=False):
 
 def read_data(compiler=None, execute=False, nthreads=1,
               output=False, profiling=False, papi_events=[]):
+
     """Test for model intialisation from input file
 
     Computes eigenwave on a unit cube grid (200 x 200 x 200)
@@ -266,7 +268,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
 """
     p = ArgumentParser(description="Standalone testing script for the Eigenwave3D example",
                        formatter_class=RawTextHelpFormatter)
-    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1','pluto'),
+    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1', 'pluto'),
                    nargs='?', default='default', help=ModeHelp)
     p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
@@ -298,7 +300,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         cx1()
     elif args.mode == 'pluto':
         pluto(compiler=args.compiler, execute=args.execute,
-                nthreads=args.nthreads, output=args.output)
+              nthreads=args.nthreads, output=args.output)
 
 if __name__ == "__main__":
     main()
