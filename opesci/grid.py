@@ -138,11 +138,13 @@ class Grid(object):
         opesci_execute(pointer(self._arg_grid), pointer(self._arg_profiling))
 
         if self.profiling:
-            for ev in self._papi_events:
-                print "PAPI:: %s: %ld" % (ev, getattr(self._arg_profiling, ev))
-            print "PAPI:: Max real_time: %f (sec)" % self._arg_profiling.rtime
-            print "PAPI:: Max proc_time: %f (sec)" % self._arg_profiling.ptime
-            print "PAPI:: Total MFlops/s: %f" % self._arg_profiling.mflops
+            if len(self._papi_events) > 0:
+                for ev in self._papi_events:
+                    print "PAPI:: %s: %ld" % (ev, getattr(self._arg_profiling, ev))
+            else:
+                print "PAPI:: Max real_time: %f (sec)" % self._arg_profiling.rtime
+                print "PAPI:: Max proc_time: %f (sec)" % self._arg_profiling.ptime
+                print "PAPI:: Total MFlops/s: %f" % self._arg_profiling.mflops
 
     def convergence(self):
         """Compute L2 norms for convergence testing"""

@@ -37,14 +37,15 @@ ${declare_fields}
 #pragma omp parallel
 {
 % if profiling==True:
+% if numevents_papi>0:
+${define_papi_events}
+opesci_papi_start_counters(numevents, events);
+% else:
 float real_time;
 float proc_time;
 float mflops;
 long long flpins;
 opesci_flops(&real_time, &proc_time, &flpins, &mflops);
-${define_papi_events}
-% if numevents_papi>0:
-opesci_papi_start_counters(numevents, events);
 % endif
 % endif
 
@@ -65,17 +66,21 @@ ${output_step}
 } // end of time loop
 
 % if profiling==True:
-opesci_flops(&real_time, &proc_time, &flpins, &mflops);
 % if numevents_papi>0:
 opesci_papi_read_counters(numevents, counters);
-% endif
+#pragma omp critical
+{
+${sum_papi_events}
+}
+% else:
+opesci_flops(&real_time, &proc_time, &flpins, &mflops);
 #pragma omp critical
 {
 profiling->g_rtime = fmax(profiling->g_rtime, real_time);
 profiling->g_ptime = fmax(profiling->g_ptime, proc_time);
 profiling->g_mflops += mflops;
-${sum_papi_events}
 }
+% endif
 % endif
 
 } // end of parallel section
