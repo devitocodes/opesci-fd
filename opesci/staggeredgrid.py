@@ -69,7 +69,7 @@ class StaggeredGrid(Grid):
                  omp=True, ivdep=True, simd=False, double=False, io=False,
                  expand=True, eval_const=True, output_vts=False,
                  converge=False, profiling=False, pluto=False):
-    
+
         self.dimension = dimension
 
         if(pluto):

@@ -28,7 +28,15 @@ script:
     - export PYTHONPATH=`pwd`:$PYTHONPATH
     - flake8 opesci
     - flake8 tests
+    - python tests/eigenwave3d.py default --compiler=g++ --execute --nthreads=4
+    - OMP_NUM_THREADS=4 tests/src/eigenwave3d
+    - python tests/eigenwave3d.py default --compiler=g++ --output
+    - python tests/eigenwave3d.py read --compiler=g++
+    - python tests/eigenwave3d.py default --execute --compiler clang --nthreads=1
+    - OMP_NUM_THREADS=1 tests/src/eigenwave3d
+    - python tests/eigenwave3d.py default --output
+    - python tests/eigenwave3d.py read
     - python tests/eigenwave3d.py pluto --execute --nthreads=4
     - OMP_NUM_THREADS=4 tests/src/eigenwave3d_pluto
-    - python tests/eigenwave3d.py default --output
+    - python tests/eigenwave3d.py pluto --output
     - python tests/eigenwave3d.py read

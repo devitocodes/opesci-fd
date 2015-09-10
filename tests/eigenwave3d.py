@@ -168,12 +168,20 @@ def pluto(compiler='g++', execute=False, nthreads=1, output=False):
     grid.compile(filename, compiler=compiler, shared=False)
     filename_p = grid.pluto_op(filename)
     grid.src_file = filename_p
+    if compiler in ['clang', 'clang++']:
+        # an ugly fix, but pluto will always attack <omp.h> to the first line
+        # which would fail clang
+        with open(filename_p, 'r') as fin:
+            data = fin.read().splitlines(True)
+        with open(filename_p, 'w') as fout:
+            fout.writelines(data[1:])
     grid.compile(filename_p, compiler=compiler, shared=False)
     if execute:
         print 'executing'
         # Test Python-based execution for the base test
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
         grid.convergence()
+
 
 def read_data(compiler=None, execute=False, nthreads=1,
               output=False, profiling=False, papi_events=[]):
