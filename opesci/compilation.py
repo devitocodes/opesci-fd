@@ -74,7 +74,7 @@ class ClangCompiler(Compiler):
     """
 
     def __init__(self, cppargs=[], ldargs=[]):
-        opt_flags = ['-g', '-O3', '-fopenmp']
+        opt_flags = ['-g', '-O3', '-openmp']
         cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
         ldargs = ['-lopesci', '-Wl,-rpath,%s/lib' % get_package_dir(),
                   '-L%s/lib' % get_package_dir()] + ldargs
