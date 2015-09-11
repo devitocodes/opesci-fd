@@ -118,13 +118,26 @@ def Taylor_half(dx, n):
     return Matrix(l)
 
 
-def Deriv(U, i, k, d, n):
+def Taylor_generic(dx, left, right):
+    """
+    generic version of Taylor()
+    expand neighbour grid point located from -left to +right
+    """
+    l = []
+    n = left + right + 1
+    for i in range(-left, right+1):
+        ll = [tc((i*dx), j) for j in range(n)]
+        l.append(ll)
+    return Matrix(l)
+
+
+def Deriv(U, index, k, d, n):
     """
     calculate the FD approximation for nth derivative
     the function works by using M * D = R, as specified in Taylor()
     then inverting M, so that D = M_inverse * R
     :param U: the field
-    :param i: list of indices (Symbol objects) of field U
+    :param index: list of indices (Symbol objects) of field U
     e.g. possibley [t,x,y,z] for 3D
     :param k: determine the derivative is with respect to which dimension
     e.g. dU/dt if k=0, dU/dx if k=0, assuming i=[t,x,y,z]
@@ -137,65 +150,83 @@ def Deriv(U, i, k, d, n):
     (i.e. 1 time and 3 space dimensions)
     """
     M = Taylor(d, n)
-    s = [0]*len(i)
+    s = [0]*len(index)
     s[k] = 1  # switch on kth dimension
     # generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
-    if len(i) == 1:
-        RX = Matrix([U[i[0]+s[0]*x] for x in range(-n+1, n)])
-    elif len(i) == 2:
-        RX = Matrix([U[i[0]+s[0]*x, i[1]+s[1]*x] for x in range(-n+1, n)])
-    elif len(i) == 3:
-        RX = Matrix([U[i[0]+s[0]*x,
-                    i[1]+s[1]*x,
-                    i[2]+s[2]*x] for x in range(-n+1, n)])
-    elif len(i) == 4:
-        RX = Matrix([U[i[0]+s[0]*x,
-                    i[1]+s[1]*x,
-                    i[2]+s[2]*x,
-                    i[3]+s[3]*x] for x in range(-n+1, n)])
+    if len(index) == 1:
+        RX = Matrix([U[index[0]+s[0]*x] for x in range(-n+1, n)])
+    elif len(index) == 2:
+        RX = Matrix([U[index[0]+s[0]*x, index[1]+s[1]*x] for x in range(-n+1, n)])
+    elif len(index) == 3:
+        RX = Matrix([U[index[0]+s[0]*x,
+                    index[1]+s[1]*x,
+                    index[2]+s[2]*x] for x in range(-n+1, n)])
+    elif len(index) == 4:
+        RX = Matrix([U[index[0]+s[0]*x,
+                    index[1]+s[1]*x,
+                    index[2]+s[2]*x,
+                    index[3]+s[3]*x] for x in range(-n+1, n)])
     else:
         raise NotImplementedError(">4 dimensions, need to fix")
 
     return M.inv() * RX
 
 
-def Deriv_half(U, i, k, d, n):
+def Deriv_generic(U, index, dimension, delta, left, right):
+    """
+    generic version of Derive()
+    """
+    M = Taylor_generic(delta, left, right)
+    mask = [0]*len(index)
+    mask[dimension] = 1  # switch on kth dimension
+    # generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
+    index2 = list(index)
+    ll = []
+    for i in range(-left, right+1):
+        index2[dimension] += i
+        ll.append(U[index2])
+    RX = Matrix(ll)
+
+    return M.inv() * RX
+
+
+def Deriv_half(U, index, dimension, delta, order):
     """
     similar function as Deriv() for staggered grids
     calculate the FD approximation for nth derivative
     the function works by using M * D = R, as specified in Taylor()
     then inverting M, so that D = M_inverse * R
     :param U: the field
-    :param i: list of indices (Symbol objects) of field U
+    :param index: list of indices (Symbol objects) of field U
     e.g. possibley [t,x,y,z] for 3D
     :param k: determine the derivative is with respect to which dimension
     e.g. dU/dt if k=0, dU/dx if k=0, assuming i=[t,x,y,z]
-    :param d: spacing of the grid, e.g. dx, dt
-    :param n: accuracy of approximation
-    e.g. n=1 for 2nd-order FD approximation, n=2 for 4th-order FD approximation
+    :param delta: spacing of the grid, e.g. dx, dt
+    :param order: order of accuracy of approximation/2
+    e.g. order=1 for 2nd-order FD approximation, order=2 for 4th-order FD approximation
     returns D=list of expressions for FD approxiation
     D[1] for first derivative, D[2] for 2nd derivative etc
     raises NotImplementedError exception if dimension is more than 4
     (1 time and 3 space dimensions)
     """
-    M = Taylor_half(d, n)
-    s = [0]*len(i)
-    s[k] = 1  # switch on kth dimension
+    M = Taylor_half(delta, order)
+    mask = [0]*len(index)
+    mask[dimension] = 1  # switch on kth dimension
     # generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
-    if len(i) == 1:
-        RX = Matrix([U[i[0]+s[0]*x*hf] for x in range(-n*2+1, n*2, 2)])
-    elif len(i) == 2:
-        RX = Matrix([U[i[0]+s[0]*x*hf,
-                    i[1]+s[1]*x*hf] for x in range(-n*2+1, n*2, 2)])
-    elif len(i) == 3:
-        RX = Matrix([U[i[0]+s[0]*x*hf,
-                    i[1]+s[1]*x*hf,
-                    i[2]+s[2]*x*hf] for x in range(-n*2+1, n*2, 2)])
-    elif len(i) == 4:
-        RX = Matrix([U[i[0]+s[0]*x*hf,
-                    i[1]+s[1]*x*hf,
-                    i[2]+s[2]*x*hf,
-                    i[3]+s[3]*x*hf] for x in range(-n*2+1, n*2, 2)])
+    if len(index) == 1:
+        RX = Matrix([U[index[0]+mask[0]*x*hf] for x in range(-order*2+1, order*2, 2)])
+    elif len(index) == 2:
+        RX = Matrix([U[index[0]+mask[0]*x*hf,
+                    index[1]+mask[1]*x*hf] for x in range(-order*2+1, order*2, 2)])
+    elif len(index) == 3:
+        RX = Matrix([U[index[0]+mask[0]*x*hf,
+                    index[1]+mask[1]*x*hf,
+                    index[2]+mask[2]*x*hf] for x in range(-order*2+1, order*2, 2)])
+    elif len(index) == 4:
+        RX = Matrix([U[index[0]+mask[0]*x*hf,
+                    index[1]+mask[1]*x*hf,
+                    index[2]+mask[2]*x*hf,
+                    index[3]+mask[3]*x*hf] for x in range(-order*2+1, order*2, 2)])
     else:
         raise NotImplementedError(">4 dimensions, need to fix")
 

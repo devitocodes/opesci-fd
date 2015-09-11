@@ -88,7 +88,8 @@ class Field(IndexedBase):
             for order in range(1, max_order+1):
                 # iterate through all orders of derivatives
                 # create DDerivative objects (name, dependent variable, derivative order, max_accuracy needed)
-                name = 'D'+'_'+self.label.name+'_'+str(index)+'_'+str(order)  # e.g. D_U_x_1 = dU/dx
+                # name = 'D'+'_'+self.label.name+'_'+str(index)+'_'+str(order)  # e.g. D_U_x_1 = dU/dx
+                name = ''.join(['\partial ', self.label.name, '/\partial ', str(index)])
                 self.d[d][order] = DDerivative(name, index, order, self.accuracy[d])
                 for accuracy in range(1, self.accuracy[d]+1):
                     # assign FD approximation expression of different order of accuracy
