@@ -153,9 +153,13 @@ def default(compiler=None, execute=False, nthreads=1,
 
 
 def pluto(compiler=None, execute=False, nthreads=1,
-          output=False, profiling=False, papi_events=[]):
+          output=False, profiling=False, papi_events=[], tile='32 32 32'):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
+    if tile:
+        f = open('tile.sizes', 'w')
+        f.write(tile)
+        f.close()
     domain_size = (1.0, 1.0, 1.0)
     grid_size = (100, 100, 100)
     dt = 0.002
@@ -290,6 +294,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                    help='Activate performance profiling from PAPI')
     p.add_argument('--papi-events', dest='papi_events', nargs='+', default=[],
                    help='Specific PAPI events to measure')
+    p.add_argument('--tile', default=None,
+                   help="tile-size for pluto optimisation e.g. --tile '4 4 32'")
 
     args = p.parse_args()
     print "Eigenwave3D example (mode=%s)" % args.mode
@@ -309,7 +315,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     elif args.mode == 'pluto':
         pluto(compiler=args.compiler, execute=args.execute,
               nthreads=args.nthreads, output=args.output,
-              profiling=args.profiling, papi_events=args.papi_events)
+              profiling=args.profiling, papi_events=args.papi_events, tile=args.tile)
 
 if __name__ == "__main__":
     main()
