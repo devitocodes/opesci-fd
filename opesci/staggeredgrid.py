@@ -48,6 +48,7 @@ class StaggeredGrid(Grid):
     * output_vts: Output solution fields at every timestep
     * converge: Generate code for computing analutical solution and L2 norms
     * profiling: Generate code for gathering profiling information via PAPI
+    * pluto: Define scop for pluto optimisation
     """
     template_base = 'staggered3d_tmpl.cpp'
 
@@ -60,7 +61,7 @@ class StaggeredGrid(Grid):
                      'define_profiling', 'define_papi_events', 'sum_papi_events']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
-                 'output_vts', 'converge', 'profiling']
+                 'output_vts', 'converge', 'profiling', 'pluto']
 
     _papi_events = []
 
@@ -924,10 +925,7 @@ class StaggeredGrid(Grid):
             if not self.pluto and self.simd and d == self.dimension-1:
                     body = '#pragma simd\n' + body
 
-        if self.pluto:
-            body = '#pragma scop\n'+body
-            body += '#pragma endscop'
-        elif self.omp:
+        if not self.pluto and self.omp:
             body = '#pragma omp for\n' + body
 
         return body

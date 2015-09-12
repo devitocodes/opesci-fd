@@ -59,7 +59,14 @@ for(int _ti=0;_ti<ntsteps;_ti++){
 
 ${time_stepping}
 
+% if pluto==True:
+#pragma scop
+% endif
 ${stress_loop}
+% if pluto==True:
+#pragma endscop
+% endif
+
 ${stress_bc}
 ${velocity_loop}
 ${velocity_bc}

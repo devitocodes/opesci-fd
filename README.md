@@ -95,11 +95,11 @@ precision or explicit vectorisation are also provided.
 
 ##### Auto-tuning for pluto
 
-Here is a script to test the best tile size to get best optimisation effect:
+Here is a script to test the best tile size to get the best optimisation effect:
 ```
 python tests/pluto_tile_test.py -b -s -l
 ```
-The results will be in "results" folder.
-The list "sizes" contains all the tile sizes will be tested. 
+The results will be in the "results" folder.
+The list "sizes" contains all the tile sizes that will be tested. 
 This script depends on [pybench.py](https://github.com/firedrakeproject/pybench)
 
