@@ -38,6 +38,8 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     :param rho_file: file name for input file of rho (density)
     :param vp_file: file name for input file of Vp (primary velocity)
     :param vs_file: file name for input file of Vs (secondary velocity)
+    :param pluto: switch for inserting #pragma scop and #pragma endscop for 
+    pluto optimisation
     """
 
     print 'domain size: ' + str(domain_size)

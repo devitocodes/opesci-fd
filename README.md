@@ -97,7 +97,7 @@ precision or explicit vectorisation are also provided.
 
 Here is a script to test the best tile size to get the best optimisation effect:
 ```
-python tests/pluto_tile_test.py -b -s -l
+python tests/pluto_tile_test.py -b -s -l -- nthreads=4 tile_size="4 4 8"
 ```
 The results will be in the "results" folder.
 The list "sizes" contains all the tile sizes that will be tested. 
