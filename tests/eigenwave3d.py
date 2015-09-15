@@ -136,7 +136,7 @@ def default(compiler=None, execute=False, nthreads=1,
     """
     if pluto:
         f = open('tile.sizes', 'w')
-        f.write(tile)
+        f.write(str(tile))
         f.close()
     domain_size = (1.0, 1.0, 1.0)
     grid_size = (100, 100, 100)
@@ -152,21 +152,24 @@ def default(compiler=None, execute=False, nthreads=1,
         grid.generate(filename)
         filename_p = grid.pluto_op(filename)
         if compiler in ['clang', 'clang++']:
-        # an ugly fix, but pluto will always attack <omp.h> to the first line
-        # which would fail clang
+            # an ugly fix, but pluto will always attack <omp.h> to the first line
+            # which would fail clang
             with open(filename_p, 'r') as fin:
                 data = fin.read().splitlines(True)
             with open(filename_p, 'w') as fout:
                 fout.writelines(data[1:])
-
+        grid.src_file = filename_p
+        if compiler is None:
+            share = True
+        else:
+            share = False
+        grid.compile(filename_p, compiler=compiler, shared=share)
     else:
         filename_p = filename
-
-    grid.src_file = filename_p
-    if compiler is None:
-        grid.generate(filename_p)
-    else:
-        grid.compile(filename_p, compiler=compiler, shared=False)
+        if compiler is None:
+            grid.generate(filename_p)
+        else:
+            grid.compile(filename_p, compiler=compiler, shared=False)
 
     if execute:
         # Test Python-based execution for the base test

@@ -37,6 +37,6 @@ script:
     - OMP_NUM_THREADS=1 tests/src/eigenwave3d
     - python tests/eigenwave3d.py default --output
     - python tests/eigenwave3d.py read
-    - python tests/eigenwave3d.py pluto --execute --nthreads=4
+    - python tests/eigenwave3d.py default --compiler=g++ --execute --nthreads=4 --pluto
     - OMP_NUM_THREADS=4 tests/src/eigenwave3d_pluto
-    - python tests/eigenwave3d.py pluto --output
+    - python tests/eigenwave3d.py --output --pluto

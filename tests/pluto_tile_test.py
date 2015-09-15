@@ -17,12 +17,7 @@ class pluto_tile_bench(Benchmark):
         python tests/pluto_tile_test.py -b -s -l -- nthreads=4 tile_size="$i"
     done
 
-    declare -a ser="";
-    for i in "${arr[@]}"
-    do
-        ser+="\"$i\" "
-    done
-    python tests/pluto_plot.py -ts $ser;
+    python tests/pluto_plot.py -ts "${arr[@]}"
     """
 
     warmups = 0
