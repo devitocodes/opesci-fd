@@ -131,34 +131,10 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 
 def default(compiler=None, execute=False, nthreads=1,
-            output=False, profiling=False, papi_events=[]):
+            output=False, profiling=False, papi_events=[], pluto=False, tile=''):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
-    domain_size = (1.0, 1.0, 1.0)
-    grid_size = (100, 100, 100)
-    dt = 0.002
-    tmax = 1.0
-    filename = path.join(_test_dir, 'eigenwave3d.cpp')
-    grid = eigenwave3d(domain_size, grid_size, dt, tmax,
-                       o_converge=True, omp=True, simd=False,
-                       ivdep=True, filename=filename)
-    grid.set_switches(output_vts=output, profiling=profiling)
-    grid.set_papi_events(papi_events)
-    if compiler is None:
-        grid.generate(filename)
-    else:
-        grid.compile(filename, compiler=compiler, shared=False)
-    if execute:
-        # Test Python-based execution for the base test
-        grid.execute(filename, compiler=compiler, nthreads=nthreads)
-        grid.convergence()
-
-
-def pluto(compiler=None, execute=False, nthreads=1,
-          output=False, profiling=False, papi_events=[], tile='32 32 32'):
-    """Eigenwave test case on a unit cube grid (100 x 100 x 100)
-    """
-    if tile:
+    if pluto and tile :
         f = open('tile.sizes', 'w')
         f.write(tile)
         f.close()
@@ -169,20 +145,28 @@ def pluto(compiler=None, execute=False, nthreads=1,
     filename = path.join(_test_dir, 'eigenwave3d.cpp')
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        o_converge=True, omp=True, simd=False,
-                       ivdep=True, filename=filename, pluto=True)
+                       ivdep=True, filename=filename, pluto=pluto)
     grid.set_switches(output_vts=output, profiling=profiling)
     grid.set_papi_events(papi_events)
-    grid.generate(filename, compiler=compiler)
-    filename_p = grid.pluto_op(filename)
-    grid.src_file = filename_p
-    if compiler in ['clang', 'clang++']:
+    if pluto:
+        grid.generate(filename)
+        filename_p = grid.pluto_op(filename)
+        if compiler in ['clang', 'clang++']:
         # an ugly fix, but pluto will always attack <omp.h> to the first line
         # which would fail clang
-        with open(filename_p, 'r') as fin:
-            data = fin.read().splitlines(True)
-        with open(filename_p, 'w') as fout:
-            fout.writelines(data[1:])
-    grid.compile(filename_p, compiler=compiler, shared=False)
+            with open(filename_p, 'r') as fin:
+                data = fin.read().splitlines(True)
+            with open(filename_p, 'w') as fout:
+                fout.writelines(data[1:])
+    else:
+        filename_p = filename
+
+    grid.src_file = filename_p
+    if compiler is None:
+        grid.generate(filename_p)
+    else:
+        grid.compile(filename_p, compiler=compiler, shared=False)
+
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
@@ -282,7 +266,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
 """
     p = ArgumentParser(description="Standalone testing script for the Eigenwave3D example",
                        formatter_class=RawTextHelpFormatter)
-    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1', 'pluto'),
+    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
     p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
@@ -298,6 +282,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                    help='Specific PAPI events to measure')
     p.add_argument('--tile', default=None,
                    help="tile-size for pluto optimisation e.g. --tile '4 4 32'")
+    p.add_argument('--pluto', action='store_true', default=False,
+                    help="Apply pluto optimisation ")
 
     args = p.parse_args()
     print "Eigenwave3D example (mode=%s)" % args.mode
@@ -305,7 +291,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     if args.mode == 'default':
         default(compiler=args.compiler, execute=args.execute,
                 nthreads=args.nthreads, output=args.output,
-                profiling=args.profiling, papi_events=args.papi_events)
+                profiling=args.profiling, papi_events=args.papi_events,
+                pluto=args.pluto, tile=args.tile)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,
@@ -314,10 +301,6 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         converge_test()
     elif args.mode == 'cx1':
         cx1()
-    elif args.mode == 'pluto':
-        pluto(compiler=args.compiler, execute=args.execute,
-              nthreads=args.nthreads, output=args.output,
-              profiling=args.profiling, papi_events=args.papi_events, tile=args.tile)
 
 if __name__ == "__main__":
     main()
