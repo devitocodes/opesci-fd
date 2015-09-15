@@ -4,7 +4,7 @@ import pylab as plt
 
 class PlutoPlot(Benchmark):
     """
-    example: python tests/pluto_plot.py -ts "2 4 8" "4 4 1000"
+    example: python tests/pluto_plot.py -ts "2 4 8" "4 4 1000" "default" "nopluto"
     """
 
     figsize = (6, 4)
@@ -23,6 +23,7 @@ if __name__ == '__main__':
 
     res = []
     for data in b.result['timings'].values():
+        del(data['total'])
         res.append(data.values()[0])
 
     labels_ = b.result['timings'].keys()

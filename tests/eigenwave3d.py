@@ -38,7 +38,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     :param rho_file: file name for input file of rho (density)
     :param vp_file: file name for input file of Vp (primary velocity)
     :param vs_file: file name for input file of Vs (secondary velocity)
-    :param pluto: switch for inserting #pragma scop and #pragma endscop for 
+    :param pluto: switch for inserting #pragma scop and #pragma endscop for
     pluto optimisation
     """
 
@@ -131,10 +131,10 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 
 def default(compiler=None, execute=False, nthreads=1,
-            output=False, profiling=False, papi_events=[], pluto=False, tile=''):
+            output=False, profiling=False, papi_events=[], pluto=False, tile=' '):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
-    if pluto and tile :
+    if pluto:
         f = open('tile.sizes', 'w')
         f.write(tile)
         f.close()
@@ -158,6 +158,7 @@ def default(compiler=None, execute=False, nthreads=1,
                 data = fin.read().splitlines(True)
             with open(filename_p, 'w') as fout:
                 fout.writelines(data[1:])
+
     else:
         filename_p = filename
 
@@ -171,6 +172,7 @@ def default(compiler=None, execute=False, nthreads=1,
         # Test Python-based execution for the base test
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
         grid.convergence()
+    return grid
 
 
 def read_data(compiler=None, execute=False, nthreads=1,
@@ -283,7 +285,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     p.add_argument('--tile', default=None,
                    help="tile-size for pluto optimisation e.g. --tile '4 4 32'")
     p.add_argument('--pluto', action='store_true', default=False,
-                    help="Apply pluto optimisation ")
+                   help="Apply pluto optimisation ")
 
     args = p.parse_args()
     print "Eigenwave3D example (mode=%s)" % args.mode
