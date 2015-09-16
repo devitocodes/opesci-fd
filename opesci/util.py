@@ -118,15 +118,17 @@ def Taylor_half(dx, n):
     return Matrix(l)
 
 
-def Taylor_generic(dx, left, right):
+def Taylor_generic(delta, left, right, half=False):
     """
     generic version of Taylor()
     expand neighbour grid point located from -left to +right
+    if half is True, shift to right by half
     """
     l = []
     n = left + right + 1
+    shift = hf if half else 0
     for i in range(-left, right+1):
-        ll = [tc((i*dx), j) for j in range(n)]
+        ll = [tc((i+shift)*delta, j) for j in range(n)]
         l.append(ll)
     return Matrix(l)
 
@@ -172,18 +174,19 @@ def Deriv(U, index, k, d, n):
     return M.inv() * RX
 
 
-def Deriv_generic(U, index, dimension, delta, left, right):
+def Deriv_generic(U, index, dimension, delta, left, right, half=False):
     """
     generic version of Derive()
     """
-    M = Taylor_generic(delta, left, right)
+    M = Taylor_generic(delta, left, right, half)
     mask = [0]*len(index)
     mask[dimension] = 1  # switch on kth dimension
     # generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
     index2 = list(index)
+    shift = hf if half else 0
     ll = []
     for i in range(-left, right+1):
-        index2[dimension] += i
+        index2[dimension] = index[dimension]+i+shift
         ll.append(U[index2])
     RX = Matrix(ll)
 
