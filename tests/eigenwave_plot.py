@@ -34,36 +34,45 @@ def roofline(basename, compiler, opt_level, nthreads, affinity, arithmetic_inten
     :param arithmetic_intensity: arithmetic intensity of the code
     :param file_path: path to result file of the benchmark
     :param precision: double or single
-    """  
-    filename = basename[0] + '_' + compiler[0] + '_O' + str(opt_level[0]) + '_' + str(nthreads[0])  + '_' + affinity[0] #+ '.dat'
-    #print filename	
-
-    if file_path != '':
-       print "Working with result file:" + file_path[0] + '/' + filename
-       filename = file_path[0] + '/' + filename
-    else:
-	filename = 'results/' + filename	 
-    try:
-       subprocess.check_call('ls ' + filename + '.dat', shell=True)
-       rpeak_ = "grep rpeak " + filename + '.dat' + " | awk  '{sum +=$2}; END {print sum/NR}'"
-       rpeak = subprocess.Popen(rpeak_ , stdout=subprocess.PIPE, shell=True).stdout.read()
-       if precision[0] == 'double':
-          rpeak = float(rpeak)/2
-       bw_ = "grep Triad " + filename + '.dat' + " | awk  '{sum +=$2}; END {print sum/NR/1000}'"
-       bw = subprocess.Popen(bw_, stdout=subprocess.PIPE, shell=True).stdout.read()
-       if bw == '':
-          raise Exception("Failed! No Bandwidth output!")	
-       flops_ = "grep MFlops/s " + filename + '.dat' + " | awk  '{sum +=$4}; END {print sum/NR/10^3}'"
-       flops = subprocess.Popen(flops_ , stdout=subprocess.PIPE, shell=True).stdout.read()
-       if flops == '':
-          raise Exception("Failed! No Mflops output!")	
-    except subprocess.CalledProcessError as e:
-          print "Result file error: ", e
-          raise Exception("Failed to find result file!")
-    print rpeak, bw, flops, arithmetic_intensity
-
-    generatePlotDatFile('result.dat', float(rpeak)/float(bw), float(bw), float(rpeak), float(arithmetic_intensity[0]))
-    generateGnuplotScript(filename + '.pdf',precision[0],float(rpeak)*2,'result.dat',float(arithmetic_intensity[0]))
+    """
+    rpeak = []
+    bw = []
+    flops = []
+    basenameCount = len(basename)
+    for i in range(0, basenameCount):	  
+        filename = basename[i] + '_' + compiler[0] + '_O' + str(opt_level[0]) + '_' + str(nthreads[0])  + '_' + affinity[0] #+ '.dat'
+        #print filename	
+    
+        if file_path != '':
+           print "Working with result file:" + file_path[0] + '/' + filename
+           filename = file_path[0] + '/' + filename
+        else:
+	    filename = 'results/' + filename	 
+        try:
+           subprocess.check_call('ls ' + filename + '.dat', shell=True)
+           rpeak_ = "grep rpeak " + filename + '.dat' + " | awk  '{sum +=$2}; END {print sum/NR}'"
+           rpeak.append(float(subprocess.Popen(rpeak_ , stdout=subprocess.PIPE, shell=True).stdout.read()))
+           if precision[0] == 'double':
+              rpeak[i] = float(rpeak[i])/2
+           bw_ = "grep Triad " + filename + '.dat' + " | awk  '{sum +=$2}; END {print sum/NR/1000}'"
+           bw.append(float(subprocess.Popen(bw_, stdout=subprocess.PIPE, shell=True).stdout.read()))
+           if bw == '':
+              raise Exception("Failed! No Bandwidth output!")	
+           flops_ = "grep MFlops/s " + filename + '.dat' + " | awk  '{sum +=$4}; END {print sum/NR/10^3}'"
+           flops.append(float(subprocess.Popen(flops_ , stdout=subprocess.PIPE, shell=True).stdout.read()))
+           if flops == '':
+              raise Exception("Failed! No Mflops output!")	
+        except subprocess.CalledProcessError as e:
+              print "Result file error: ", e
+              raise Exception("Failed to find result file!")
+        #print rpeak, bw, flops, arithmetic_intensity
+    
+    if basenameCount > 1:
+       filename = 'results/compareCodes'	
+    bwTotal = sum(bw)/len(bw)
+    rpeakTotal = sum(rpeak)/len(rpeak)
+    generatePlotDatFile('result.dat', rpeakTotal/bwTotal, bwTotal, rpeakTotal, arithmetic_intensity)
+    generateGnuplotScript(filename + '.pdf', basename, precision[0],float(rpeakTotal)*2,'result.dat')
     plotRoofline()
 
 def generatePlotDatFile(filename, machineAI, machineBW, machineTopGFps, codeAI):
@@ -73,7 +82,7 @@ def generatePlotDatFile(filename, machineAI, machineBW, machineTopGFps, codeAI):
     :param machineAI: arithmetic intensity of the code 
     :param machineTopGFps: machine theoretical performance
     :param machineBW: machine bandwidth performance
-    :param codeAI: arithmetic intensity of the code
+    :param codeAI: arithmetic intensity of the codes
     """  
     # Use these default values, that are in range with Xeon computers, the values are chosen to give a smooth roofline plot. 
     xAxis = [0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8, 16, 32]
@@ -99,7 +108,7 @@ def generateDatFile(filename, xAxis, machineAI, machineBW, machineTopGFps, codeA
     :param machineAI: arithmetic intensity of the code 
     :param machineTopGFps: machine theoretical performance
     :param machineBW: machine bandwidth performance
-    :param codeAI: arithmetic intensity of the code
+    :param codeAI: arithmetic intensity of the codes
     """
     
     # The y axis to be filled.
@@ -123,18 +132,24 @@ def writeAxisValuesToFile(filename, xAxis, yAxis, xLabel, yLabel, machineTopGFps
     :param yLabel: file label
     :param machineTopGFps: machine theoretical performance
     :param machineBW: machine bandwidth performance
-    :param codeAI: arithmetic intensity of the code
+    :param codeAI: arithmetic intensity of the codes
     """
     try:
+	aiValue = []
+	codeAIBW = []	
 	f = open(filename, 'w')
-	f.write(xLabel + '        ' + yLabel + '      ' + '#AI_code ' + '  ' + '#AIcode*bw' + '\n')
+	f.write(xLabel.ljust(11) + yLabel.ljust(11))
 		
 	count = len(xAxis)
-	aiValue = '%g' % codeAI
-	aiValue = aiValue.ljust(11)
-	codeAIBW = codeAI*machineBW
-	if codeAIBW > machineTopGFps:
-           codeAIBW = machineTopGFps
+	ailength = len(codeAI)
+	for i in range(0, ailength):
+	   f.write((' #AI_code' + str(i)).ljust(11) + (' #AIcode' + str(i) + '*bw').ljust(11))
+	f.write('\n');
+	for i in range(0, ailength):
+	   aiValue.append(('%g' % float(codeAI[i])).ljust(11))
+	   codeAIBW.append(float(codeAI[i])*machineBW)
+	   if codeAIBW[i] > machineTopGFps:
+              codeAIBW[i] = machineTopGFps
         for i in range(0, count):
 	    xValue = '%g' % xAxis[i]
 	    # Align the columns!
@@ -142,10 +157,13 @@ def writeAxisValuesToFile(filename, xAxis, yAxis, xLabel, yLabel, machineTopGFps
 	    #f.write(xValue + ('%g \n' % yAxis[i]))
 	    yValue = ('%g ' % yAxis[i]).ljust(11)
 	    f.write(xValue + yValue)
+#	    print "aa"
 	    if i != 0:
-               f.write(aiValue + ('%g ' % codeAIBW))
+	       for i in range(0, ailength):
+                 f.write(aiValue[i].ljust(12) + ('%g ' % codeAIBW[i]).ljust(11))		  
 	    else:
-	       f.write(aiValue + ('%g ' % 0))
+	       for i in range(0, ailength):
+	         f.write(aiValue[i].ljust(12) + ('%g ' % 0).ljust(11))
 	    f.write('\n')
 
 	f.close()
@@ -153,14 +171,14 @@ def writeAxisValuesToFile(filename, xAxis, yAxis, xLabel, yLabel, machineTopGFps
 	   print e
 	   print "Error writing to file"
 
-def generateGnuplotScript(scriptName, precision_, rpeak_, data_, ai_):
+def generateGnuplotScript(scriptName, basename, precision_, rpeak_, data_):
     """
     Generates the gnuplot script based on the template found in the roofline folder.
     :param scriptName: name of the output file
+    :param basename: list with name of the codes
     :param precision_: double or single
     :param rpeak_: machine theoretical performance
     :param data_: filename of the result file
-    :param ai_: arithmetic intensity of the code
     """
     fileContent = ""
     try:
@@ -174,8 +192,8 @@ def generateGnuplotScript(scriptName, precision_, rpeak_, data_, ai_):
 	print "Error reading the template file"
 	return
 
-    plotTemplate = Template(fileContent)
-    gnuplotScript = plotTemplate.render({'plotFilename': scriptName,'precision': precision_, 'rpeak': rpeak_, 'data' : data_, 'ai' : ai_})
+    plotTemplate = Template(fileContent,trim_blocks=True,keep_trailing_newline=True)
+    gnuplotScript = plotTemplate.render({'plotFilename': scriptName,'precision': precision_, 'rpeak': rpeak_, 'data' : data_, 'basename' : basename})
 
     try:
 	f = open('roofline_plot.plt', 'w')
@@ -225,15 +243,18 @@ if __name__ == '__main__':
     file_path = args.file_path or ''
     precision = args.precision or ['single']	
 
-    b = PropagatorPlot(benchmark='Propagator-Performance',
+    if args.mode == 'roofline':
+       if len(basename) != len(arithmetic_intensity):
+	  raise Exception("Failed! Number of basename and ai must be the same!")
+       else:	 
+	  roofline(basename, compiler, opt_level, nthreads, affinity, arithmetic_intensity, file_path, precision)
+    else:
+        b = PropagatorPlot(benchmark='Propagator-Performance',
                       resultsdir=args.resultsdir, plotdir=args.plotdir)
-    b.combine_series([('basename', basename), ('compiler', compiler),
+        b.combine_series([('basename', basename), ('compiler', compiler),
                       ('opt_level', opt_level), ('nthreads', nthreads),
                       ('affinity', affinity)], filename='Propagator')
-
-    if args.mode == 'roofline':
-	roofline(basename, compiler, opt_level, nthreads, affinity, arithmetic_intensity, file_path, precision)
-    elif len(nthreads) > 1:
-        b.plot_parallel_scaling(nthreads)
-    else:
-        b.plot_compiler_comparison(opt_level)
+        if len(nthreads) > 1:
+           b.plot_parallel_scaling(nthreads)
+        else:
+           b.plot_compiler_comparison(opt_level)

@@ -10,5 +10,5 @@ set xtics 2 font "Verdana,10"
 set ytics 2  font "Verdana,10"
 
 
-plot '{{ data }}' using 1:2 with lines  lw 4  title "" , \
-      ""  using 3:4 with lines lc 7  lw 4  title "Code AI"
+plot '{{ data }}' using 1:2 with lines lc 1  lw 4  title ""{% for code in basename %}, '' using {{(loop.index * 2) + 1}}:{{(loop.index * 2) + 2}} with lines lc {{loop.index + 1}}  lw 4  title "{{code}}"{% endfor %}
+    
