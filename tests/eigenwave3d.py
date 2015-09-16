@@ -7,7 +7,7 @@ _test_dir = path.join(path.dirname(__file__), "src")
 
 
 def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
-                accuracy_order=[1,2,2,2],
+                accuracy_order=[1, 2, 2, 2],
                 omp=True, simd=False, ivdep=True, double=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
                 rho_file='', vp_file='', vs_file=''):
@@ -131,7 +131,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 
 def default(compiler=None, execute=False, nthreads=1,
-            accuracy_order=[1,2,2,2],
+            accuracy_order=[1, 2, 2, 2],
             output=False, profiling=False, papi_events=[]):
     """
     Eigenwave test case on a unit cube grid (100 x 100 x 100)
@@ -158,6 +158,7 @@ def default(compiler=None, execute=False, nthreads=1,
 
 
 def read_data(compiler=None, execute=False, nthreads=1,
+              accuracy_order=[1, 2, 2, 2],
               output=False, profiling=False, papi_events=[]):
     """Test for model intialisation from input file
 
@@ -251,7 +252,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                        formatter_class=RawTextHelpFormatter)
     p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
-    p.add_argument('-so', '--spatial_order', default=2, type=int,
+    p.add_argument('-so', '--spatial_order', default=2, type=int, dest='so',
                    help='Accuracy order to use for code generation, eg. 2 for 4th order in x,y,z')
     p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
@@ -272,12 +273,12 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     if args.mode == 'default':
         default(compiler=args.compiler, execute=args.execute,
                 nthreads=args.nthreads, output=args.output,
-                accuracy_order=[1,args.spatial_order,args.spatial_order,args.spatial_order],
+                accuracy_order=[1, args.so, args.so, args.so],
                 profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,
-                  accuracy_order=[1,args.spatial_order,args.spatial_order,args.spatial_order],
+                  accuracy_order=[1, args.so, args.so, args.so],
                   profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'converge':
         converge_test()
