@@ -176,7 +176,7 @@ You need to you run grid.execute() first!""")
         out = filename.split('.')[0]+"_pluto.c"
         cc = 'polycc %s --tile --parallel' % filename + " -o " + out
         with file('%s_pluto_opt.log' % filename, 'w') as logfile:
-            logfile.write("Compiling: %s\n" % " ".join(cc))
+            logfile.write("Compiling: %s\n" % cc)
             try:
                 subprocess.check_call(cc, shell=True, stdout=logfile, stderr=logfile)
             except OSError:
@@ -188,5 +188,10 @@ Compilation command: %s
 Source file: %s
 Log file: %s""" % (" ".join(cc), filename, logfile.name)
                 raise RuntimeError(err)
+            print "Generated:", out
 
+            import fileinput
+            import re
+            for line in fileinput.input(out, inplace=True):
+                print re.sub('pragma omp parallel for', 'pragma omp for', line.rstrip())
         return out
