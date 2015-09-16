@@ -1,0 +1,14 @@
+set terminal pdf
+set key inside left top vertical Right noreverse enhanced autotitle box
+set output  "{{ plotFilename }}"
+set logscale
+set xlabel "Arithmetic Intensity (Flops/Byte)"
+set ylabel "{{ precision }} Precision Performance (GFlops/s)" 
+set xrange [0.0625:32]
+set yrange [1:{{ rpeak }}]
+set xtics 2 font "Verdana,10" 
+set ytics 2  font "Verdana,10"
+
+
+plot '{{ data }}' using 1:2 with lines  lw 4  title "" , \
+      ""  using 3:4 with lines lc 7  lw 4  title "Code AI"
