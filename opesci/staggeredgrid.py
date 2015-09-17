@@ -965,11 +965,11 @@ class StaggeredGrid(Grid):
         """
         if(self.polly):
             self.polly = False;
-            result = self.stress_bc.replace('[t1]', '')
+            result = self.stress_bc_getter(init=True).replace('[t1]', '')
             result += self.velocity_bc.replace('[t1]', '')
             self.polly = True;
         else:
-            result = self.stress_bc.replace('[t1]', '[0]')
+            result = self.stress_bc_getter(init=True).replace('[t1]', '[0]')
             result += self.velocity_bc.replace('[t1]', '[0]')
 
         return result
@@ -1121,13 +1121,14 @@ class StaggeredGrid(Grid):
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
 
-                                if self.polly:
-                                    body = render(tmpl, dict1).replace('[t]',
-                                                                   '')
-                                else:    
-                                    body = render(tmpl, dict1).replace('[t]',
-                                                                   '[t1]')
-
+                                # if self.polly:
+                                #     body = render(tmpl, dict1).replace('[t]',
+                                #                                    '')
+                                # else:    
+                                #     body = render(tmpl, dict1).replace('[t]',
+                                #                                    '[t1]')
+                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                
                                 if self.ivdep:
                                     body = '#pragma ivdep\n' + body
                                 if self.simd:
