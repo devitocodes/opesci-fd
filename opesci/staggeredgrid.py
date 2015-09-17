@@ -1040,8 +1040,23 @@ class StaggeredGrid(Grid):
                     kernel = self.transform_kernel(field)
                     if self.read:
                         kernel = self.resolve_media_params(kernel)
-                    body += ccode(field[idx]) + '=' \
-                        + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
+                    if self.polly:
+                        for e in kernel.args:
+                            expr = e.args[1]
+                            if len(expr.args):
+                                if (expr.args[1] == self.t+1):
+                                    print expr.args[0]
+                                    base = IndexedBase(str(expr.args[0]))
+                                    args_new =  expr.args[:1] + expr.args[2:]
+                                    print type(args_new)
+                                    expr = base[args_new[0],args_new[1]]
+                                    print type(expr)
+
+                        body += ccode(field[idx]) + '=' \
+                            + ccode(kernel.subs({self.t+1: None, self.t: '_old'})) + ';\n'
+                    else:
+                        body += ccode(field[idx]) + '=' \
+                            + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
@@ -1121,13 +1136,11 @@ class StaggeredGrid(Grid):
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
 
-                                # if self.polly:
-                                #     body = render(tmpl, dict1).replace('[t]',
-                                #                                    '')
-                                # else:    
-                                #     body = render(tmpl, dict1).replace('[t]',
-                                #                                    '[t1]')
-                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                if self.polly:
+                                    body = render(tmpl, dict1).replace('[t + 1]', '_old').replace('[t]', '')
+                                
+                                else:    
+                                    body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
                                 
                                 if self.ivdep:
                                     body = '#pragma ivdep\n' + body
@@ -1136,13 +1149,10 @@ class StaggeredGrid(Grid):
                             else:
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
-                                # if self.polly:
-                                #     body = render(tmpl, dict1).replace('[t]',
-                                #                                        '')
-                                # else:
-                                #     body = render(tmpl, dict1).replace('[t]',
-                                #                                        '[t1]')
-                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                if self.polly:
+                                    body = render(tmpl, dict1).replace('[t + 1]', '').replace('[t]', '_old')
+                                else:
+                                    body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
 
                     result += body
 
@@ -1212,34 +1222,28 @@ class StaggeredGrid(Grid):
                             i0 = 1
                             i1 = self.dim[d2]-1
                             if body == '':
-                                # inner loop, populate ghost cell calculation
-                                # if self.polly:
-                                #     body = render(tmpl, dict1).replace('[t]',
-                                #                                '')
-                                # else:
-                                #     body = render(tmpl, dict1).replace('[t]',
-                                #                                    '[t1]')
-                                # body = field.bc[d+1][side]
                                 if self.read:
                                     body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in field.bc[d+1][side])
                                 else:
                                     body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
                                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+
+                                if self.polly:
+                                    body = render(tmpl, dict1).replace('[t + 1]', '').replace('[t]', '_old')
+                                else:
+                                    body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                
                                 if self.ivdep:
                                     body = '%s\n' % self.compiler._ivdep + body
                                 if self.simd:
                                     body = '#pragma simd\n' + body
                             else:
-                                # if self.polly:
-                                #     body = render(tmpl, dict1).replace('[t]',
-                                #                                '')
-                                # else:
-                                #     body = render(tmpl, dict1).replace('[t]',
-                                #                                    '[t1]')
                                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
-
+                                if self.polly:
+                                    body = render(tmpl, dict1).replace('[t + 1]', '').replace('[t]', '_old')
+                                else:
+                                    body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                
                     result += body
 
         return result
