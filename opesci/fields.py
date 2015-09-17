@@ -202,19 +202,23 @@ class VField(Field):
         staggered[direction] = True
         Field.set(self, dimension, staggered)
 
-    def set_free_surface(self, d, b, side, algo=0):
+    def set_free_surface(self, d, b, side, algo='robertsson'):
         """
         - set free surface boundary condition to boundary d, at index b
         :param d: direction of the boundary surface normal
         :param b: location of the boundary (index)
         :param side: lower boundary (0) or upper boundary (1)
         :param algo: which algorithm to use to compute ghost cells
+        algo == 'robertsson' [1]: setting all velocities at ghost cells to zero
+        algo == 'levander' [2]: only valid for 4th spatial order. using 2nd order FD approximation for velocities
         - e.g. set_free_surface([t,x,y,z],1,2,0)
         set y-z plane at x=2 to be lower free surface
         - ghost cells are calculated using reflection of stress fields
         - store the symbolic equations to populate ghost cells in self.bc
+        [1] Robertsson, Johan OA. "A numerical free-surface condition for elastic/viscoelastic finite-difference modeling in the presence of topography." Geophysics 61.6 (1996): 1921-1934.
+        [2] Levander, Alan R. "Fourth-order finite-difference P-SV seismograms." Geophysics 53.11 (1988): 1425-1436.
         """
-        if algo == 0:
+        if algo == 'levander':
             # use this stress field to solve for ghost cell expression
             field = self.sfields[d]
             expr = field.dt
@@ -249,7 +253,7 @@ class VField(Field):
             rhs = rhs.subs(idx[0], idx[0]+1)
 
             self.bc[d][side] = [Eq(lhs, rhs)]
-        elif algo == 1:
+        elif algo == 'robertsson':
             idx = list(self.indices)
             if self.staggered[d]:
                 # e.g. W at z boundary
@@ -266,6 +270,8 @@ class VField(Field):
                 eq = Eq(self[idx])
                 eq = eq.subs(idx[0], idx[0]+1)
                 self.bc[d][side].append(eq)
+        else:
+            raise ValueError('Unknown boundary condition algorithm')
 
 
 class SField(Field):
@@ -298,22 +304,27 @@ class SField(Field):
                 staggered[direction[i]] = True
             Field.set(self, dimension, staggered)
 
-    def set_free_surface(self, d, b, side, algo=0):
+    def set_free_surface(self, d, b, side, algo='robertsson'):
         """
         set free surface boundary condition to boundary d, at index b
         :param indices: list of indices, e.g. [t,x,y,z] for 3D
         :param d: direction of the boundary surface normal
         :param b: location of the boundary (index)
+        :param algo: which algorithm to use to compute ghost cells
+        algo == 'robertsson' [1]: setting all velocities at ghost cells to zero
+        algo == 'levander' [2]: only valid for 4th spatial order. using 2nd order FD approximation for velocities
         side: lower boundary (0) or upper boundary (1)
         e.g. set_free_surface([t,x,y,z],1,2,0)
         set y-z plane at x=2 to be lower free surface
         ghost cells are calculated using reflection of stress fields
         store the code to populate ghost cells to self.bc
+        [1] Robertsson, Johan OA. "A numerical free-surface condition for elastic/viscoelastic finite-difference modeling in the presence of topography." Geophysics 61.6 (1996): 1921-1934.
+        [2] Levander, Alan R. "Fourth-order finite-difference P-SV seismograms." Geophysics 53.11 (1988): 1425-1436.
         """
         idx = list(self.indices)
 
         if d not in self.direction:
-            if (not algo == 0) or (not self.direction[0] == self.direction[1]):
+            if (not algo == 'levander') or (not self.direction[0] == self.direction[1]):
                 # shear stress, e.g. Tyz no need to recalculate at x boundary (only depends on dV/dz and dW/dy)
                 self.bc[d][side] = []
                 return
@@ -355,7 +366,7 @@ class SField(Field):
                 return
 
         # use anti-symmetry to ensure stress at boundary=0
-        # apply for all algorithms
+        # this applies for all algorithms
 
         idx = list(self.indices)  # ghost cell
         idx2 = list(self.indices)  # cell inside domain

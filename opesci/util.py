@@ -138,13 +138,13 @@ def Deriv(U, index, k, d, n):
     calculate the FD approximation for nth derivative
     the function works by using M * D = R, as specified in Taylor()
     then inverting M, so that D = M_inverse * R
-    :param U: the field
-    :param index: list of indices (Symbol objects) of field U
+    :param IndexedBase U: the field
+    :param list index: list of indices (Symbol objects) of field U
     e.g. possibley [t,x,y,z] for 3D
-    :param k: determine the derivative is with respect to which dimension
+    :param int k: determine the derivative is with respect to which dimension
     e.g. dU/dt if k=0, dU/dx if k=0, assuming i=[t,x,y,z]
-    :param d: spacing of the grid, e.g. dx, dt
-    :param n: accuracy of approximation
+    :param int d: spacing of the grid, e.g. dx, dt
+    :param int n: accuracy of approximation
     e.g. n=2 for 2nd-order FD approximation
     returns D=list of expressions for FD approxiation
     D[1] for first derivative, D[2] for 2nd derivative etc
@@ -171,12 +171,12 @@ def Deriv(U, index, k, d, n):
     else:
         raise NotImplementedError(">4 dimensions, need to fix")
 
-    return M.inv() * RX
+    return M.inv('LU') * RX
 
 
 def Deriv_generic(U, index, dimension, delta, left, right, half=False):
     """
-    generic version of Derive()
+    generic version of Deriv() and Deriv_half()
     """
     M = Taylor_generic(delta, left, right, half)
     mask = [0]*len(index)
@@ -199,15 +199,15 @@ def Deriv_half(U, index, dimension, delta, order):
     calculate the FD approximation for nth derivative
     the function works by using M * D = R, as specified in Taylor()
     then inverting M, so that D = M_inverse * R
-    :param U: the field
-    :param index: list of indices (Symbol objects) of field U
+    :param IndexedBase U: the field
+    :param list index: list of indices (Symbol objects) of field U
     e.g. possibley [t,x,y,z] for 3D
-    :param k: determine the derivative is with respect to which dimension
+    :param int dimension: determine the derivative is with respect to which dimension
     e.g. dU/dt if k=0, dU/dx if k=0, assuming i=[t,x,y,z]
-    :param delta: spacing of the grid, e.g. dx, dt
-    :param order: order of accuracy of approximation/2
+    :param Symbol delta: spacing of the grid, e.g. dx, dt
+    :param int order: order of FD approximation/2.
     e.g. order=1 for 2nd-order FD approximation, order=2 for 4th-order FD approximation
-    returns D=list of expressions for FD approxiation
+    returns D=list of expressions for FD approxiations of different order of partial deriaves of U
     D[1] for first derivative, D[2] for 2nd derivative etc
     raises NotImplementedError exception if dimension is more than 4
     (1 time and 3 space dimensions)

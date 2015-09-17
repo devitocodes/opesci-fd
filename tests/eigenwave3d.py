@@ -253,7 +253,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
     p.add_argument('-so', '--spatial_order', default=2, type=int, dest='so',
-                   help='Accuracy order to use for code generation, eg. 2 for 4th order in x,y,z')
+                   help='order of the spatial discretisation to use for code generation * 2, eg. order=2 to use 4th order approximation in x,y,z')
     p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
     p.add_argument('-x', '--execute', action='store_true', default=False,
