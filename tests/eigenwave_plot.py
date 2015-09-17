@@ -71,17 +71,18 @@ def roofline(basename, compiler, opt_level, nthreads, affinity, arithmetic_inten
        filename = 'results/compareCodes'	
     bwTotal = sum(bw)/len(bw)
     rpeakTotal = sum(rpeak)/len(rpeak)
-    generatePlotDatFile('result.dat', rpeakTotal/bwTotal, bwTotal, rpeakTotal, arithmetic_intensity)
-    generateGnuplotScript(filename + '.pdf', basename, precision[0],float(rpeakTotal)*2,'result.dat')
+    generatePlotDatFile('result.dat', rpeakTotal/bwTotal, bwTotal, rpeakTotal, flops, arithmetic_intensity)
+    generateGnuplotScript(filename + '.pdf', basename, precision[0],float(rpeakTotal)*2, 'result.dat')
     plotRoofline()
 
-def generatePlotDatFile(filename, machineAI, machineBW, machineTopGFps, codeAI):
+def generatePlotDatFile(filename, machineAI, machineBW, machineTopGFps, flops, codeAI):
     """
     Generate a dat file with data to generate the roofline plot.
     :param filename: name to result file
     :param machineAI: arithmetic intensity of the code 
     :param machineTopGFps: machine theoretical performance
     :param machineBW: machine bandwidth performance
+    :param flops: list with arithmetic intesity of the codes 
     :param codeAI: arithmetic intensity of the codes
     """  
     # Use these default values, that are in range with Xeon computers, the values are chosen to give a smooth roofline plot. 
@@ -97,10 +98,10 @@ def generatePlotDatFile(filename, machineAI, machineBW, machineTopGFps, codeAI):
     if insertIndex != 0:
        xAxis.insert(insertIndex, machineAI)
 
-    generateDatFile(filename, xAxis, machineAI, machineBW, machineTopGFps, codeAI)
+    generateDatFile(filename, xAxis, machineAI, machineBW, machineTopGFps, flops, codeAI)
 
 
-def generateDatFile(filename, xAxis, machineAI, machineBW, machineTopGFps, codeAI):
+def generateDatFile(filename, xAxis, machineAI, machineBW, machineTopGFps, flops, codeAI):
     """
     Generate a dat file with data to generate the roofline plot.
     :param filename: name to result file
@@ -108,6 +109,7 @@ def generateDatFile(filename, xAxis, machineAI, machineBW, machineTopGFps, codeA
     :param machineAI: arithmetic intensity of the code 
     :param machineTopGFps: machine theoretical performance
     :param machineBW: machine bandwidth performance
+    :param flops: list with arithmetic intesity of the codes 
     :param codeAI: arithmetic intensity of the codes
     """
     
@@ -120,9 +122,9 @@ def generateDatFile(filename, xAxis, machineAI, machineBW, machineTopGFps, codeA
 	else:
            yAxis.append(machineTopGFps)
 		
-    writeAxisValuesToFile(filename, xAxis, yAxis, "#AI", "#Theo", machineTopGFps, machineBW, codeAI)
+    writeAxisValuesToFile(filename, xAxis, yAxis, "#AI", "#Theo", machineTopGFps, machineBW, flops, codeAI)
 
-def writeAxisValuesToFile(filename, xAxis, yAxis, xLabel, yLabel, machineTopGFps, machineBW, codeAI):
+def writeAxisValuesToFile(filename, xAxis, yAxis, xLabel, yLabel, machineTopGFps, machineBW, flops, codeAI):
     """
     Has the logic to write the axis to the dat file.
     :param filename: name to result file
@@ -132,38 +134,46 @@ def writeAxisValuesToFile(filename, xAxis, yAxis, xLabel, yLabel, machineTopGFps
     :param yLabel: file label
     :param machineTopGFps: machine theoretical performance
     :param machineBW: machine bandwidth performance
+    :param flops: list with arithmetic intesity of the codes 
     :param codeAI: arithmetic intensity of the codes
     """
     try:
 	aiValue = []
-	codeAIBW = []	
+	codeAIBW = []
+	flopsBW = []
+	space = 16	
 	f = open(filename, 'w')
-	f.write(xLabel.ljust(11) + yLabel.ljust(11))
+	f.write(xLabel.ljust(space) + yLabel.ljust(space))
 		
 	count = len(xAxis)
 	ailength = len(codeAI)
 	for i in range(0, ailength):
-	   f.write((' #AI_code' + str(i)).ljust(11) + (' #AIcode' + str(i) + '*bw').ljust(11))
+	   f.write(('#AIcode' + str(i)).ljust(space) + ('#AIcode' + str(i) + '*bw').ljust(space) + ('#code' + str(i) + 'Gflops').ljust(space) + ('#code' + str(i) + 'Gflops/bw').ljust(space) + ('#AIcode' + str(i) + '*bw').ljust(space) + ('#AIcode' + str(i)).ljust(space))
 	f.write('\n');
 	for i in range(0, ailength):
-	   aiValue.append(('%g' % float(codeAI[i])).ljust(11))
+	   aiValue.append(('%g' % float(codeAI[i])).ljust(space))
 	   codeAIBW.append(float(codeAI[i])*machineBW)
+	
+	   flopsBW.append(float(flops[i])/machineBW)		
+	
 	   if codeAIBW[i] > machineTopGFps:
               codeAIBW[i] = machineTopGFps
         for i in range(0, count):
 	    xValue = '%g' % xAxis[i]
 	    # Align the columns!
-	    xValue = xValue.ljust(11)
-	    #f.write(xValue + ('%g \n' % yAxis[i]))
-	    yValue = ('%g ' % yAxis[i]).ljust(11)
+	    xValue = xValue.ljust(space)
+	    yValue = ('%g ' % yAxis[i]).ljust(space)
 	    f.write(xValue + yValue)
-#	    print "aa"
 	    if i != 0:
 	       for i in range(0, ailength):
-                 f.write(aiValue[i].ljust(12) + ('%g ' % codeAIBW[i]).ljust(11))		  
+                 f.write(aiValue[i].ljust(space) + ('%g ' % codeAIBW[i]).ljust(space))
+		 f.write(str(flops[i]).ljust(space) + ('%g ' % flopsBW[i]).ljust(space))
+	         f.write(('%g ' % codeAIBW[i]).ljust(space) + aiValue[i].ljust(space))		  
 	    else:
 	       for i in range(0, ailength):
-	         f.write(aiValue[i].ljust(12) + ('%g ' % 0).ljust(11))
+	         f.write(aiValue[i].ljust(space) + ('%g ' % 0).ljust(space))
+		 f.write(str(flops[i]).ljust(space) + ('%g ' % 0).ljust(space))
+	         f.write(('%g ' % codeAIBW[i]).ljust(space) + ('%g ' % 0).ljust(space))
 	    f.write('\n')
 
 	f.close()
@@ -171,19 +181,21 @@ def writeAxisValuesToFile(filename, xAxis, yAxis, xLabel, yLabel, machineTopGFps
 	   print e
 	   print "Error writing to file"
 
-def generateGnuplotScript(scriptName, basename, precision_, rpeak_, data_):
+def generateGnuplotScript(scriptName, basename_, precision_, rpeak_, data_):
     """
     Generates the gnuplot script based on the template found in the roofline folder.
     :param scriptName: name of the output file
-    :param basename: list with name of the codes
+    :param basename_: list with name of the codes
     :param precision_: double or single
     :param rpeak_: machine theoretical performance
     :param data_: filename of the result file
     """
     fileContent = ""
     try:
-	f = open('roofline/roofline_plot.in', 'r')
-
+	if len(basename_) == 1:
+	   f = open('roofline/roofline_plot_solo.in', 'r')
+        else:
+	   f = open('roofline/roofline_plot_comp.in', 'r')
 	fileContent = f.read()
 
 	f.close()
@@ -193,7 +205,7 @@ def generateGnuplotScript(scriptName, basename, precision_, rpeak_, data_):
 	return
 
     plotTemplate = Template(fileContent,trim_blocks=True,keep_trailing_newline=True)
-    gnuplotScript = plotTemplate.render({'plotFilename': scriptName,'precision': precision_, 'rpeak': rpeak_, 'data' : data_, 'basename' : basename})
+    gnuplotScript = plotTemplate.render({'plotFilename': scriptName,'precision': precision_, 'rpeak': rpeak_, 'data' : data_, 'basename' : basename_})
 
     try:
 	f = open('roofline_plot.plt', 'w')
@@ -245,8 +257,10 @@ if __name__ == '__main__':
 
     if args.mode == 'roofline':
        if len(basename) != len(arithmetic_intensity):
-	  raise Exception("Failed! Number of basename and ai must be the same!")
-       else:	 
+	  raise Exception("Failed! Numbers of basename and ai must be equal!")
+       else:
+	  b = PropagatorPlot(benchmark='Propagator-Performance',
+                      resultsdir=args.resultsdir, plotdir=args.plotdir)	 
 	  roofline(basename, compiler, opt_level, nthreads, affinity, arithmetic_intensity, file_path, precision)
     else:
         b = PropagatorPlot(benchmark='Propagator-Performance',

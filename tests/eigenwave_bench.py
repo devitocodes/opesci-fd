@@ -39,7 +39,7 @@ class PropagatorBench(Benchmark):
     python prop_bench.py -b -s -l -- basename=<basename> compiler=<compiler> opt_level=<opt_level>
     """
     warmups = 0
-    repeats = 3
+    repeats = 1
 
     method = 'propagator'
     benchmark = 'Propagator'
@@ -47,6 +47,12 @@ class PropagatorBench(Benchmark):
     trial_filename = ''
 
     compiled = defaultdict(lambda: False)
+    is_outfile_opened = False
+    outfile = ''
+
+    def __del__(self):
+	if self.is_outfile_opened:
+ 	   self.outfile.close()
 
     def compile(self, compiler, basename, opt_level):
         if self.compiled[compiler]:
@@ -94,9 +100,12 @@ class PropagatorBench(Benchmark):
  * OMP_PROC_BIND: 'close', 'spread'
  * KMP_AFFINITY: 'compact', 'scatter'"""
             raise ValueError("Unknown thread affinity setting: %s")
-
-			
-	self.trial_filename = os.getcwd() + "/results/" + basename + '_' + compiler + '_O' + str(opt_level) + '_' + str(nthreads) + '_' + affinity + '.dat'        
+	
+	if not self.is_outfile_opened:		
+	   self.trial_filename = os.getcwd() + "/results/" + basename + '_' + compiler + '_O' + str(opt_level) + '_' + str(nthreads) + '_' + affinity + '.dat'
+	   self.is_outfile_opened = True
+	   self.outfile = open(self.trial_filename,'w')
+        
 	self.compile(compiler, basename, opt_level)
         self.runlib(basename, compiler)
 	self.save_file('rpeak' + ' ' + str(self.get_theoretical_peak()) + '\n')
@@ -105,9 +114,9 @@ class PropagatorBench(Benchmark):
 	
 
     def save_file(self, string):
-	outfile = open(self.trial_filename,'a')
-	outfile.write(string)
-	outfile.close()
+	#outfile = open(self.trial_filename,'a')
+	self.outfile.write(string)
+	#outfile.close()
 
     def compileStream(self, compiler, basename, opt_level):
 	""" Compile stream to get the memory bandwith. """
@@ -155,27 +164,33 @@ class PropagatorBench(Benchmark):
         frequency = 0
         ##sockets = 0
         sp_flops_per_cycle = 0
-        fma_instruction=2
+        fma_instruction=0
         mhz_to_ghz=1000
         if platform.system() == "Linux":
             cmd_cores = "cat /proc/cpuinfo | grep processor | wc -l"
             cmd_frequency = "lscpu | grep -i mhz | awk -F : '{print $2}'"
             cmd_threads = "lscpu | grep Thread | awk -F : '{print $2}'"
             ##cmd_sockets = "lscpu | grep Socket | awk -F : '{print $2}'"
-            cmd_is_avx = "cat /proc/cpuinfo | grep avx"
+            cmd_has_avx = "cat /proc/cpuinfo | grep avx"
+	    cmd_has_fma = "cat /proc/cpuinfo | grep 'fma\|fma4'"
            
             cores_total = subprocess.Popen(cmd_cores, stdout=subprocess.PIPE, shell=True).stdout.read()
             frequency = subprocess.Popen(cmd_frequency, stdout=subprocess.PIPE, shell=True).stdout.read()
             threads = subprocess.Popen(cmd_threads, stdout=subprocess.PIPE, shell=True).stdout.read()
             ##sockets = subprocess.Popen(cmd_sockets, stdout=subprocess.PIPE, shell=True).stdout.read()
-            is_avx = subprocess.Popen(cmd_is_avx, stdout=subprocess.PIPE, shell=True).stdout.read()
-       
+            is_avx = subprocess.Popen(cmd_has_avx, stdout=subprocess.PIPE, shell=True).stdout.read()
+	    is_fma = subprocess.Popen(cmd_has_fma, stdout=subprocess.PIPE, shell=True).stdout.read()       
+
             cores = float(cores_total)/float(threads)
             frequency = float(frequency)/mhz_to_ghz
             if is_avx != "":
                 sp_flops_per_cycle = 8
             else:
-                sp_flops_per_cycle = 4           
+                sp_flops_per_cycle = 4
+	    if is_fma != "":
+	       fma_instruction=2
+	    else:
+	       fma_instruction=1           
             #DEBUG
             #print cores,frequency,dp_flops_per_cycle,sp_flops_per_cycle
         else:

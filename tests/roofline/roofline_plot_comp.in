@@ -1,0 +1,19 @@
+set terminal pdf
+set termoption dash
+set key inside left top vertical Right noreverse enhanced autotitle box
+set key samplen 2 spacing .5 font ",8"
+set output  "{{ plotFilename }}"
+set logscale
+set xlabel "Arithmetic Intensity (Flops/Byte)"
+set ylabel "{{ precision }} Precision Performance (GFlops/s)" 
+set xrange [0.0625:32]
+set yrange [1:{{ rpeak }}]
+set xtics 2 font "Verdana,10" 
+set ytics 2  font "Verdana,10"
+
+
+plot '{{ data }}' using 1:2 with lines lc 0  lw 4 title ""{% for  code in basename %} , '' using {{(loop.index * 6) - 3}}:{{(loop.index * 6) - 2}} with lines lt 1 lc {{loop.index + 1}}  lw 4  title "{{code}} AI", '' using {{(loop.index * 6)}}:{{(loop.index * 6) - 1}} with lines lt 3 lc {{loop.index + 1}} lw 4  title "Performance of {{code}}", '' using {{(loop.index * 6) + 2}}:{{(loop.index * 6) + 1}} with lines lt 1 lc {{loop.index + 10}}  lw 4  title ""{% endfor %}
+    
+
+
+    
