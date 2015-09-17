@@ -350,9 +350,11 @@ class StaggeredGrid(Grid):
         t1 = t+hf+(self.order[0]-1)  # the most advanced time index
         index = [t1] + self.index
 
+        simplify = True if max(self.order[1:]) <= 2 else False
+
         for field, eq in zip(self.vfields+self.sfields, eqs):
             # want the LHS of express to be at time t+1
-            kernel = solve(eq, field[index], simplify=False)[0]
+            kernel = solve(eq, field[index], simplify=simplify)[0]
             kernel = kernel.subs({t: t+1-hf-(self.order[0]-1)})
 
             field.set_fd_kernel(kernel)
