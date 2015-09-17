@@ -85,6 +85,7 @@ class ClangCompiler(Compiler):
     def _ivdep(self):
         return '#pragma GCC ivdep'
 
+
 class PollyCompiler(Compiler):
     def __init__(self,tile=[4,4,1000],cppargs=[],ldargs=[]):
         load_flags = ['-O3','-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
@@ -95,6 +96,7 @@ class PollyCompiler(Compiler):
     @property
     def _ivdep(self):
         return '#pragma GCC ivdep'
+
 
 class IntelCompiler(Compiler):
     """A compiler object for the Intel compiler toolchain.

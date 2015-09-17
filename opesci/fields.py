@@ -105,7 +105,7 @@ def Deriv(U, i, k, d, n):
     return M.inv() * RX
 
 
-def Deriv_half(U, i, k, d, n, p=False):
+def Deriv_half(U, i, k, d, n):
     """
     similar function as Deriv() for staggered grids
     calculate the FD approximation for nth derivative
@@ -139,25 +139,14 @@ def Deriv_half(U, i, k, d, n, p=False):
                     i[1]+s[1]*x*hf,
                     i[2]+s[2]*x*hf] for x in range(-n*2+1, n*2, 2)])
     elif len(i) == 4:
-        if p:
-
-            RX = Matrix([U[i[0]+s[0]*x*hf,#polly
-                        i[1]+s[1]*x*hf,
-                        i[2]+s[2]*x*hf,
-                        i[3]+s[3]*x*hf] for x in range(-n*2+1, n*2, 2)])
-   #         print RX
-        else:
-            RX = Matrix([U[i[0]+s[0]*x*hf,
-                        i[1]+s[1]*x*hf,
-                        i[2]+s[2]*x*hf,
-                        i[3]+s[3]*x*hf] for x in range(-n*2+1, n*2, 2)])
-  #          print RX
+        RX = Matrix([U[i[0]+s[0]*x*hf,
+                    i[1]+s[1]*x*hf,
+                    i[2]+s[2]*x*hf,
+                    i[3]+s[3]*x*hf] for x in range(-n*2+1, n*2, 2)])
     else:
         raise NotImplementedError(">4 dimensions, need to fix")
 
-    #print M.inv()
     result = M.inv() * RX
-    #print result
     return result
 
 
@@ -295,14 +284,14 @@ class Field(IndexedBase):
         """
         self.sol = function
 
-    def calc_derivative(self, l, k, d, n, p=False):
+    def calc_derivative(self, l, k, d, n):
         """
         assign list self.d with FD approximations of 1st derivatives
         such that self.d[k][n] = FD approximation of 1st derivative,
         in kth index, of nth order accuracy
         input param description same as Deriv_half()
         """
-        self.d[k][n] = Deriv_half(self, l, k, d, n, p)[1]
+        self.d[k][n] = Deriv_half(self, l, k, d, n)[1]
 
     def align(self, expr):
         """
@@ -450,9 +439,6 @@ class VField(Field):
             rhs = rhs.subs(self.media_param)
             rhs = rhs.subs(indices[d], b)
 
-        # print rhs
-
-        # print lhs
         self.bc[d][side] = ccode(lhs) + ' = ' + ccode(rhs) + ';\n'
 
 
