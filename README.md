@@ -33,27 +33,45 @@ code run:
 python tests/eigenwave3d.py
 ```
 
-This will generate the mode source code in `tests/src/eigenwave3d.cpp`,
-as well as the compiled executable `tests/src/eigenwave3d`. The
-generated binary can now be executed with:
-```
-cd tests/src
-./eigenwave3d
-```
+This will generate the mode source code in `tests/src/eigenwave3d.cpp`.
+The source code can be compiled and executed either manually or 
+automatically.
 
-##### Automatic execution
+##### Automatic compilation and execution
 
-Opesci-FD also provides automatic compilation and execution that
-allows developers to test their code directly from the Python
-environment. To execute the above test case in parallel run:
+Opesci-FD provides automatic compilation and execution that allows 
+developers to test their code directly from the Python environment. 
+To compile the generted souce code:
+```
+python tests/eigenwave3d.py --compiler <cc>
+```
+where `<cc>` is either `g++`,`clang` or `icpc`, indicating which compiler to
+use.Make sure your [clang](http://clang-omp.github.io/) compiler support openmp 
+for multithreads program.
+To compile and execute the above test case in parallel run:
 ```
 python tests/eigenwave3d.py --compiler <cc> --execute --nthreads <nt>
 ```
-where `<cc>` is either `g++` or `icpc` and `<nt>` is the number of
-threads to use during execution. For additional options please see:
+where `<nt>` is the number of threads to use during execution. 
+For additional options please see:
 ```
 python tests/eigenwave3d.py --help
 ```
+
+##### Profiling
+
+If the PAPI library is found on your system during the initial build,
+Opesci-FD can also provide profiling information, such as the achieved
+number of MFlops/s during automated runs. To enable this feature
+simply add the `--profiling` flag to the example command above. The
+user can also supply a list of PAPI event names, for example
+`PAPI_TOT_CYC` or `PAPI_FP_OPS`, via the `--papi-events` flag:
+```
+python tests/eigenwave3d.py -c g++ -x --n 4 --profiling --papi-events PAPI_TOT_CYC PAPI_FP_OPS
+```
+
+Please note that the availability of PAPI events is highly dependent
+on the hardware you are running on and the local PAPI install.
 
 ##### Manual compilation
 

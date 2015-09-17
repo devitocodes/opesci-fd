@@ -1,9 +1,9 @@
-from compilation import GNUCompiler, IntelCompiler,ClangCompiler,PollyCompiler
+from compilation import GNUCompiler, IntelCompiler, ClangCompiler, PollyCompiler
 from codeprinter import ccode
 
 from StringIO import StringIO
 from mako.runtime import Context
-from ctypes import cdll, Structure, POINTER, c_float, pointer
+from ctypes import cdll, Structure, POINTER, c_float, pointer, c_longlong
 from os import environ
 
 
@@ -58,6 +58,8 @@ class Grid(object):
             self._compiler = GNUCompiler()
         elif compiler in ['icpc', 'intel']:
             self._compiler = IntelCompiler()
+        elif compiler in ['clang', 'clang++']:
+            self._compiler = ClangCompiler()
         else:
             raise ValueError("Unknown compiler.")
 
@@ -114,20 +116,34 @@ class Grid(object):
         # Load compiled binary
         self._load_library(src_lib=self.src_lib)
 
-        # Define OpesciGrid struct
+        # Define OpesciGrid struct and generate "grid" argument
         class OpesciGrid(Structure):
             _fields_ = [(ccode(f.label), POINTER(c_float)) for f in self.fields]
-
-        # Generate the grid argument
         self._arg_grid = OpesciGrid()
         self._arg_grid.values = [POINTER(c_float)() for f in self.fields]
 
+        # Define OpesciProfiling struct and generate "profiling" argument
+        class OpesciProfiling(Structure):
+            _fields_ = [(var, c_float) for var in ['rtime', 'ptime', 'mflops']]
+            _fields_ += [(ev, c_longlong) for ev in self._papi_events]
+        self._arg_profiling = OpesciProfiling()
+        self._arg_profiling.values = [0., 0., 0.]
+
         # Load opesci_run and define it's arguments
         opesci_execute = self._library.opesci_execute
-        opesci_execute.argtypes = [POINTER(OpesciGrid)]
+        opesci_execute.argtypes = [POINTER(OpesciGrid), POINTER(OpesciProfiling)]
 
         print "Executing with %d threads (affinity=%s)" % (nthreads, affinity)
-        opesci_execute(pointer(self._arg_grid))
+        opesci_execute(pointer(self._arg_grid), pointer(self._arg_profiling))
+
+        if self.profiling:
+            if len(self._papi_events) > 0:
+                for ev in self._papi_events:
+                    print "PAPI:: %s: %ld" % (ev, getattr(self._arg_profiling, ev))
+            else:
+                print "PAPI:: Max real_time: %f (sec)" % self._arg_profiling.rtime
+                print "PAPI:: Max proc_time: %f (sec)" % self._arg_profiling.ptime
+                print "PAPI:: Total MFlops/s: %f" % self._arg_profiling.mflops
 
     def convergence(self):
         """Compute L2 norms for convergence testing"""
