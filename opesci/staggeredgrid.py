@@ -974,6 +974,24 @@ class StaggeredGrid(Grid):
 
         return result
 
+    def remove_idx(self, expr, idx):
+        if expr.is_Symbol:
+            return expr
+        if expr.is_Number:
+            return expr
+        if isinstance(expr, Indexed):
+            b = expr.base
+            idxes = list(expr.indices)
+            if idx in idxes:
+                idxes.remove(idx)
+            t = Indexed(b, *idxes)
+            return t
+        # recursive call
+        args = tuple([self.remove_idx(arg, idx) for arg in expr.args])
+        expr2 = expr.func(*args)
+        return expr2
+    
+
     @property
     def stress_loop(self):
         """
@@ -995,13 +1013,20 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
+                if self.polly:
+                    idx = idx[1:]
 
                 for field in self.sfields:
                     kernel = self.transform_kernel(field)
                     if self.read:
                         kernel = self.resolve_media_params(kernel)
-                    body += ccode(field[idx]) + '=' \
-                        + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
+
+                    if self.polly:
+                        body += ccode(field[idx]) + '=' \
+                            + ccode(self.remove_idx(kernel, self.t)) + ';\n'
+                    else:
+                        body += ccode(field[idx]) + '=' \
+                          + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
@@ -1013,6 +1038,9 @@ class StaggeredGrid(Grid):
             body = '#pragma omp for\n' + body
 
         return body
+
+
+
 
     @property
     def velocity_loop(self):
@@ -1036,24 +1064,15 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
+                if self.polly:
+                    idx = idx[1:]
                 for field in self.vfields:
                     kernel = self.transform_kernel(field)
                     if self.read:
                         kernel = self.resolve_media_params(kernel)
                     if self.polly:
-                        for e in kernel.args:
-                            expr = e.args[1]
-                            if len(expr.args):
-                                if (expr.args[1] == self.t+1):
-                                    print expr.args[0]
-                                    base = IndexedBase(str(expr.args[0]))
-                                    args_new =  expr.args[:1] + expr.args[2:]
-                                    print type(args_new)
-                                    expr = base[args_new[0],args_new[1]]
-                                    print type(expr)
-
                         body += ccode(field[idx]) + '=' \
-                            + ccode(kernel.subs({self.t+1: None, self.t: '_old'})) + ';\n'
+                            + ccode(self.remove_idx(kernel,self.t+1)) + ';\n'
                     else:
                         body += ccode(field[idx]) + '=' \
                             + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
