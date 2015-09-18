@@ -595,7 +595,7 @@ class StaggeredGrid(Grid):
 
         # 8 byte if double, 4 if float used
         # media parameter fields are always float, need to amend this
-        word_size = 8 if self.double else 4
+        word_size = 4 if self.double else 8
         load = len(arrays)
         ai = float(add+mul)/(load+store)/word_size
         ai_w = ai*(add+mul)/max(add, mul)/2.0
@@ -628,12 +628,29 @@ class StaggeredGrid(Grid):
 
         # 8 byte if double, 4 if float used
         # media parameter fields are always float, need to amend this
-        word_size = 8 if self.double else 4
+        word_size = 4 if self.double else 8
         load = len(arrays)
         ai = float(add+mul)/(load+store)/word_size
         ai_w = ai*(add+mul)/max(add, mul)/2.0
 
         return (ai, ai_w, add, mul, load, store)
+
+    def get_overall_kernel_ai(self):
+        """
+        - get the overall arithmetic intensity of the kernel (velocity and stress)
+        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
+        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
+        """
+        velcoity_ai = self.get_velocity_kernel_ai()
+        stress_ai = self.get_stress_kernel_ai()
+        word_size = 4 if self.double else 8
+        add = velcoity_ai[2] + stress_ai[2]
+        mul = velcoity_ai[3] + stress_ai[3]
+        load = velcoity_ai[4] + stress_ai[4]
+        store = velcoity_ai[5] + stress_ai[5]
+        ai = float(add+mul)/(load+store)/word_size
+        ai_w = ai*(add+mul)/max(add, mul)/2.0
+        return ai, ai_w
 
     # ------------------- sub-routines for output -------------------- #
 

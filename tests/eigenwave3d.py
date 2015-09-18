@@ -121,6 +121,8 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
     grid.solve_fd([eq1, eq2, eq3, eq4, eq5, eq6, eq7, eq8, eq9])
 
+    print 'kernel Weighted AI: ' + '%.2f' % grid.get_overall_kernel_ai()[1]
+
     grid.set_free_surface_boundary(dimension=1, side=0)
     grid.set_free_surface_boundary(dimension=1, side=1)
     grid.set_free_surface_boundary(dimension=2, side=0)
