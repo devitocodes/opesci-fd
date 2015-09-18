@@ -93,6 +93,7 @@ class StaggeredGrid(Grid):
 
         # number of ghost cells for boundary
         self.margin = Variable('margin', 2, 'int', True)
+        self.grid_size = (10, 10, 10)
         self.size = [1.0] * dimension  # default domain size
         # grid size symbols, dim1, dim2, ...
         self.dim = [Variable('dim'+str(k+1),
@@ -158,6 +159,7 @@ class StaggeredGrid(Grid):
             v = Variable(name, 0, 'int', False)
             self.time.append(v)
         self.margin.value = self.order[1]
+        self.set_grid_size(self.grid_size)
         self.update_field_accuracy()
 
     def update_field_accuracy(self):
@@ -210,6 +212,7 @@ class StaggeredGrid(Grid):
         update the spacing variables with new value (domain size / grid size)
         :param size: grid spacing as tuple, e.g. (100, 100, 100)
         """
+        self.grid_size = size
         self.dim = [Variable('dim'+str(k+1), size[k]+1+2*self.margin.value,
                     'int', True) for k in range(self.dimension)]
 
