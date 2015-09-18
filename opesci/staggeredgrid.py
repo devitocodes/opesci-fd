@@ -402,7 +402,7 @@ class StaggeredGrid(Grid):
                 bc_new = bc_new.subs(self.const_dict)
 
             bc_new_list.append(bc_new)
-        return kernel_new
+        return bc_new_list
 
     def associate_fields(self):
         """
@@ -595,7 +595,7 @@ class StaggeredGrid(Grid):
 
         # 8 byte if double, 4 if float used
         # media parameter fields are always float, need to amend this
-        word_size = 4 if self.double else 8
+        word_size = 8 if self.double else 4
         load = len(arrays)
         ai = float(add+mul)/(load+store)/word_size
         ai_w = ai*(add+mul)/max(add, mul)/2.0
@@ -604,7 +604,7 @@ class StaggeredGrid(Grid):
 
     def get_stress_kernel_ai(self):
         """
-        - get the arithmetic intensity of velocity kernel
+        - get the arithmetic intensity of stress kernel
         - get the number of different operations of the stress field kernel
         - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
         - #LOAD = number of unique fields in the kernel
@@ -628,12 +628,108 @@ class StaggeredGrid(Grid):
 
         # 8 byte if double, 4 if float used
         # media parameter fields are always float, need to amend this
-        word_size = 4 if self.double else 8
+        word_size = 8 if self.double else 4
         load = len(arrays)
         ai = float(add+mul)/(load+store)/word_size
         ai_w = ai*(add+mul)/max(add, mul)/2.0
 
         return (ai, ai_w, add, mul, load, store)
+
+    def get_velocity_bc_ai(self):
+        """
+        - get the arithmetic intensity of velocity boundary conditions
+        - get the number of different operations of the velocity boundary condition computation
+        - return list of AIs and # ops for each boundary
+        - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
+        - #LOAD = number of unique fields in the kernel
+        - return tuple (#ADD, #MUL, #LOAD, #STORE)
+        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
+        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
+        """
+        result = []
+        if self.eval_const:
+            self.create_const_dict()
+
+        # 8 byte if double, 4 if float used
+        # media parameter fields are always float, need to amend this
+        word_size = 8 if self.double else 4
+
+        for field in self.vfields:
+            for dimension in range(1, 4):
+                for side in range(2):
+                    store = 0
+                    add = 0
+                    mul = 0
+                    load = 0
+                    arrays = []  # to store name of arrays loaded
+                    bc_list = self.transform_bc(field, dimension, side)
+                    for bc in bc_list:
+                        store += 1  # increment STORE by 1 (assignment)
+                        add2, mul2, arrays2 = get_ops_expr(bc.rhs, arrays)
+                        add += add2  # accumulate # ADD
+                        mul += mul2  # accumulate # MUL
+                        arrays = arrays2  # replace with new list of field names
+                    load = len(arrays)
+                    if (store == 0):
+                        ai = 0
+                        weight = 0  # weight of AI in overall AI calculation
+                    else:
+                        ai = float(add+mul)/(load+store)/word_size
+                        weight = 1.0/(self.dim[dimension-1].value-self.margin.value*2)
+                        if (add == 0 and mul == 0):
+                            ai_w = ai
+                        else:
+                            ai_w = ai*(add+mul)/max(add, mul)/2.0
+                    result.append({'weight': weight, 'ai': ai, 'ai_w': ai_w, 'add': add, 'mul': mul, 'load': load, 'store': store})
+        return result
+
+    def get_stress_bc_ai(self):
+        """
+        - get the arithmetic intensity of stress boundary conditions
+        - get the number of different operations of the stress boundary condition computation
+        - return list of AIs and # ops for each boundary
+        - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
+        - #LOAD = number of unique fields in the kernel
+        - return tuple (#ADD, #MUL, #LOAD, #STORE)
+        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
+        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
+        """
+        result = []
+        if self.eval_const:
+            self.create_const_dict()
+
+        # 8 byte if double, 4 if float used
+        # media parameter fields are always float, need to amend this
+        word_size = 8 if self.double else 4
+
+        for field in self.sfields:
+            for dimension in range(1, 4):
+                for side in range(2):
+                    store = 0
+                    add = 0
+                    mul = 0
+                    load = 0
+                    arrays = []  # to store name of arrays loaded
+                    bc_list = self.transform_bc(field, dimension, side)
+                    for bc in bc_list:
+                        store += 1  # increment STORE by 1 (assignment)
+                        add2, mul2, arrays2 = get_ops_expr(bc.rhs, arrays)
+                        add += add2  # accumulate # ADD
+                        mul += mul2  # accumulate # MUL
+                        arrays = arrays2  # replace with new list of field names
+                    load = len(arrays)
+                    if (store == 0):
+                        ai = 0
+                        weight = 0  # weight of AI in overall AI calculation
+                    else:
+                        ai = float(add+mul)/(load+store)/word_size
+                        weight = 1.0/(self.dim[dimension-1].value-self.margin.value*2)
+                        if (add == 0 and mul == 0):
+                            ai_w = ai
+                        else:
+                            ai_w = ai*(add+mul)/max(add, mul)/2.0
+                    result.append({'weight': weight, 'ai': ai, 'ai_w': ai_w, 'add': add, 'mul': mul, 'load': load, 'store': store})
+        return result
 
     def get_overall_kernel_ai(self):
         """
@@ -641,16 +737,30 @@ class StaggeredGrid(Grid):
         - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
         - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
         """
-        velcoity_ai = self.get_velocity_kernel_ai()
+        # get the AI of kernels and boundary conditions
+        velocity_ai = self.get_velocity_kernel_ai()
         stress_ai = self.get_stress_kernel_ai()
-        word_size = 4 if self.double else 8
-        add = velcoity_ai[2] + stress_ai[2]
-        mul = velcoity_ai[3] + stress_ai[3]
-        load = velcoity_ai[4] + stress_ai[4]
-        store = velcoity_ai[5] + stress_ai[5]
-        ai = float(add+mul)/(load+store)/word_size
-        ai_w = ai*(add+mul)/max(add, mul)/2.0
-        return ai, ai_w
+        velocity_bc_ai = self.get_velocity_bc_ai()
+        stress_bc_ai = self.get_stress_bc_ai()
+        total_weight = 2.0  # velocity kernel and stress kernel
+        overall_ai = velocity_ai[0] + stress_ai[0]
+        overall_ai_w = velocity_ai[1] + stress_ai[1]
+
+        for ai in velocity_bc_ai+stress_bc_ai:
+            total_weight += ai['weight']
+            overall_ai += ai['ai']*ai['weight']
+            overall_ai_w += ai['ai_w']*ai['weight']
+
+        overall_ai /= total_weight
+        overall_ai_w /= total_weight
+
+        # calculate adjustment due to ghost cells
+        ghost_adj = 1.0
+        for d in self.dim[1:]:
+            ghost_adj *= 1 - float(self.margin.value)/d.value
+        overall_ai *= ghost_adj
+        overall_ai_w *= ghost_adj
+        return overall_ai, overall_ai_w
 
     # ------------------- sub-routines for output -------------------- #
 
@@ -1003,6 +1113,8 @@ class StaggeredGrid(Grid):
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
         result = ''
+        if self.eval_const:
+            self.create_const_dict()
         for field in self.sfields:
             # normal stress, not shear stress
             normal = field.direction[0] == field.direction[1]
@@ -1036,10 +1148,11 @@ class StaggeredGrid(Grid):
                             if body == '':
                                 # inner loop, populate ghost cell calculation
                                 # body = field.bc[d+1][side]
+                                bc_list = self.transform_bc(field, d+1, side)
                                 if self.read:
-                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in bc_list)
                                 else:
-                                    body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
                                 body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
@@ -1067,6 +1180,8 @@ class StaggeredGrid(Grid):
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
         result = ''
+        if self.eval_const:
+            self.create_const_dict()
         for d in range(self.dimension):
             # update the staggered field first
             # because other fields depends on it
@@ -1089,10 +1204,11 @@ class StaggeredGrid(Grid):
                             if body == '':
                                 # inner loop, populate ghost cell calculation
                                 # body = field.bc[d+1][side]
+                                bc_list = self.transform_bc(field, d+1, side)
                                 if self.read:
-                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in bc_list)
                                 else:
-                                    body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
                                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
                                 body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
                                 if self.ivdep:
