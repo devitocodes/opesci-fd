@@ -8,12 +8,13 @@ def get_package_dir():
 
 def getTilesize(tiles):
     # tiles has to be length of 3
-    if len(tiles)!= 3:
+    l = len(tiles)
+    if l > 3 or l < 2:
         raise AssertionError()
     tile = '-polly-tile-sizes='
-    tile += str(tiles[0]) + ','
-    tile += str(tiles[1]) + ','
-    tile += str(tiles[2])
+    for i in range(0,l-1):
+        tile += str(tiles[i]) + ','
+    tile += str(tiles[l-1])
     return tile
 
 
@@ -92,7 +93,8 @@ class PollyCompiler(Compiler):
         opt_flags = ['-g','-O3','-fopenmp']
         load_flags = ['-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
         polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm', '-march=native','-mllvm',getTilesize(tile)]
-        cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
+        cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()]\
+                  + opt_flags + cppargs + load_flags + polly_flags
         ldargs = []
         super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
     @property

@@ -143,29 +143,13 @@ def default(compiler=None, execute=False, nthreads=1,
                        o_converge=True, omp=True, simd=False,
                        ivdep=True, filename=filename)
     grid.set_switches(output_vts=output, profiling=profiling)
+    if compiler =='polly':
+        grid.set_switches(polly = True)
     grid.set_papi_events(papi_events)
     if compiler is None:
         grid.generate(filename)
     else:
         grid.compile(filename, compiler=compiler, shared=False)
-    if execute:
-        # Test Python-based execution for the base test
-        grid.execute(filename, compiler=compiler, nthreads=nthreads)
-        grid.convergence()
-
-def polly(compiler='polly', execute=False, nthreads=1, output=False):
-    """Eigenwave test case on a unit cube grid (100 x 100 x 100)
-    """
-    domain_size = (1.0, 1.0, 1.0)
-    grid_size = (100, 100, 100)
-    dt = 0.002
-    tmax = 1.0
-    filename = path.join(_test_dir, 'eigenwave3d.cpp')
-    grid = eigenwave3d(domain_size, grid_size, dt, tmax,
-                       o_converge=True, omp=True, simd=False,
-                       ivdep=True, filename=filename)
-    grid.set_switches(output_vts=output,polly = True)
-    grid.compile(filename, compiler=compiler, shared=False)
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename, compiler=compiler, nthreads=nthreads)
@@ -293,7 +277,6 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         converge_test()
     elif args.mode == 'cx1':
         cx1()
-    elif args.mode == 'polly':
-        polly(execute=args.execute, nthreads=args.nthreads)
+        
 if __name__ == "__main__":
     main()
