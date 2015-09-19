@@ -5,6 +5,7 @@ from codeprinter import ccode, render, ccode_eq
 from derivative import DDerivative
 from util import *
 from compilation import get_package_dir
+from fields import SField, VField
 
 from sympy import Symbol, Rational, solve, expand, Eq
 from mako.lookup import TemplateLookup
@@ -975,6 +976,8 @@ class StaggeredGrid(Grid):
         return result
 
     def remove_idx(self, expr, idx):
+        #remove index from expr
+        # e.g. remove_idx(T[x,y,z],x) = T[y,z]
         if expr.is_Symbol:
             return expr
         if expr.is_Number:
@@ -988,6 +991,27 @@ class StaggeredGrid(Grid):
             return t
         # recursive call
         args = tuple([self.remove_idx(arg, idx) for arg in expr.args])
+        expr2 = expr.func(*args)
+        return expr2
+
+    def change_name(self,expr,o,n):
+        # change name from o to n
+        # e.g. change_name(T[x,y,z],T,N)= N[x,y,z]
+        if expr.is_Number:
+            return expr
+        if expr.is_Symbol:
+            return expr
+        if isinstance(expr,Indexed):
+            #print expr, o, n
+            if str(expr.base) == str(o):
+                idxes = list(expr.indices)
+                t = Indexed(n,*idxes)
+               # print 'find!',t
+                return t
+            else:
+                return expr
+        
+        args = tuple([self.change_name(arg,o,n) for arg in expr.args])
         expr2 = expr.func(*args)
         return expr2
     
@@ -1022,7 +1046,10 @@ class StaggeredGrid(Grid):
                         kernel = self.resolve_media_params(kernel)
 
                     if self.polly:
-                        body += ccode(field[idx]) + '=' \
+                        f_old = SField(str(field)+'_old')
+                       # f_old.__dict__ = field.__dict__
+
+                        body += ccode(f_old[idx]) + '=' \
                             + ccode(self.remove_idx(kernel, self.t)) + ';\n'
                     else:
                         body += ccode(field[idx]) + '=' \
@@ -1071,8 +1098,13 @@ class StaggeredGrid(Grid):
                     if self.read:
                         kernel = self.resolve_media_params(kernel)
                     if self.polly:
+                        f_old = VField(str(field)+'_old')
+                        # f_old.__dict__ = field.__dict__
+                        kn = self.change_name(kernel,field,f_old)
+                        kn = self.remove_idx(kn,self.t)
+
                         body += ccode(field[idx]) + '=' \
-                            + ccode(self.remove_idx(kernel,self.t+1)) + ';\n'
+                            + ccode(self.remove_idx(kn,self.t+1)) + ';\n'
                     else:
                         body += ccode(field[idx]) + '=' \
                             + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'

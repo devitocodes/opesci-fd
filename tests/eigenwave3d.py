@@ -153,7 +153,7 @@ def default(compiler=None, execute=False, nthreads=1,
         grid.execute(filename, compiler=compiler, nthreads=nthreads)
         grid.convergence()
 
-def polly(compiler='g++', execute=False, nthreads=1, output=False):
+def polly(compiler='polly', execute=False, nthreads=1, output=False):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
@@ -294,6 +294,6 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     elif args.mode == 'cx1':
         cx1()
     elif args.mode == 'polly':
-        polly()
+        polly(execute=args.execute, nthreads=args.nthreads)
 if __name__ == "__main__":
     main()

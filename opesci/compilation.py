@@ -88,7 +88,9 @@ class ClangCompiler(Compiler):
 
 class PollyCompiler(Compiler):
     def __init__(self,tile=[4,4,1000],cppargs=[],ldargs=[]):
-        load_flags = ['-O3','-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
+
+        opt_flags = ['-g','-O3','-fopenmp']
+        load_flags = ['-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
         polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm', '-march=native','-mllvm',getTilesize(tile)]
         cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
         ldargs = []

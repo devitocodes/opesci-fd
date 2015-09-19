@@ -60,6 +60,8 @@ class Grid(object):
             self._compiler = IntelCompiler()
         elif compiler in ['clang', 'clang++']:
             self._compiler = ClangCompiler()
+        elif compiler in ['polly']:
+            self._compiler = PollyCompiler()
         else:
             raise ValueError("Unknown compiler.")
 
