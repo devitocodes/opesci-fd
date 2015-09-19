@@ -1139,11 +1139,13 @@ class StaggeredGrid(Grid):
         if self.polly:
             result += "if("+ccode(_ti)+"%2==0){\n"
             for s in self.sfields :
-                result += str(s) + " = " + str(s) + "_1;\n"
+                result += str(s) + " = " + str(s) + "_0;\n"
+                result += str(s) + "_old = " + str(s)+ "_1;\n"
             result += "\n"
             result += "}else{\n"
             for s in self.sfields :
-                result += str(s) + " = " + str(s) + "_0;\n"
+                result += str(s) + " = " + str(s) + "_1;\n"
+                result += str(s) + "_old = " + str(s)+ "_0;\n"
             result += "}\n"
 
         tmpl = self.lookup.get_template('generic_loop.txt')
