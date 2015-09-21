@@ -173,6 +173,7 @@ def read_data(compiler=None, execute=False, nthreads=1,
     tmax = 1.0
     filename = path.join(_test_dir, 'eigenwave3d_read.cpp')
     grid = eigenwave3d(domain_size, grid_size, dt, tmax, read=True,
+                       accuracy_order=accuracy_order,
                        o_converge=False, omp=True, simd=False, ivdep=True,
                        filename=filename, rho_file='RHOhomogx200',
                        vp_file='VPhomogx200', vs_file='VShomogx200')
