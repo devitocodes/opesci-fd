@@ -344,7 +344,7 @@ class SField(Field):
                 # substitution dictionary
                 dict1 = {}
                 for deriv in derivatives:
-                    dict1[deriv] = deriv.fd[2]
+                    dict1[deriv] = deriv.fd[4]
                 expr = expr.subs(dict1)
                 eq = Eq(self.d[0][1].fd[2], expr)
                 eq = eq.subs(idx[d], b)
