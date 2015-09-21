@@ -148,6 +148,7 @@ def default(compiler=None, execute=False, nthreads=1,
                        ivdep=True, filename=filename, pluto=pluto)
     grid.set_switches(output_vts=output, profiling=profiling)
     grid.set_papi_events(papi_events)
+    out = None
     if pluto:
         grid.generate(filename)
         filename_p = grid.pluto_op(filename)
@@ -163,19 +164,19 @@ def default(compiler=None, execute=False, nthreads=1,
             share = True
         else:
             share = False
-        grid.compile(filename_p, compiler=compiler, shared=share)
+            out = grid.compile(filename_p, compiler=compiler, shared=share)
     else:
         filename_p = filename
         if compiler is None:
             grid.generate(filename_p)
         else:
-            grid.compile(filename_p, compiler=compiler, shared=False)
+            out = grid.compile(filename_p, compiler=compiler, shared=False)
 
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
         grid.convergence()
-    return grid
+    return out
 
 
 def read_data(compiler=None, execute=False, nthreads=1,

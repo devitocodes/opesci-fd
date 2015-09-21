@@ -96,6 +96,7 @@ class Grid(object):
         out = self.compiler.compile(self.src_file, shared=shared)
         if shared:
             self.src_lib = out
+        return out
 
     def execute(self, filename, compiler='g++', nthreads=1, affinity='close'):
         # Parallel thread settings
