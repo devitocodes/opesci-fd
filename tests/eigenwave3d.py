@@ -104,7 +104,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     Tyz.set_analytic_solution(Tyz_func)
     Txz.set_analytic_solution(Txz_func)
 
-    grid.set_accuracy(accuracy_order)
+    grid.set_order(accuracy_order)
     grid.calc_derivatives()
 
     # PDEs: momentum equations
@@ -134,7 +134,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 
 def default(compiler=None, execute=False, nthreads=1,
-            accuracy_order=[1, 2, 2, 2],
+            accuracy_order=[2, 4, 4, 4],
             output=False, profiling=False, papi_events=[]):
     """
     Eigenwave test case on a unit cube grid (100 x 100 x 100)
@@ -161,7 +161,7 @@ def default(compiler=None, execute=False, nthreads=1,
 
 
 def read_data(compiler=None, execute=False, nthreads=1,
-              accuracy_order=[1, 2, 2, 2],
+              accuracy_order=[2, 4, 4, 4],
               output=False, profiling=False, papi_events=[]):
     """Test for model intialisation from input file
 
@@ -255,8 +255,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                        formatter_class=RawTextHelpFormatter)
     p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
-    p.add_argument('-so', '--spatial_order', default=2, type=int, dest='so',
-                   help='order of the spatial discretisation to use for code generation * 2, eg. order=2 to use 4th order approximation in x,y,z')
+    p.add_argument('-so', '--spatial_order', default=4, type=int, dest='so',
+                   help='order of the spatial discretisation to use for code generation * 2, eg. order=4 to use 4th order approximation in x,y,z')
     p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
     p.add_argument('-x', '--execute', action='store_true', default=False,
@@ -276,12 +276,12 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     if args.mode == 'default':
         default(compiler=args.compiler, execute=args.execute,
                 nthreads=args.nthreads, output=args.output,
-                accuracy_order=[1, args.so, args.so, args.so],
+                accuracy_order=[2, args.so, args.so, args.so],
                 profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,
-                  accuracy_order=[1, args.so, args.so, args.so],
+                  accuracy_order=[2, args.so, args.so, args.so],
                   profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'converge':
         converge_test()

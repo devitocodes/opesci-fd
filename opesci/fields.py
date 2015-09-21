@@ -60,18 +60,18 @@ class Field(IndexedBase):
         """
         self.spacing = spacing
 
-    def set_accuracy(self, accuracy):
+    def set_order(self, order):
         """
         set order of accuracy of the field, e.g. [1,2,2,2] for (2,4) scheme
         """
-        self.accuracy = accuracy
+        self.order = order
 
     def calc_derivative(self, l, k, d, n):
         """
         return FD approximations field derivatives
         input param description same as Deriv_half()
         """
-        return Deriv_half(self, l, k, d, n)[1]
+        return Deriv_half(self, l, k, d, n/2)[1]
 
     def populate_derivatives(self, max_order=1):
         """
@@ -90,8 +90,8 @@ class Field(IndexedBase):
                 # create DDerivative objects (name, dependent variable, derivative order, max_accuracy needed)
                 # name = 'D'+'_'+self.label.name+'_'+str(index)+'_'+str(order)  # e.g. D_U_x_1 = dU/dx
                 name = ''.join(['\partial ', self.label.name, '/\partial ', str(index)])
-                self.d[d][order] = DDerivative(name, index, order, self.accuracy[d])
-                for accuracy in range(1, self.accuracy[d]+1):
+                self.d[d][order] = DDerivative(name, index, order, self.order[d])
+                for accuracy in range(2, self.order[d]+2, 2):
                     # assign FD approximation expression of different order of accuracy
                     self.d[d][order].fd[accuracy] = self.calc_derivative(self.indices, d, self.spacing[d], accuracy)
 
@@ -228,7 +228,7 @@ class VField(Field):
             derivatives = get_all_objects(expr, DDerivative)
             for deriv in derivatives:
                 # using 2nd order approximation
-                dict1[deriv] = deriv.fd[1]
+                dict1[deriv] = deriv.fd[2]
             expr = expr.subs(dict1)
             if self.staggered[d]:
                 # if staggered, solve ghost cell using T'[b]=0 (e.g. W at z surface, using Tzz)
@@ -265,7 +265,7 @@ class VField(Field):
             eq = eq.subs(idx[0], idx[0]+1)
             self.bc[d][side] = [eq]
             # populate all ghost cells
-            for depth in range(self.accuracy[d]-1):
+            for depth in range(self.order[d]/2-1):
                 idx[d] -= (-1)**side
                 eq = Eq(self[idx])
                 eq = eq.subs(idx[0], idx[0]+1)
@@ -346,7 +346,7 @@ class SField(Field):
                 for deriv in derivatives:
                     dict1[deriv] = deriv.fd[2]
                 expr = expr.subs(dict1)
-                eq = Eq(self.d[0][1].fd[1], expr)
+                eq = Eq(self.d[0][1].fd[2], expr)
                 eq = eq.subs(idx[d], b)
                 t = idx[0]
                 idx[0] = t+hf
@@ -384,7 +384,7 @@ class SField(Field):
         eq1 = eq1.subs(idx[0], idx[0]+1)
         self.bc[d][side] = [eq1]
 
-        for depth in range(self.accuracy[d]-1):
+        for depth in range(self.order[d]/2-1):
             # populate ghost cells
             idx[d] -= (-1)**side
             idx2[d] += (-1)**side

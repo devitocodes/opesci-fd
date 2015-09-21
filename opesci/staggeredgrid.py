@@ -109,8 +109,8 @@ class StaggeredGrid(Grid):
         self.set_index(index)
 
         # default 2nd order in time, 4th order in space, i.e. (2,4) scheme
-        default_accuracy = [1] + [2]*self.dimension
-        self.set_accuracy(default_accuracy)
+        default_order = [2] + [4]*self.dimension
+        self.set_order(default_order)
 
         self.dt = Variable('dt', 0.01, self.real_t, True)
         self.ntsteps = Variable('ntsteps', 100, 'int', True)
@@ -129,7 +129,7 @@ class StaggeredGrid(Grid):
         # user defined variables
         # use dictionary because of potential duplication
         self.defined_variable = {}
-        self.update_field_accuracy()
+        self.update_field_order()
         self._update_spacing()
 
     @property
@@ -141,34 +141,34 @@ class StaggeredGrid(Grid):
         """Flag whether to include I/O headers"""
         return self.read or self.output_vts
 
-    def set_accuracy(self, accuracy):
+    def set_order(self, order):
         """
-        - set the accuracy of the scheme
+        - set the order of approximation of the scheme
         - create the t variables for time stepping
         e.g. t0, t1 for 2nd order scheme, t0, t1, t2, t3 for 4th order scheme
-        :param accuracy: list of time accuracy followed by spatial accuracy
-        e.g. [1,2,2,2] for (2,4) scheme
+        :param order: list of time order followed by spatial orders
+        e.g. [2,4,4,4] for (2,4) scheme
         """
-        self.order = accuracy
+        self.order = order
         # periodicity for time stepping
-        self.tp = Variable('tp', self.order[0]*2, 'int', True)
+        self.tp = Variable('tp', self.order[0], 'int', True)
         # add time variables for time stepping: t0, t1 ...
         self.time = []
-        for k in range(self.order[0]*2):
+        for k in range(self.order[0]):
             name = 't' + str(k)
             v = Variable(name, 0, 'int', False)
             self.time.append(v)
-        self.margin.value = self.order[1]
+        self.margin.value = self.order[1]/2
         self.set_grid_size(self.grid_size)
-        self.update_field_accuracy()
+        self.update_field_order()
 
-    def update_field_accuracy(self):
+    def update_field_order(self):
         """
         update the order of acuracy of the fields
         """
         if hasattr(self, 'sfields') and hasattr(self, 'vfields'):
             for field in self.sfields + self.vfields:
-                field.set_accuracy(self.order)
+                field.set_order(self.order)
 
     def set_switches(self, **kwargs):
         for switch, value in kwargs.items():
@@ -193,7 +193,7 @@ class StaggeredGrid(Grid):
                         self.size[k]/(self.dim[k].value-1-self.margin.value*2),
                         self.real_t, True) for k in range(self.dimension)]
 
-        expr = 2*self.order[0]
+        expr = self.order[0]
         for d in self.dim:
             expr *= d
         self.vec_size = Variable('vec_size', expr, 'int', True)
@@ -265,9 +265,9 @@ class StaggeredGrid(Grid):
         r = self.defined_variable['rho'].value
         Vp = ((l + 2*m)/r)**0.5
         h = min([sp.value for sp in self.spacing])
-        if self.order[1] == 1:
+        if self.order[1] == 2:
             return h/Vp/(3**0.5)
-        elif self.order[1] == 2:
+        elif self.order[1] == 4:
             return 0.495*h/Vp
         else:
             return 'not implemented yet'
@@ -345,20 +345,19 @@ class StaggeredGrid(Grid):
         for eq in self.eq:
             derivatives = get_all_objects(eq, DDerivative)
             for deriv in derivatives:
-                # this might need changing for higher order scheme
                 eq = eq.subs(deriv, deriv.fd[deriv.max_accuracy])
             eqs += [eq]
 
         t = self.t
-        t1 = t+hf+(self.order[0]-1)  # the most advanced time index
+        t1 = t+hf+(self.order[0]/2-1)  # the most advanced time index
         index = [t1] + self.index
 
-        simplify = True if max(self.order[1:]) <= 2 else False
+        simplify = True if max(self.order[1:]) <= 4 else False
 
         for field, eq in zip(self.vfields+self.sfields, eqs):
             # want the LHS of express to be at time t+1
             kernel = solve(eq, field[index], simplify=simplify)[0]
-            kernel = kernel.subs({t: t+1-hf-(self.order[0]-1)})
+            kernel = kernel.subs({t: t+hf-(self.order[0]/2-1)})
 
             field.set_fd_kernel(kernel)
 
@@ -442,7 +441,7 @@ class StaggeredGrid(Grid):
         side=0 for bottom surface, side=1 for top surface
         """
         algo = 'robertsson'
-        if self.order[dimension] == 2:
+        if self.order[dimension] == 4:
             # using different algorithm for free surface for 4th order
             algo = 'levander'
         self.associate_fields()
@@ -820,7 +819,7 @@ class StaggeredGrid(Grid):
         vsize = 1
         for d in self.dim:
             vsize *= d.value
-        vsize *= self.order[0]*2
+        vsize *= self.order[0]
         for field in self.sfields + self.vfields:
             vec = '_' + ccode(field.label) + '_vec'
             # alloc aligned memory (on windows and linux)
