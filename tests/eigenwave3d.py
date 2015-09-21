@@ -148,17 +148,17 @@ def default(compiler=None, execute=False, nthreads=1,
         grid.compiler = compiler 
         if tile:
             grid.compiler.add_tile(tile)
-            print grid.compiler._cppargs
     grid.set_papi_events(papi_events)
     if compiler is None:
         grid.generate(filename)
     else:
-        print 'in default:', grid.compiler._cppargs
-        grid.compile(filename, shared=False)
+        out = grid.compile(filename, shared=False)
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename, nthreads=nthreads)
         grid.convergence()
+    print out
+    return out
 
 def read_data(compiler=None, execute=False, nthreads=1,
               output=False, profiling=False, papi_events=[]):

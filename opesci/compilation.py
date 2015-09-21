@@ -46,7 +46,7 @@ class Compiler(object):
             self._cppargs += ['-fPIC']
             self._ldargs += ['-shared']
         cc = [self._cc] + self._cppargs + ['-o', outname, src] + self._ldargs
-        print cc
+        print 'cmd in compilation, compile',cc
         with file('%s.log' % basename, 'w') as logfile:
             logfile.write("Compiling: %s\n" % " ".join(cc))
             try:
