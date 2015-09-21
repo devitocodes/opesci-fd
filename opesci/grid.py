@@ -98,7 +98,7 @@ class Grid(object):
         if shared:
             self.src_lib = out
 
-    def execute(self, filename, compiler='g++', nthreads=1, affinity='close'):
+    def execute(self, filename, compiler=None, nthreads=1, affinity='close'):
         # Parallel thread settings
         environ["OMP_NUM_THREADS"] = str(nthreads)
         if affinity in ['close', 'spread']:

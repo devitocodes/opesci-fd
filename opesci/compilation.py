@@ -6,10 +6,15 @@ def get_package_dir():
     return path.abspath(path.dirname(__file__))
 
 
-def getTilesize(tiles):
+def getTilesize(tiles_str):
     # tiles has to be length of 3
+    tiles = tiles_str.split(' ')
+    for i in range(0,len(tiles)):
+        tiles[i] = int(tiles[i])
+
     l = len(tiles)
     if l > 3 or l < 2:
+        print 'tiles in tiles', tiles, l
         raise AssertionError()
     tile = '-polly-tile-sizes='
     for i in range(0,l-1):
@@ -41,6 +46,7 @@ class Compiler(object):
             self._cppargs += ['-fPIC']
             self._ldargs += ['-shared']
         cc = [self._cc] + self._cppargs + ['-o', outname, src] + self._ldargs
+        print cc
         with file('%s.log' % basename, 'w') as logfile:
             logfile.write("Compiling: %s\n" % " ".join(cc))
             try:
@@ -88,15 +94,21 @@ class ClangCompiler(Compiler):
 
 
 class PollyCompiler(Compiler):
-    def __init__(self,tile=[4,4,1000],cppargs=[],ldargs=[]):
+    def __init__(self,cppargs=[],ldargs=[]):
 
-        opt_flags = ['-g','-O3','-fopenmp']
+        opt_flags = ['-O3']
         load_flags = ['-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
-        polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm', '-march=native','-mllvm',getTilesize(tile)]
+        polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm','-march=native' ]
         cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()]\
                   + opt_flags + cppargs + load_flags + polly_flags
         ldargs = []
         super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
+
+    def add_tile(self,tile=None):
+        if tile:
+            self._cppargs += ['-mllvm', getTilesize(tile)]
+        
+
     @property
     def _ivdep(self):
         return '#pragma GCC ivdep'

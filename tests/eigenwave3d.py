@@ -131,7 +131,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 
 def default(compiler=None, execute=False, nthreads=1,
-            output=False, profiling=False, papi_events=[]):
+            output=False, profiling=False, papi_events=[], tile=None):
     """Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
@@ -145,14 +145,19 @@ def default(compiler=None, execute=False, nthreads=1,
     grid.set_switches(output_vts=output, profiling=profiling)
     if compiler =='polly':
         grid.set_switches(polly = True)
+        grid.compiler = compiler 
+        if tile:
+            grid.compiler.add_tile(tile)
+            print grid.compiler._cppargs
     grid.set_papi_events(papi_events)
     if compiler is None:
         grid.generate(filename)
     else:
-        grid.compile(filename, compiler=compiler, shared=False)
+        print 'in default:', grid.compiler._cppargs
+        grid.compile(filename, shared=False)
     if execute:
         # Test Python-based execution for the base test
-        grid.execute(filename, compiler=compiler, nthreads=nthreads)
+        grid.execute(filename, nthreads=nthreads)
         grid.convergence()
 
 def read_data(compiler=None, execute=False, nthreads=1,
@@ -261,6 +266,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                    help='Activate performance profiling from PAPI')
     p.add_argument('--papi-events', dest='papi_events', nargs='+', default=[],
                    help='Specific PAPI events to measure')
+    p.add_argument('--tile',default = None,
+                   help='tile sizes for polly e.g.  --tile "8 8 1000" ')
 
     args = p.parse_args()
     print "Eigenwave3D example (mode=%s)" % args.mode
@@ -268,7 +275,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     if args.mode == 'default':
         default(compiler=args.compiler, execute=args.execute,
                 nthreads=args.nthreads, output=args.output,
-                profiling=args.profiling, papi_events=args.papi_events)
+                profiling=args.profiling, papi_events=args.papi_events,
+                tile = args.tile)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,
@@ -277,6 +285,6 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         converge_test()
     elif args.mode == 'cx1':
         cx1()
-        
+
 if __name__ == "__main__":
     main()
