@@ -36,5 +36,4 @@ if __name__ == '__main__':
     plt.xticks(range(0, len(res)), labels, rotation=17)
 
     plt.ylabel('running time ')
-
     plt.savefig('tile_test_plot')

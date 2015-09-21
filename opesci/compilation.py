@@ -9,7 +9,7 @@ def get_package_dir():
 def getTilesize(tiles_str):
     # tiles has to be length of 3
     tiles = tiles_str.split(' ')
-    for i in range(0,len(tiles)):
+    for i in range(0, len(tiles)):
         tiles[i] = int(tiles[i])
 
     l = len(tiles)
@@ -17,7 +17,7 @@ def getTilesize(tiles_str):
         print 'tiles in tiles', tiles, l
         raise AssertionError()
     tile = '-polly-tile-sizes='
-    for i in range(0,l-1):
+    for i in range(0, l-1):
         tile += str(tiles[i]) + ','
     tile += str(tiles[l-1])
     return tile
@@ -46,7 +46,7 @@ class Compiler(object):
             self._cppargs += ['-fPIC']
             self._ldargs += ['-shared']
         cc = [self._cc] + self._cppargs + ['-o', outname, src] + self._ldargs
-        print 'cmd in compilation, compile',cc
+        print 'cmd in compilation, compile', cc
         with file('%s.log' % basename, 'w') as logfile:
             logfile.write("Compiling: %s\n" % " ".join(cc))
             try:
@@ -77,37 +77,26 @@ class GNUCompiler(Compiler):
         ldargs = ['-lopesci', '-Wl,-rpath,%s/lib' % get_package_dir(),
                   '-L%s/lib' % get_package_dir()] + ldargs
         super(GNUCompiler, self).__init__("g++", cppargs=cppargs, ldargs=ldargs)
-    @property
-    def _ivdep(self):
-        return '#pragma GCC ivdep'
 
-
-class ClangCompiler(Compiler):
-    def __init__(self,cppargs=[],ldargs=[]):
-        opt_flags = ['-g','-O3','-fopenmp']
-        cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
-        ldargs = []
-        super(ClangCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
     @property
     def _ivdep(self):
         return '#pragma GCC ivdep'
 
 
 class PollyCompiler(Compiler):
-    def __init__(self,cppargs=[],ldargs=[]):
+    def __init__(self, cppargs=[], ldargs=[]):
 
         opt_flags = ['-O3']
-        load_flags = ['-Xclang', '-load', '-Xclang', 'LLVMPolly.so','-mllvm','-polly']
-        polly_flags = ['-mllvm','-polly-parallel', '-lgomp','-lm','-march=native' ]
+        load_flags = ['-Xclang', '-load', '-Xclang', 'LLVMPolly.so', '-mllvm', '-polly']
+        polly_flags = ['-mllvm', '-polly-parallel', '-lgomp', '-lm', '-march=native']
         cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()]\
-                  + opt_flags + cppargs + load_flags + polly_flags
+            + opt_flags + cppargs + load_flags + polly_flags
         ldargs = []
-        super(PollyCompiler,self).__init__("clang++",cppargs=cppargs,ldargs=ldargs)
+        super(PollyCompiler, self).__init__("clang++", cppargs=cppargs, ldargs=ldargs)
 
-    def add_tile(self,tile=None):
+    def add_tile(self, tile=None):
         if tile:
             self._cppargs += ['-mllvm', getTilesize(tile)]
-        
 
     @property
     def _ivdep(self):

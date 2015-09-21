@@ -9,7 +9,7 @@ _test_dir = path.join(path.dirname(__file__), "src")
 def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
                 omp=True, simd=False, ivdep=True, double=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
-                rho_file='', vp_file='', vs_file='',polly=False):
+                rho_file='', vp_file='', vs_file='', polly=False):
     """
     create 3D eigen waves and run FD simulation
     :param domain_size: define size of domain
@@ -56,8 +56,6 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     V = VField('V', dimension=3, direction=2)
     W = VField('W', dimension=3, direction=3)
 
-
-
     grid = StaggeredGrid(dimension=3, domain_size=domain_size,
                          grid_size=grid_size,
                          stress_fields=[Txx, Tyy, Tzz, Txy, Tyz, Txz],
@@ -66,7 +64,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, double=double,
                       expand=expand, eval_const=eval_const,
-                      output_vts=output_vts, converge=o_converge,polly=polly)
+                      output_vts=output_vts, converge=o_converge, polly=polly)
 
     # define parameters
     rho, beta, lam, mu = symbols('rho beta lambda mu')
@@ -143,9 +141,10 @@ def default(compiler=None, execute=False, nthreads=1,
                        o_converge=True, omp=True, simd=False,
                        ivdep=True, filename=filename)
     grid.set_switches(output_vts=output, profiling=profiling)
-    if compiler =='polly':
-        grid.set_switches(polly = True)
-        grid.compiler = compiler 
+    out = None
+    if compiler == 'polly':
+        grid.set_switches(polly=True)
+        grid.compiler = compiler
         if tile:
             grid.compiler.add_tile(tile)
     grid.set_papi_events(papi_events)
@@ -157,8 +156,8 @@ def default(compiler=None, execute=False, nthreads=1,
         # Test Python-based execution for the base test
         grid.execute(filename, nthreads=nthreads)
         grid.convergence()
-    print out
     return out
+
 
 def read_data(compiler=None, execute=False, nthreads=1,
               output=False, profiling=False, papi_events=[]):
@@ -252,7 +251,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
 """
     p = ArgumentParser(description="Standalone testing script for the Eigenwave3D example",
                        formatter_class=RawTextHelpFormatter)
-    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1','polly'),
+    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1', 'polly'),
                    nargs='?', default='default', help=ModeHelp)
     p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
@@ -266,7 +265,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                    help='Activate performance profiling from PAPI')
     p.add_argument('--papi-events', dest='papi_events', nargs='+', default=[],
                    help='Specific PAPI events to measure')
-    p.add_argument('--tile',default = None,
+    p.add_argument('--tile', default=None,
                    help='tile sizes for polly e.g.  --tile "8 8 1000" ')
 
     args = p.parse_args()
@@ -276,7 +275,7 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         default(compiler=args.compiler, execute=args.execute,
                 nthreads=args.nthreads, output=args.output,
                 profiling=args.profiling, papi_events=args.papi_events,
-                tile = args.tile)
+                tile=args.tile)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,

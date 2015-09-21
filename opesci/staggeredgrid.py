@@ -312,7 +312,6 @@ class StaggeredGrid(Grid):
         for field in self.sfields+self.vfields:
             field.populate_derivatives(max_order=1)  # VS scheme only requare 1st derivatives
 
-
     def get_all_variables(self):
         """
         return list of all variables defined
@@ -349,20 +348,13 @@ class StaggeredGrid(Grid):
             eqs += [eq]
 
         t = self.t
-        t1 = t+hf+(self.order[0]-1)  # the most advanced time index
+        t1 = t + hf + (self.order[0] - 1)  # the most advanced time index
 
-        if self.polly:
-            index = [t1]+self.index#polly
-        else:
-            index = [t1] + self.index
-        
+        index = [t1] + self.index
 
         for field, eq in zip(self.vfields+self.sfields, eqs):
             # want the LHS of express to be at time t+1
-            #print eq
-            #print field[index]
             kernel = solve(eq, field[index])[0]
-           # print kernel
             kernel = kernel.subs({t: t+1-hf-(self.order[0]-1)})
 
             field.set_fd_kernel(kernel)
@@ -663,8 +655,7 @@ class StaggeredGrid(Grid):
     def define_fields(self):
         """Code fragment that defines field arrays"""
         return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
-                      for f in self.fields])
-
+                          for f in self.fields])
 
     @property
     def store_fields(self):
@@ -706,10 +697,10 @@ class StaggeredGrid(Grid):
         vsize = 1
         for d in self.dim:
             vsize *= d.value
-        vsize *= self.order[0]*2
+        vsize *= self.order[0] * 2
 
         if self.polly:
-            vsize /=2 
+            vsize /= 2
             for field in self.sfields + self.vfields:
                 vec = '_' + ccode(field.label) + '_vec_0'
                 # alloc aligned memory (on windows and linux)
@@ -724,7 +715,7 @@ class StaggeredGrid(Grid):
                 # cast pointer to multidimensional array
                 result += self.real_t + ' (*' + ccode(field.label) + '_0)' + arr \
                     + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
-            
+
             result += '\n'
 
             for field in self.sfields + self.vfields:
@@ -741,17 +732,17 @@ class StaggeredGrid(Grid):
                 # cast pointer to multidimensional array
                 result += self.real_t + ' (*' + ccode(field.label) + '_1)' + arr \
                     + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
-            
+
             result += '\n'
 
             for field in self.sfields + self.vfields:
                 result += self.real_t + ' (*' + ccode(field.label) + ')[' \
-                        + str(self.dim[1])+'][' + str(self.dim[2])+'];\n'
+                    + str(self.dim[1])+'][' + str(self.dim[2])+'];\n'
             for field in self.sfields + self.vfields:
                 result += self.real_t + ' (*' + ccode(field.label) + '_old)[' \
-                        + str(self.dim[1])+'][' + str(self.dim[2])+'];\n'            
+                    + str(self.dim[1])+'][' + str(self.dim[2])+'];\n'
 
-        else :   
+        else:
             for field in self.sfields + self.vfields:
                 vec = '_' + ccode(field.label) + '_vec'
                 # alloc aligned memory (on windows and linux)
@@ -769,7 +760,6 @@ class StaggeredGrid(Grid):
 
         if self.read:
             # add code to read data
-            
             result += self.read_data()
 
         return result
@@ -908,13 +898,11 @@ class StaggeredGrid(Grid):
         m = self.margin.value
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
 
-        #refine later
         if self.polly:
-            for f in self.sfields+self.vfields:
-                result += str(f) + " = " + str(f)+ "_0;\n"
+            for f in self.sfields + self.vfields:
+                result += str(f) + " = " + str(f) + "_0;\n"
 
-
-        for field in self.sfields+self.vfields:
+        for field in self.sfields + self.vfields:
             body = ''
             if self.omp:
                 result += '#pragma omp for\n'
@@ -965,10 +953,10 @@ class StaggeredGrid(Grid):
         - return generated code as string
         """
         if(self.polly):
-            self.polly = False;
+            self.polly = False
             result = self.stress_bc_getter(init=True).replace('[t1]', '')
             result += self.velocity_bc.replace('[t1]', '')
-            self.polly = True;
+            self.polly = True
         else:
             result = self.stress_bc_getter(init=True).replace('[t1]', '[0]')
             result += self.velocity_bc.replace('[t1]', '[0]')
@@ -976,7 +964,7 @@ class StaggeredGrid(Grid):
         return result
 
     def remove_idx(self, expr, idx):
-        #remove index from expr
+        # remove index from expr
         # e.g. remove_idx(T[x,y,z],x) = T[y,z]
         if expr.is_Symbol:
             return expr
@@ -994,27 +982,26 @@ class StaggeredGrid(Grid):
         expr2 = expr.func(*args)
         return expr2
 
-    def change_name(self,expr,o,n):
+    def change_name(self, expr, o, n):
         # change name from o to n
         # e.g. change_name(T[x,y,z],T,N)= N[x,y,z]
         if expr.is_Number:
             return expr
         if expr.is_Symbol:
             return expr
-        if isinstance(expr,Indexed):
-            #print expr, o, n
+        if isinstance(expr, Indexed):
+            # print expr, o, n
             if str(expr.base) == str(o):
                 idxes = list(expr.indices)
-                t = Indexed(n,*idxes)
-               # print 'find!',t
+                t = Indexed(n, *idxes)
+                # print 'find!',t
                 return t
             else:
                 return expr
-        
-        args = tuple([self.change_name(arg,o,n) for arg in expr.args])
+
+        args = tuple([self.change_name(arg, o, n) for arg in expr.args])
         expr2 = expr.func(*args)
         return expr2
-    
 
     @property
     def stress_loop(self):
@@ -1047,13 +1034,13 @@ class StaggeredGrid(Grid):
 
                     if self.polly:
                         f_old = SField(str(field)+'_old')
-                       # f_old.__dict__ = field.__dict__
+                        # f_old.__dict__ = field.__dict__
 
                         body += ccode(f_old[idx]) + '=' \
                             + ccode(self.remove_idx(kernel, self.t)) + ';\n'
                     else:
                         body += ccode(field[idx]) + '=' \
-                          + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
+                            + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
             if self.ivdep and d == self.dimension-1:
@@ -1065,9 +1052,6 @@ class StaggeredGrid(Grid):
             body = '#pragma omp for\n' + body
 
         return body
-
-
-
 
     @property
     def velocity_loop(self):
@@ -1100,11 +1084,11 @@ class StaggeredGrid(Grid):
                     if self.polly:
                         f_old = VField(str(field)+'_old')
                         # f_old.__dict__ = field.__dict__
-                        kn = self.change_name(kernel,field,f_old)
-                        kn = self.remove_idx(kn,self.t)
+                        kn = self.change_name(kernel, field, f_old)
+                        kn = self.remove_idx(kn, self.t)
 
                         body += ccode(field[idx]) + '=' \
-                            + ccode(self.remove_idx(kn,self.t+1)) + ';\n'
+                            + ccode(self.remove_idx(kn, self.t+1)) + ';\n'
                     else:
                         body += ccode(field[idx]) + '=' \
                             + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
@@ -1137,15 +1121,15 @@ class StaggeredGrid(Grid):
         result = ''
         _ti = Symbol('_ti')
         if self.polly:
-            result += "if("+ccode(_ti)+"%2==0){\n"
-            for s in self.sfields :
+            result += "if(" + ccode(_ti) + "%2==0){\n"
+            for s in self.sfields:
                 result += str(s) + " = " + str(s) + "_0;\n"
-                result += str(s) + "_old = " + str(s)+ "_1;\n"
+                result += str(s) + "_old = " + str(s) + "_1;\n"
             result += "\n"
             result += "}else{\n"
-            for s in self.sfields :
+            for s in self.sfields:
                 result += str(s) + " = " + str(s) + "_1;\n"
-                result += str(s) + "_old = " + str(s)+ "_0;\n"
+                result += str(s) + "_old = " + str(s) + "_0;\n"
             result += "}\n"
 
         tmpl = self.lookup.get_template('generic_loop.txt')
@@ -1168,14 +1152,14 @@ class StaggeredGrid(Grid):
                         if not d2 == d:
                             i = self.index[d2]
                             if normal:
-                                if field.direction[0] == d+1:
+                                if field.direction[0] == d + 1:
                                     # Txx in x plane
                                     i0 = 0
                                     i1 = self.dim[d2]
                                 else:
                                     # Txx in y, z plane
-                                    i0 = self.margin.value+1
-                                    i1 = self.dim[d2]-self.margin.value-1
+                                    i0 = self.margin.value + 1
+                                    i1 = self.dim[d2]-self.margin.value - 1
                             else:
                                 i0 = 0
                                 i1 = self.dim[d2]
@@ -1183,18 +1167,17 @@ class StaggeredGrid(Grid):
                                 # inner loop, populate ghost cell calculation
                                 # body = field.bc[d+1][side]
                                 if self.read:
-                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(self.resolve_media_params(bc)) + ';\n' for bc in field.bc[d+1][side])
                                 else:
-                                    body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(bc) + ';\n' for bc in field.bc[d + 1][side])
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
 
                                 if self.polly:
                                     body = render(tmpl, dict1).replace('[t + 1]', '_old').replace('[t]', '')
-                                
-                                else:    
+                                else:
                                     body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
-                                
+
                                 if self.ivdep:
                                     body = '#pragma ivdep\n' + body
                                 if self.simd:
@@ -1210,23 +1193,22 @@ class StaggeredGrid(Grid):
                     result += body
 
         if self.polly:
-            result +=  'if('
+            result += 'if('
             result += ccode(_ti)
             result += '%2==0){\n'
             for t in self.sfields:
-                result += '\t\t' +ccode(t.label) + ' = ' + '%s_1;\n'%t.label
-            
+                result += '\t\t' + ccode(t.label) + ' = ' + '%s_1;\n' % t.label
             for t in self.vfields:
-                result += '\t\t' +ccode(t.label) + ' = ' + '%s_1;\n'%t.label
+                result += '\t\t' + ccode(t.label) + ' = ' + '%s_1;\n' % t.label
             for t in self.vfields:
-                result += '\t\t' +ccode(t.label) + '_old = ' + '%s_0;\n'%t.label
+                result += '\t\t' + ccode(t.label) + '_old = ' + '%s_0;\n' % t.label
             result += '}else{'
             for t in self.sfields:
-                result += '\t\t' +ccode(t.label) + ' = ' + '%s_0;\n'%t.label
+                result += '\t\t' + ccode(t.label) + ' = ' + '%s_0;\n' % t.label
             for t in self.vfields:
-                result += '\t\t' +ccode(t.label) + ' = ' + '%s_0;\n'%t.label
+                result += '\t\t' + ccode(t.label) + ' = ' + '%s_0;\n' % t.label
             for t in self.vfields:
-                result += '\t\t' +ccode(t.label) + '_old = ' + '%s_1;\n'%t.label
+                result += '\t\t' + ccode(t.label) + '_old = ' + '%s_1;\n' % t.label
             result += '}\n'
 
         return result
@@ -1241,16 +1223,15 @@ class StaggeredGrid(Grid):
         return generated code as string
         """
 
-
         result = ''
         _ti = Symbol('_ti')
         if self.polly:
             result += "if("+ccode(_ti)+"%2==0){\n"
-            for s in self.vfields :
+            for s in self.vfields:
                 result += str(s) + " = " + str(s) + "_1;\n"
             result += "\n"
             result += "}else{\n"
-            for s in self.vfields :
+            for s in self.vfields:
                 result += str(s) + " = " + str(s) + "_0;\n"
             result += "}\n"
 
@@ -1285,7 +1266,7 @@ class StaggeredGrid(Grid):
                                     body = render(tmpl, dict1).replace('[t + 1]', '').replace('[t]', '_old')
                                 else:
                                     body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
-                                
+
                                 if self.ivdep:
                                     body = '%s\n' % self.compiler._ivdep + body
                                 if self.simd:
@@ -1296,7 +1277,7 @@ class StaggeredGrid(Grid):
                                     body = render(tmpl, dict1).replace('[t + 1]', '').replace('[t]', '_old')
                                 else:
                                     body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
-                                
+
                     result += body
 
         return result
@@ -1319,28 +1300,28 @@ class StaggeredGrid(Grid):
         body = ''
 
         if self.polly:
-            body =  'if('
+            body = 'if('
             body += ccode(_ti)
             body += '%2==0){\n'
             for t in self.sfields:
-                body += '\t\t' +ccode(t.label) + ' = ' + '%s_0;\n'%t.label
+                body += '\t\t' + ccode(t.label) + ' = ' + '%s_0;\n' % t.label
             for t in self.sfields:
-                body += '\t\t' +ccode(t.label) + '_old = ' + '%s_1;\n'%t.label
+                body += '\t\t' + ccode(t.label) + '_old = ' + '%s_1;\n' % t.label
 
             for t in self.vfields:
-                body += '\t\t' +ccode(t.label) + ' = ' + '%s_0;\n'%t.label
+                body += '\t\t' + ccode(t.label) + ' = ' + '%s_0;\n' % t.label
             for t in self.vfields:
-                body += '\t\t' +ccode(t.label) + '_old = ' + '%s_1;\n'%t.label
+                body += '\t\t' + ccode(t.label) + '_old = ' + '%s_1;\n' % t.label
             body += '}else{'
             for t in self.sfields:
-                body += '\t\t' +ccode(t.label) + ' = ' + '%s_1;\n'%t.label
+                body += '\t\t' + ccode(t.label) + ' = ' + '%s_1;\n' % t.label
             for t in self.sfields:
-                body += '\t\t' +ccode(t.label) + '_old = ' + '%s_0;\n'%t.label
+                body += '\t\t' + ccode(t.label) + '_old = ' + '%s_0;\n' % t.label
 
             for t in self.vfields:
-                body += '\t\t' +ccode(t.label) + ' = ' + '%s_1;\n'%t.label
+                body += '\t\t' + ccode(t.label) + ' = ' + '%s_1;\n' % t.label
             for t in self.vfields:
-                body += '\t\t' +ccode(t.label) + '_old = ' + '%s_0;\n'%t.label
+                body += '\t\t' + ccode(t.label) + '_old = ' + '%s_0;\n' % t.label
             body += '}\n'
 
         else:
@@ -1349,7 +1330,7 @@ class StaggeredGrid(Grid):
                 if i == 0:
                     rhs = ccode(_ti % self.tp)
                 else:
-                    rhs = ccode((self.time[i-1]+1) % self.tp)
+                    rhs = ccode((self.time[i-1] + 1) % self.tp)
                 body += lhs + ' = ' + rhs + ';\n'
 
         dict1 = {'body': body}

@@ -30,12 +30,11 @@ class polly_tile_bench(Benchmark):
         print 'tile in test', tile_size
         grid = default(compiler=compiler, nthreads=nthreads,
                        output=output, profiling=profiling, execute=False,
-                       papi_events=papi_events, tile = tile_size)
+                       papi_events=papi_events, tile=tile_size)
         with self.timed_region("tiling size: %s" % tile_size):
             cmd = str(grid)
             print 'cmd', cmd
             subprocess.check_call(cmd)
-
 
     def benchmarking(self, compiler='polly', nthreads=4,
                      output=False, profiling=False, papi_events=[],
@@ -49,10 +48,8 @@ class polly_tile_bench(Benchmark):
         elif(tile_size == "nopolly"):
             compiler = 'clang'
 
-        print 'tile in benchmarking:', tile_size 
+        print 'tile in benchmarking:', tile_size
         self.test(compiler=compiler, nthreads=nthreads, output=output, profiling=profiling,
                   papi_events=papi_events, tile_size=tile_size)
 
 polly_tile_bench().main()
-
-
