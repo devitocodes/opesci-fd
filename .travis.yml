@@ -8,8 +8,22 @@ before_install:
     - sudo apt-get install -y libvtk5-dev libvtk5.8
     - sudo apt-get install -qq gcc-4.8 g++-4.8
     - sudo apt-get install clang
-
+    
 install:
+    - wget http://www.cmake.org/files/v3.1/cmake-3.1.2-Linux-x86_64.tar.gz
+    - tar -xzf cmake-3.1.2-Linux-x86_64.tar.gz
+    - cd cmake-3.1.2-Linux-x86_64/bin
+    - ls 
+    - export PATH=`pwd`:$PATH
+    - cd ..
+    - echo $PATH
+    - cmake --version
+    - mkdir polly && cd polly
+    - wget http://polly.llvm.org/polly.sh
+    - chmod +x polly.sh
+    - travis_retry ./polly.sh
+    - export PATH=`pwd`:$PATH
+    - cd ..    
     - pip install -r requirements.txt
     - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
     - python setup.py build_clib --build-clib=`pwd`
@@ -18,6 +32,7 @@ script:
     - export PYTHONPATH=`pwd`:$PYTHONPATH
     - flake8 opesci
     - flake8 tests
+    - python tests/eigenwave3d.py default --compiler=polly --execute --nthreads=4
     - python tests/eigenwave3d.py default --compiler=g++ --execute --nthreads=4
     - OMP_NUM_THREADS=4 tests/src/eigenwave3d
     - python tests/eigenwave3d.py default --compiler=g++ --output
@@ -26,3 +41,4 @@ script:
     - OMP_NUM_THREADS=1 tests/src/eigenwave3d
     - python tests/eigenwave3d.py default --output
     - python tests/eigenwave3d.py read
+
