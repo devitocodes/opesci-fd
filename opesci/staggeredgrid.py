@@ -149,6 +149,9 @@ class StaggeredGrid(Grid):
         :param order: list of time order followed by spatial orders
         e.g. [2,4,4,4] for (2,4) scheme
         """
+        for x in order:
+            if x % 2 == 1:
+                raise ValueError(str(x) + ' is not a valid order (require even integer)')
         self.order = order
         # periodicity for time stepping
         self.tp = Variable('tp', self.order[0], 'int', True)
