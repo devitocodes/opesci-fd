@@ -62,16 +62,17 @@ class Field(IndexedBase):
 
     def set_order(self, order):
         """
-        set order of accuracy of the field, e.g. [1,2,2,2] for (2,4) scheme
+        set order of accuracy of the field, e.g. [2,4,4,4] for (2,4) scheme
         """
         self.order = order
 
-    def calc_derivative(self, l, k, d, n):
+    def calc_derivative(self, index, dimension, delta, left, right):
         """
         return FD approximations field derivatives
         input param description same as Deriv_half()
         """
-        return Deriv_half(self, l, k, d, n/2)[1]
+        # return Deriv_half(self, l, k, d, n/2)[1]
+        return Deriv_generic(self, index, dimension, delta, left, right, half=True)
 
     def populate_derivatives(self, max_order=1):
         """
@@ -91,9 +92,9 @@ class Field(IndexedBase):
                 # name = 'D'+'_'+self.label.name+'_'+str(index)+'_'+str(order)  # e.g. D_U_x_1 = dU/dx
                 name = ''.join(['\partial ', self.label.name, '/\partial ', str(index)])
                 self.d[d][order] = DDerivative(name, index, order, self.order[d])
-                for accuracy in range(2, self.order[d]+2, 2):
-                    # assign FD approximation expression of different order of accuracy
-                    self.d[d][order].fd[accuracy] = self.calc_derivative(self.indices, d, self.spacing[d], accuracy)
+                for approx in range(2, self.order[d]+2, 2):
+                    # assign FD approximation expression of different order of approximation accuracy
+                    self.d[d][order].fd[approx] = self.calc_derivative(self.indices, d, self.spacing[d], approx/2, approx/2)[1]
 
     def align(self, expr):
         """
@@ -209,14 +210,16 @@ class VField(Field):
         :param b: location of the boundary (index)
         :param side: lower boundary (0) or upper boundary (1)
         :param algo: which algorithm to use to compute ghost cells
-        algo == 'robertsson' [1]: setting all velocities at ghost cells to zero
-        algo == 'levander' [2]: only valid for 4th spatial order. using 2nd order FD approximation for velocities
+        algo == 'robertsson': setting all velocities at ghost cells to zero. Modified from [1].
+        algo == 'levander': only valid for 4th spatial order. using 2nd order FD approximation for velocities. Modified from [2].
+        algo == 'kristek': use stress imaging for stresses at ghost cells, use non-symmetric FD approximation for stresses close to boundary. Inspired by [3].
         - e.g. set_free_surface([t,x,y,z],1,2,0)
         set y-z plane at x=2 to be lower free surface
         - ghost cells are calculated using reflection of stress fields
         - store the symbolic equations to populate ghost cells in self.bc
         [1] Robertsson, Johan OA. "A numerical free-surface condition for elastic/viscoelastic finite-difference modeling in the presence of topography." Geophysics 61.6 (1996): 1921-1934.
         [2] Levander, Alan R. "Fourth-order finite-difference P-SV seismograms." Geophysics 53.11 (1988): 1425-1436.
+        [3] Kristek, Jozef, Peter Moczo, and Ralph J. Archuleta. "Efficient methods to simulate planar free surface in the 3D 4th-order staggered-grid finite-difference schemes." Studia Geophysica et Geodaetica 46.2 (2002): 355-381.
         """
         if algo == 'levander':
             # use this stress field to solve for ghost cell expression
@@ -270,6 +273,9 @@ class VField(Field):
                 eq = Eq(self[idx])
                 eq = eq.subs(idx[0], idx[0]+1)
                 self.bc[d][side].append(eq)
+        elif algo == 'kristek':
+            # Here the velocity ghost cells are not needed
+            self.bc[d][side] = []
         else:
             raise ValueError('Unknown boundary condition algorithm')
 
@@ -311,8 +317,9 @@ class SField(Field):
         :param d: direction of the boundary surface normal
         :param b: location of the boundary (index)
         :param algo: which algorithm to use to compute ghost cells
-        algo == 'robertsson' [1]: setting all velocities at ghost cells to zero
-        algo == 'levander' [2]: only valid for 4th spatial order. using 2nd order FD approximation for velocities
+        algo == 'robertsson': setting all velocities at ghost cells to zero. Modified from [1].
+        algo == 'levander': only valid for 4th spatial order. using 2nd order FD approximation for velocities. Modified from [2].
+        algo == 'kristek': use stress imaging for stresses at ghost cells, use non-symmetric FD approximation for stresses close to boundary. Inspired by [3].
         side: lower boundary (0) or upper boundary (1)
         e.g. set_free_surface([t,x,y,z],1,2,0)
         set y-z plane at x=2 to be lower free surface
@@ -320,78 +327,86 @@ class SField(Field):
         store the code to populate ghost cells to self.bc
         [1] Robertsson, Johan OA. "A numerical free-surface condition for elastic/viscoelastic finite-difference modeling in the presence of topography." Geophysics 61.6 (1996): 1921-1934.
         [2] Levander, Alan R. "Fourth-order finite-difference P-SV seismograms." Geophysics 53.11 (1988): 1425-1436.
+        [3] Kristek, Jozef, Peter Moczo, and Ralph J. Archuleta. "Efficient methods to simulate planar free surface in the 3D 4th-order staggered-grid finite-difference schemes." Studia Geophysica et Geodaetica 46.2 (2002): 355-381.
         """
         idx = list(self.indices)
-
-        if d not in self.direction:
-            if (not algo == 'levander') or (not self.direction[0] == self.direction[1]):
-                # shear stress, e.g. Tyz no need to recalculate at x boundary (only depends on dV/dz and dW/dy)
+        if algo == 'robertsson':
+            if d not in self.direction:
                 self.bc[d][side] = []
                 return
-            else:
-                # normal stress, need to recalcuate Tyy, Tzz at x boundary
-                expr = self.dt
-                derivatives = get_all_objects(expr, DDerivative)
-                for deriv in derivatives:
-                    if deriv.var == idx[d]:
-                        # replacing dx at x boundary with dy, dz terms
-                        expr2 = self.sfields[d].dt
-                        deriv_0 = deriv
-                        deriv_sub = solve(expr2, deriv)[0]
-                        break
-                expr = expr.subs(deriv_0, deriv_sub)
-                derivatives = get_all_objects(expr, DDerivative)
-                # substitution dictionary
-                dict1 = {}
-                for deriv in derivatives:
-                    dict1[deriv] = deriv.fd[4]
-                expr = expr.subs(dict1)
-                eq = Eq(self.d[0][1].fd[2], expr)
-                eq = eq.subs(idx[d], b)
-                t = idx[0]
-                idx[0] = t+hf
-                idx[d] = b
-                # eq = eq.subs(t, t+hf)
-                # idx[0] = t+1
-                # idx[d] = b
-                # solve for Txx(t+1/2)
-                lhs = self[idx]
-                rhs = solve(eq, lhs)[0]
-                rhs = self.align(rhs)
-                # change t+1/2 to t+1
-                lhs = lhs.subs(t, t+hf)
-                rhs = rhs.subs(t, t+hf)
-                eq2 = Eq(lhs, rhs)
-                self.bc[d][side] = [eq2]
-                return
+
+        elif algo == 'levander':
+            if d not in self.direction:
+                if (not self.direction[0] == self.direction[1]):
+                    # shear stress, e.g. Tyz no need to recalculate at x boundary (only depends on dV/dz and dW/dy)
+                    self.bc[d][side] = []
+                    return
+                else:
+                    # normal stress, need to recalcuate Tyy, Tzz at x boundary
+                    expr = self.dt
+                    derivatives = get_all_objects(expr, DDerivative)
+                    for deriv in derivatives:
+                        if deriv.var == idx[d]:
+                            # replacing dx at x boundary with dy, dz terms
+                            expr2 = self.sfields[d].dt
+                            deriv_0 = deriv
+                            deriv_sub = solve(expr2, deriv)[0]
+                            break
+                    expr = expr.subs(deriv_0, deriv_sub)
+                    derivatives = get_all_objects(expr, DDerivative)
+                    # substitution dictionary
+                    dict1 = {}
+                    for deriv in derivatives:
+                        dict1[deriv] = deriv.fd[4]
+                    expr = expr.subs(dict1)
+                    eq = Eq(self.d[0][1].fd[2], expr)
+                    eq = eq.subs(idx[d], b)
+                    t = idx[0]
+                    idx[0] = t+hf
+                    idx[d] = b
+                    # solve for Txx(t+1/2)
+                    lhs = self[idx]
+                    rhs = solve(eq, lhs)[0]
+                    rhs = self.align(rhs)
+                    # change t+1/2 to t+1
+                    lhs = lhs.subs(t, t+hf)
+                    rhs = rhs.subs(t, t+hf)
+                    eq2 = Eq(lhs, rhs)
+                    self.bc[d][side] = [eq2]
+                    return
+        elif algo == 'kristek':
+            return
+        else:
+            raise ValueError('Unknown boundary condition algorithm')
 
         # use anti-symmetry to ensure stress at boundary=0
         # this applies for all algorithms
 
-        idx = list(self.indices)  # ghost cell
-        idx2 = list(self.indices)  # cell inside domain
+        if d in self.direction:
+            idx = list(self.indices)  # ghost cell
+            idx2 = list(self.indices)  # cell inside domain
 
-        if not self.staggered[d]:
-            # if not staggered, assign T[d]=0, assign T[d-1]=-T[d+1]
-            idx[d] = b
-            idx2[d] = b
-            eq1 = Eq(self[idx])
-        else:
-            # if staggered, assign T[d-1/2]=T[d+1/2], assign T[d-3/2]=T[d+3/2]
-            idx[d] = b - (1-side)
-            idx2[d] = idx[d] + (-1)**side
-            eq1 = Eq(self[idx], -self[idx2])
-        eq1 = eq1.subs(idx[0], idx[0]+1)
-        self.bc[d][side] = [eq1]
+            if not self.staggered[d]:
+                # if not staggered, assign T[d]=0, assign T[d-1]=-T[d+1]
+                idx[d] = b
+                idx2[d] = b
+                eq1 = Eq(self[idx])
+            else:
+                # if staggered, assign T[d-1/2]=T[d+1/2], assign T[d-3/2]=T[d+3/2]
+                idx[d] = b - (1-side)
+                idx2[d] = idx[d] + (-1)**side
+                eq1 = Eq(self[idx], -self[idx2])
+            eq1 = eq1.subs(idx[0], idx[0]+1)
+            self.bc[d][side] = [eq1]
 
-        for depth in range(self.order[d]/2-1):
-            # populate ghost cells
-            idx[d] -= (-1)**side
-            idx2[d] += (-1)**side
-            eq = Eq(self[idx], -self[idx2])
-            # change t to t+1
-            eq = eq.subs(idx[0], idx[0]+1)
-            self.bc[d][side].append(eq)
+            for depth in range(self.order[d]/2-1):
+                # populate ghost cells
+                idx[d] -= (-1)**side
+                idx2[d] += (-1)**side
+                eq = Eq(self[idx], -self[idx2])
+                # change t to t+1
+                eq = eq.subs(idx[0], idx[0]+1)
+                self.bc[d][side].append(eq)
 
 
 class Media(IndexedBase):
