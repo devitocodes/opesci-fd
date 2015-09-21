@@ -24,3 +24,10 @@ class DDerivative(Symbol):
         self.max_accuracy = max_accuracy
         # store fd approxmiate of different accuracy
         self.fd = [None] * (max_accuracy + 1)
+
+    def set_fd_1side(self, fds):
+        """
+        set the non-symmetric FD approximation of this Derivative object
+        :param list fds: list of non-symmetric FD approximation, where fds[x] indicates FD approximation using left=x, right=order-x
+        """
+        self.fd_1side = fds

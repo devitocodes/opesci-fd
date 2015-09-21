@@ -434,19 +434,34 @@ class StaggeredGrid(Grid):
         for s in fields[1:]:
             s.associate_stress_fields(fields)
 
-    def set_free_surface_boundary(self, dimension, side):
+    def set_free_surface_boundary(self, dimension, side, algo='levander'):
         """
         set free surface boundary condition
         calls set_free_surface() method of SField and VField
         :param dimension: the normal direction to identify the surface
         e.g. dimension=1 for y-z place
         :param side: the side of the surface
-        side=0 for bottom surface, side=1 for top surface
+        e.g. side=0 for bottom surface, side=1 for top surface
+        :param algo: algorithm usd to set free surface boundary conditions. See Field.set_free_surface() for details
         """
-        algo = 'robertsson'
-        if self.order[dimension] == 4:
-            # using different algorithm for free surface for 4th order
-            algo = 'levander'
+        if algo == 'levander' and not self.order[dimension] == 4:
+            # levander algorithm only apply for 4th order spatial approximation
+            # fall back to robertsson algorithm
+            algo = 'robertsson'
+        if algo == 'kristek':
+            for field in self.vfields:
+                # population fd_1side field of Derivative objects
+                fds = [None]*(self.order[dimension]+1)  # list of 1-side FD approximations
+                for depth in range(self.order[dimension]/2):
+                    if side == 0:
+                        left = depth
+                        right = self.order[dimension] - depth
+                    else:
+                        right = depth
+                        left = self.order[dimension] - depth
+                    fds[left] = Deriv_generic(field, field.indices, dimension, self.spacing[dimension-1], left, right, half=True)[1]
+                field.d[dimension][1].set_fd_1side(fds)
+
         self.associate_fields()
         for field in self.sfields+self.vfields:
             if side == 0:
