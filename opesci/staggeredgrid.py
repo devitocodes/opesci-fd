@@ -455,15 +455,17 @@ class StaggeredGrid(Grid):
                 for depth in range(self.order[dimension]/2):
                     if side == 0:
                         left = depth
-                        right = self.order[dimension] - depth
+                        right = self.order[dimension] - left
+                        fds[left] = Deriv_generic(field, field.indices, dimension, self.spacing[dimension-1], left, right, half=True)[1]
                     else:
-                        right = depth
-                        left = self.order[dimension] - depth
-                    fds[left] = Deriv_generic(field, field.indices, dimension, self.spacing[dimension-1], left, right, half=True)[1]
+                        right = depth-1
+                        left = self.order[dimension] - right
+                        fds[left-1] = Deriv_generic(field, field.indices, dimension, self.spacing[dimension-1], left, right, half=True)[1]
                 field.d[dimension][1].set_fd_1side(fds)
 
         self.associate_fields()
         for field in self.sfields+self.vfields:
+            field.bc[dimension][side] = []  # clear previous calculation
             if side == 0:
                 field.set_free_surface(dimension, self.margin.value, side, algo=algo)
             else:
@@ -692,6 +694,7 @@ class StaggeredGrid(Grid):
                     load = len(arrays)
                     if (store == 0):
                         ai = 0
+                        ai_w = 0
                         weight = 0  # weight of AI in overall AI calculation
                     else:
                         ai = float(add+mul)/(load+store)/word_size
@@ -1210,7 +1213,7 @@ class StaggeredGrid(Grid):
             for field in sequence:
                 for side in range(2):
                     # skip if this boundary calculation is not needed
-                    if field.bc[d+1][side] == '':
+                    if field.bc[d+1][side] == '' or field.bc[d+1][side] == []:
                         continue
                     if self.omp:
                         result += '#pragma omp for\n'

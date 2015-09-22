@@ -375,7 +375,48 @@ class SField(Field):
                     self.bc[d][side] = [eq2]
                     return
         elif algo == 'kristek':
-            return
+            eq = Eq(self.d[0][1], self.dt)
+            derivatives = get_all_objects(eq, DDerivative)
+            sub_list = []
+            for deriv in derivatives:
+                if deriv.var == self.indices[d]:
+                    # add to list to be replaced
+                    sub_list.append(deriv)
+            if len(sub_list) == 0:
+                # nothing to recalculate
+                self.bc[d][side] = []
+            else:
+                dict1 = {}
+                t = self.indices[0]
+                idx = list(self.indices)
+                idx[0] += hf  # most advanced time index, need to amend for higher time order
+                lhs = self[idx]
+                if self.staggered[d]:
+                    if side == 0:
+                        boundary = b
+                    else:
+                        boundary = b-1
+                else:
+                    boundary = b
+                for depth in range(self.order[d]/2):
+                    eq_new = Eq(eq.lhs, eq.rhs)
+                    dict1 = {}
+                    oneside = depth if side == 0 else self.order[d]-depth
+                    for deriv in derivatives:
+                        if deriv in sub_list:
+                            dict1[deriv] = deriv.fd_1side[oneside]
+                        else:
+                            dict1[deriv] = deriv.fd[deriv.max_accuracy]
+                    eq_new = eq_new.subs(dict1)
+                    rhs = solve(eq_new, lhs, simplify=False)[0]
+                    rhs = rhs.subs(t, t+hf)
+                    rhs = self.align(rhs)
+                    eq_new = Eq(lhs.subs(t, t+hf), rhs)
+                    # move to t+1, replace spatial index with boundary
+                    eq_new = eq_new.subs(self.indices[d], boundary)
+                    boundary += (-1)**side  # move to next layer
+
+                    self.bc[d][side].append(eq_new)
         else:
             raise ValueError('Unknown boundary condition algorithm')
 
@@ -397,7 +438,7 @@ class SField(Field):
                 idx2[d] = idx[d] + (-1)**side
                 eq1 = Eq(self[idx], -self[idx2])
             eq1 = eq1.subs(idx[0], idx[0]+1)
-            self.bc[d][side] = [eq1]
+            self.bc[d][side].append(eq1)
 
             for depth in range(self.order[d]/2-1):
                 # populate ghost cells

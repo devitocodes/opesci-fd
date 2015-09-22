@@ -7,7 +7,7 @@ _test_dir = path.join(path.dirname(__file__), "src")
 
 
 def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
-                accuracy_order=[1, 2, 2, 2],
+                accuracy_order=[1, 2, 2, 2], free_surface_algo='levander',
                 omp=True, simd=False, ivdep=True, double=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
                 rho_file='', vp_file='', vs_file=''):
@@ -121,12 +121,12 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
     grid.solve_fd([eq1, eq2, eq3, eq4, eq5, eq6, eq7, eq8, eq9])
 
-    grid.set_free_surface_boundary(dimension=1, side=0)
-    grid.set_free_surface_boundary(dimension=1, side=1)
-    grid.set_free_surface_boundary(dimension=2, side=0)
-    grid.set_free_surface_boundary(dimension=2, side=1)
-    grid.set_free_surface_boundary(dimension=3, side=0)
-    grid.set_free_surface_boundary(dimension=3, side=1)
+    grid.set_free_surface_boundary(dimension=1, side=0, algo=free_surface_algo)
+    grid.set_free_surface_boundary(dimension=1, side=1, algo=free_surface_algo)
+    grid.set_free_surface_boundary(dimension=2, side=0, algo=free_surface_algo)
+    grid.set_free_surface_boundary(dimension=2, side=1, algo=free_surface_algo)
+    grid.set_free_surface_boundary(dimension=3, side=0, algo=free_surface_algo)
+    grid.set_free_surface_boundary(dimension=3, side=1, algo=free_surface_algo)
 
     # print 'kernel Weighted AI: ' + '%.2f' % grid.get_overall_kernel_ai()[1]
     print 'stress kernel AI'
@@ -145,6 +145,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 def default(compiler=None, execute=False, nthreads=1,
             accuracy_order=[2, 4, 4, 4],
+            free_surface_algo='levander',
             output=False, profiling=False, papi_events=[]):
     """
     Eigenwave test case on a unit cube grid (100 x 100 x 100)
@@ -156,6 +157,7 @@ def default(compiler=None, execute=False, nthreads=1,
     filename = path.join(_test_dir, 'eigenwave3d.cpp')
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        accuracy_order=accuracy_order,
+                       free_surface_algo=free_surface_algo,
                        o_converge=True, omp=True, simd=False,
                        ivdep=True, filename=filename)
     grid.set_switches(output_vts=output, profiling=profiling)
@@ -267,7 +269,9 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
     p.add_argument('-so', '--spatial_order', default=4, type=int, dest='so',
-                   help='order of the spatial discretisation to use for code generation * 2, eg. order=4 to use 4th order approximation in x,y,z')
+                   help='order of the spatial discretisation to use for code generation, eg. order=4 to use 4th order approximation in x,y,z')
+    p.add_argument('-fs', '--free_surface_algo', default='levander', dest='fs',
+                   help='algorithm for free surface boundary condition (robertsson, levander, kristek), default to levander')
     p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
     p.add_argument('-x', '--execute', action='store_true', default=False,
@@ -288,11 +292,13 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         default(compiler=args.compiler, execute=args.execute,
                 nthreads=args.nthreads, output=args.output,
                 accuracy_order=[2, args.so, args.so, args.so],
+                free_surface_algo=args.fs,
                 profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,
                   accuracy_order=[2, args.so, args.so, args.so],
+                  free_surface_algo=args.fs,
                   profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'converge':
         converge_test()
