@@ -107,6 +107,7 @@ class StaggeredGrid(Grid):
 
         self.t = Symbol('t')
         self.set_index(index)
+        self.surface = [[None]*2]*(dimension+1)  # store the nature of the surface (such as free-surface)
 
         # default 2nd order in time, 4th order in space, i.e. (2,4) scheme
         default_order = [2] + [4]*self.dimension
