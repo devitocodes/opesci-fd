@@ -129,16 +129,16 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     grid.set_free_surface_boundary(dimension=3, side=1, algo=free_surface_algo)
 
     # print 'kernel Weighted AI: ' + '%.2f' % grid.get_overall_kernel_ai()[1]
-    print 'stress kernel AI'
-    print '%.2f, %.2f (weighted), %d ADD, %d MUL, %d LOAD, %d STORE' % grid.get_stress_kernel_ai()
-    print 'velocity kernel AI'
-    print '%.2f, %.2f (weighted), %d ADD, %d MUL, %d LOAD, %d STORE' % grid.get_velocity_kernel_ai()
+    ai = grid.get_overall_kernel_ai()
+    print 'AI upperbound'
+    print '%.2f' % ai['ai_high_weighted']
+    print 'AI lowerbound'
+    print '%.2f' % ai['ai_low_weighted']
+    print ai
     # print 'stress bc AI'
     # print grid.get_stress_bc_ai()
     # print 'velocity bc AI'
     # print grid.get_velocity_bc_ai()
-    print 'overall algorithm AI'
-    print '%.2f, %.2f (weighted)' % grid.get_overall_kernel_ai()
 
     return grid
 

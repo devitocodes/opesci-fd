@@ -27,41 +27,39 @@ def variable_to_symbol(variables):
     return [Symbol(variable.name) for variable in variables]
 
 
-def get_ops_expr(expr, arrays):
+def get_ops_expr(expr, dict1):
     """
     - get number of different operations in expression expr
     - types of operations are ADD (inc -) and MUL (inc /)
     - arrays (IndexedBase objects) in expr that are not in list arrays
     are added to the list
-    - return tuple (#ADD, #MUL, list of unique names of fields)
+    - return dictionary of (#ADD, #MUL, list of unique names of fields, list of unique field elements)
     """
+    result = dict1  # dictionary to return
     # add array to list arrays if it is not in it
     if isinstance(expr, Indexed):
-        base = str(expr.base.label)
-        if base not in arrays:
-            arrays += [base]
-        return (0, 0, arrays)
+        base = expr.base.label
+        if base not in result['load_list']:
+            result['load_list'] += [base]  # accumulate distinct array
+        if expr not in result['load_all_list']:
+            result['load_all_list'] += [expr]  # accumulate distinct array elements
+        return result
 
-    mul = 0
-    add = 0
     if expr.is_Mul or expr.is_Add:
         args = expr.args
         # increment MUL or ADD by # arguments less 1
         # sympy multiplication and addition can have multiple arguments
         if expr.is_Mul:
-            mul += len(args)-1
+            result['mul'] += len(args)-1
         else:
-            add += len(args)-1
-        arrays2 = arrays
+            result['add'] += len(args)-1
         # recursive call of all arguments
         for expr2 in args:
-            add2, mul2, arrays2 = get_ops_expr(expr2, arrays2)
-            add += add2  # accumulate ADD
-            mul += mul2  # acculate MUL
+            result2 = get_ops_expr(expr2, result)
 
-        return (add, mul, arrays2)
+        return result2
     # return zero and unchanged array if execution gets here
-    return (0, 0, arrays)
+    return result
 
 
 def IndexedBases(s):

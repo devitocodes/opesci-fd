@@ -107,7 +107,7 @@ class StaggeredGrid(Grid):
 
         self.t = Symbol('t')
         self.set_index(index)
-        self.surface = [[None]*2]*(dimension+1)  # store the nature of the surface (such as free-surface)
+        self.surface = [[None]*2 for x in range(dimension+1)]  # store the nature of the surface (such as free-surface)
 
         # default 2nd order in time, 4th order in space, i.e. (2,4) scheme
         default_order = [2] + [4]*self.dimension
@@ -388,6 +388,8 @@ class StaggeredGrid(Grid):
 
         if self.eval_const:
             # substitute constants with values
+            if not hasattr(self, 'const_dict'):
+                self.create_const_dict()
             kernel_new = kernel_new.subs(self.const_dict)
 
         return kernel_new
@@ -405,6 +407,8 @@ class StaggeredGrid(Grid):
 
             if self.eval_const:
                 # substitute constants with values
+                if not hasattr(self, 'const_dict'):
+                    self.create_const_dict()
                 bc_new = bc_new.subs(self.const_dict)
 
             bc_new_list.append(bc_new)
@@ -592,42 +596,9 @@ class StaggeredGrid(Grid):
         result = expr.func(*args)
         return result
 
-    def get_velocity_kernel_ai(self):
+    def get_kernel_ai(self, kernel):
         """
-        - get the arithmetic intensity of velocity kernel
-        - get the number of different operations of the velocity field kernel
-        - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
-        - #LOAD = number of unique fields in the kernel
-        - return tuple (AI, AI_w, #ADD, #MUL, #LOAD, #STORE)
-        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
-        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
-        """
-        if self.eval_const:
-            self.create_const_dict()
-        store = 0
-        add = 0
-        mul = 0
-        arrays = []  # to store name of arrays loaded
-        for field in self.vfields:
-            store += 1  # increment STORE by 1 (assignment)
-            expr = self.transform_kernel(field)
-            add2, mul2, arrays2 = get_ops_expr(expr, arrays)
-            add += add2  # accumulate # ADD
-            mul += mul2  # accumulate # MUL
-            arrays = arrays2  # replace with new list of field names
-
-        # 8 byte if double, 4 if float used
-        # media parameter fields are always float, need to amend this
-        word_size = 8 if self.double else 4
-        load = len(arrays)
-        ai = float(add+mul)/(load+store)/word_size
-        ai_w = ai*(add+mul)/max(add, mul)/2.0
-
-        return (ai, ai_w, add, mul, load, store)
-
-    def get_stress_kernel_ai(self):
-        """
-        - get the arithmetic intensity of stress kernel
+        - get the arithmetic intensity of stress or velocity kernel
         - get the number of different operations of the stress field kernel
         - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
         - #LOAD = number of unique fields in the kernel
@@ -637,28 +608,35 @@ class StaggeredGrid(Grid):
         """
         if self.eval_const:
             self.create_const_dict()
+        result = {'add': 0, 'mul': 0, 'load_list': [], 'load_all_list': []}
         store = 0
-        add = 0
-        mul = 0
-        arrays = []  # to store name of arrays loaded
-        for field in self.sfields:
+        load = 0
+        fields = self.sfields if kernel == 'stress' else self.vfields
+        for field in fields:
+            load += 1  # increment LOAD by 1 (assignment)
             store += 1  # increment STORE by 1 (assignment)
             expr = self.transform_kernel(field)
-            add2, mul2, arrays2 = get_ops_expr(expr, arrays)
-            add += add2  # accumulate # ADD
-            mul += mul2  # accumulate # MUL
-            arrays = arrays2  # replace with new list of field names
+            result = get_ops_expr(expr, result)  # accumulate results
 
         # 8 byte if double, 4 if float used
         # media parameter fields are always float, need to amend this
         word_size = 8 if self.double else 4
-        load = len(arrays)
-        ai = float(add+mul)/(load+store)/word_size
-        ai_w = ai*(add+mul)/max(add, mul)/2.0
+        load_all = load
+        load += len(result['load_list'])
+        load_all += len(result['load_all_list'])
+        add = result['add']
+        mul = result['mul']
+        result['load'] = load
+        result['load_all'] = load_all
+        result['store'] = store
+        result['ai_high'] = float(add+mul)/(load+store)/word_size
+        result['ai_high_weighted'] = result['ai_high']*(add+mul)/max(add, mul)/2.0
+        result['ai_low'] = float(add+mul)/(load_all+store)/word_size
+        result['ai_low_weighted'] = result['ai_low']*(add+mul)/max(add, mul)/2.0
 
-        return (ai, ai_w, add, mul, load, store)
+        return result
 
-    def get_velocity_bc_ai(self):
+    def get_bc_ai(self, kernel):
         """
         - get the arithmetic intensity of velocity boundary conditions
         - get the number of different operations of the velocity boundary condition computation
@@ -669,7 +647,7 @@ class StaggeredGrid(Grid):
         - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
         - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
         """
-        result = []
+        result_dict = {}
         if self.eval_const:
             self.create_const_dict()
 
@@ -677,83 +655,45 @@ class StaggeredGrid(Grid):
         # media parameter fields are always float, need to amend this
         word_size = 8 if self.double else 4
 
-        for field in self.vfields:
+        fields = self.sfields if kernel == 'stress' else self.vfields
+        for field in fields:
+            result_dict[field] = [[None]*2 for x in range(self.dimension+1)]  # create emplty list of lists
             for dimension in range(1, 4):
                 for side in range(2):
+                    result = {'add': 0, 'mul': 0, 'load_list': [], 'load_all_list': []}
                     store = 0
-                    add = 0
-                    mul = 0
                     load = 0
-                    arrays = []  # to store name of arrays loaded
                     bc_list = self.transform_bc(field, dimension, side)
                     for bc in bc_list:
                         store += 1  # increment STORE by 1 (assignment)
-                        add2, mul2, arrays2 = get_ops_expr(bc.rhs, arrays)
-                        add += add2  # accumulate # ADD
-                        mul += mul2  # accumulate # MUL
-                        arrays = arrays2  # replace with new list of field names
-                    load = len(arrays)
+                        load += 1  # increment LOAD by 1 (assignment)
+                        result = get_ops_expr(bc.rhs, result)  # accumulate results
+                    load_all = load
+                    load += len(result['load_list'])
+                    load_all += len(result['load_all_list'])
+                    add = result['add']
+                    mul = result['mul']
+                    result['load'] = load
+                    result['load_all'] = load_all
+                    result['store'] = store
                     if (store == 0):
-                        ai = 0
-                        ai_w = 0
-                        weight = 0  # weight of AI in overall AI calculation
+                        result['ai_high'] = 0.0
+                        result['ai_high_weighted'] = 0.0
+                        result['ai_low'] = 0.0
+                        result['ai_low_weighted'] = 0.0
                     else:
-                        ai = float(add+mul)/(load+store)/word_size
-                        weight = 1.0/(self.dim[dimension-1].value-self.margin.value*2)
+                        result['ai_high'] = float(add+mul)/(load+store)/word_size
+                        result['ai_low'] = float(add+mul)/(load_all+store)/word_size
                         if (add == 0 and mul == 0):
-                            ai_w = ai
+                            result['ai_high_weighted'] = result['ai_high']
+                            result['ai_low_weighted'] = result['ai_low']
                         else:
-                            ai_w = ai*(add+mul)/max(add, mul)/2.0
-                    result.append({'weight': weight, 'ai': ai, 'ai_w': ai_w, 'add': add, 'mul': mul, 'load': load, 'store': store})
-        return result
-
-    def get_stress_bc_ai(self):
-        """
-        - get the arithmetic intensity of stress boundary conditions
-        - get the number of different operations of the stress boundary condition computation
-        - return list of AIs and # ops for each boundary
-        - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
-        - #LOAD = number of unique fields in the kernel
-        - return tuple (#ADD, #MUL, #LOAD, #STORE)
-        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
-        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
-        """
-        result = []
-        if self.eval_const:
-            self.create_const_dict()
-
-        # 8 byte if double, 4 if float used
-        # media parameter fields are always float, need to amend this
-        word_size = 8 if self.double else 4
-
-        for field in self.sfields:
-            for dimension in range(1, 4):
-                for side in range(2):
-                    store = 0
-                    add = 0
-                    mul = 0
-                    load = 0
-                    arrays = []  # to store name of arrays loaded
-                    bc_list = self.transform_bc(field, dimension, side)
-                    for bc in bc_list:
-                        store += 1  # increment STORE by 1 (assignment)
-                        add2, mul2, arrays2 = get_ops_expr(bc.rhs, arrays)
-                        add += add2  # accumulate # ADD
-                        mul += mul2  # accumulate # MUL
-                        arrays = arrays2  # replace with new list of field names
-                    load = len(arrays)
-                    if (store == 0):
-                        ai = 0
-                        weight = 0  # weight of AI in overall AI calculation
-                    else:
-                        ai = float(add+mul)/(load+store)/word_size
-                        weight = 1.0/(self.dim[dimension-1].value-self.margin.value*2)
-                        if (add == 0 and mul == 0):
-                            ai_w = ai
-                        else:
-                            ai_w = ai*(add+mul)/max(add, mul)/2.0
-                    result.append({'weight': weight, 'ai': ai, 'ai_w': ai_w, 'add': add, 'mul': mul, 'load': load, 'store': store})
-        return result
+                            result['ai_high_weighted'] = result['ai_high']*(add+mul)/max(add, mul)/2.0
+                            result['ai_low_weighted'] = result['ai_low']*(add+mul)/max(add, mul)/2.0
+                    result_dict[field][dimension][side] = dict(result)  # make a copy of dictionary
+                    result_dict[field][dimension][side]['load_list'] = list(result['load_list'])  # make a copy of list
+                    result_dict[field][dimension][side]['load_all_list'] = list(result['load_all_list'])  # make a copy of list
+        return result_dict
 
     def get_overall_kernel_ai(self):
         """
@@ -761,30 +701,77 @@ class StaggeredGrid(Grid):
         - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
         - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
         """
+        result = {}  # dictionary to return
+        word_size = 8 if self.double else 4
+        grid_size = 1
+        for dim in self.dim:
+            grid_size *= dim.value - self.margin.value*2
         # get the AI of kernels and boundary conditions
-        velocity_ai = self.get_velocity_kernel_ai()
-        stress_ai = self.get_stress_kernel_ai()
-        velocity_bc_ai = self.get_velocity_bc_ai()
-        stress_bc_ai = self.get_stress_bc_ai()
-        total_weight = 2.0  # velocity kernel and stress kernel
-        overall_ai = velocity_ai[0] + stress_ai[0]
-        overall_ai_w = velocity_ai[1] + stress_ai[1]
+        velocity_ai = self.get_kernel_ai('velocity')
+        stress_ai = self.get_kernel_ai('stress')
+        velocity_bc_ai = self.get_bc_ai('velocity')
+        stress_bc_ai = self.get_bc_ai('stress')
 
-        for ai in velocity_bc_ai+stress_bc_ai:
-            total_weight += ai['weight']
-            overall_ai += ai['ai']*ai['weight']
-            overall_ai_w += ai['ai_w']*ai['weight']
+        result['add_velocity_kernel'] = velocity_ai['add']*grid_size
+        result['mul_velocity_kernel'] = velocity_ai['mul']*grid_size
+        result['load_velocity_kernel'] = velocity_ai['load']*grid_size
+        result['load_all_velocity_kernel'] = velocity_ai['load_all']*grid_size
+        result['store_velocity_kernel'] = velocity_ai['store']*grid_size
+        result['add_stress_kernel'] = stress_ai['add']*grid_size
+        result['mul_stress_kernel'] = stress_ai['mul']*grid_size
+        result['load_stress_kernel'] = stress_ai['load']*grid_size
+        result['load_all_stress_kernel'] = stress_ai['load_all']*grid_size
+        result['store_stress_kernel'] = stress_ai['store']*grid_size
 
-        overall_ai /= total_weight
-        overall_ai_w /= total_weight
+        add_bc = 0
+        mul_bc = 0
+        load_bc = 0
+        load_all_bc = 0
+        store_bc = 0
+
+        total_grid_size = 1
+        for dim in self.dim:
+            total_grid_size *= dim.value
+
+        for dimension in range(1, 4):
+            for side in range(2):
+                factor = total_grid_size/self.dim[dimension-1].value
+                for field in self.sfields:
+                    add_bc += stress_bc_ai[field][dimension][side]['add']*factor
+                    mul_bc += stress_bc_ai[field][dimension][side]['mul']*factor
+                    load_bc += stress_bc_ai[field][dimension][side]['load']*factor
+                    load_all_bc += stress_bc_ai[field][dimension][side]['load_all']*factor
+                    store_bc += stress_bc_ai[field][dimension][side]['store']*factor
+                for field in self.vfields:
+                    add_bc += velocity_bc_ai[field][dimension][side]['add']*factor
+                    mul_bc += velocity_bc_ai[field][dimension][side]['mul']*factor
+                    load_bc += velocity_bc_ai[field][dimension][side]['load']*factor
+                    load_all_bc += velocity_bc_ai[field][dimension][side]['load_all']*factor
+                    store_bc += velocity_bc_ai[field][dimension][side]['store']*factor
+
+        result['add_bc'] = add_bc
+        result['mul_bc'] = mul_bc
+        result['load_bc'] = load_bc
+        result['load_all_bc'] = load_all_bc
+        result['store_bc'] = store_bc
+
+        result['add'] = result['add_bc'] + result['add_velocity_kernel'] + result['add_stress_kernel']
+        result['mul'] = result['mul_bc'] + result['mul_velocity_kernel'] + result['mul_stress_kernel']
+        result['load'] = result['load_bc'] + result['load_velocity_kernel'] + result['load_stress_kernel']
+        result['load_all'] = result['load_all_bc'] + result['load_all_velocity_kernel'] + result['load_all_stress_kernel']
+        result['store'] = result['store_bc'] + result['store_velocity_kernel'] + result['store_stress_kernel']
 
         # calculate adjustment due to ghost cells
-        ghost_adj = 1.0
-        for d in self.dim[1:]:
-            ghost_adj *= 1 - float(self.margin.value)/d.value
-        overall_ai *= ghost_adj
-        overall_ai_w *= ghost_adj
-        return overall_ai, overall_ai_w
+        # ghost_adj = 1.0
+        # for d in self.dim[1:]:
+        #     ghost_adj *= 1 - float(self.margin.value)/d.value
+        # overall_ai *= ghost_adj
+        # overall_ai_w *= ghost_adj
+        result['ai_high'] = float(result['add']+result['mul'])/(result['load']+result['store'])/word_size
+        result['ai_high_weighted'] = result['ai_high']*(result['add']+result['mul'])/max(result['add'], result['mul'])/2.0
+        result['ai_low'] = float(result['add']+result['mul'])/(result['load_all']+result['store'])/word_size
+        result['ai_low_weighted'] = result['ai_low']*(result['add']+result['mul'])/max(result['add'], result['mul'])/2.0
+        return result
 
     # ------------------- sub-routines for output -------------------- #
 
