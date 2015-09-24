@@ -771,6 +771,7 @@ class StaggeredGrid(Grid):
         result['ai_high_weighted'] = result['ai_high']*(result['add']+result['mul'])/max(result['add'], result['mul'])/2.0
         result['ai_low'] = float(result['add']+result['mul'])/(result['load_all']+result['store'])/word_size
         result['ai_low_weighted'] = result['ai_low']*(result['add']+result['mul'])/max(result['add'], result['mul'])/2.0
+        result['flops'] = result['add']+result['mul']
         return result
 
     # ------------------- sub-routines for output -------------------- #

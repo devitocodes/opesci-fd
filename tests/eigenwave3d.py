@@ -134,6 +134,8 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     print '%.2f' % ai['ai_high_weighted']
     print 'AI lowerbound'
     print '%.2f' % ai['ai_low_weighted']
+    print 'total flops'
+    print '%d' % ai['flops']
     print ai
     # print 'stress bc AI'
     # print grid.get_stress_bc_ai()
