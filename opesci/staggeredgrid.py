@@ -959,12 +959,12 @@ class StaggeredGrid(Grid):
                         + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
-            if self.ivdep and d == self.dimension-1:
+            if not self.pluto and self.ivdep and d == self.dimension-1:
                     body = '%s\n' % self.compiler._ivdep + body
-            if self.simd and d == self.dimension-1:
+            if not self.pluto and self.simd and d == self.dimension-1:
                     body = '#pragma simd\n' + body
 
-        if self.omp:
+        if not self.pluto and self.omp:
             body = '#pragma omp for\n' + body
 
         return body
