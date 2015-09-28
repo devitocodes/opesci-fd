@@ -48,10 +48,11 @@ class StaggeredGrid(Grid):
     * output_vts: Output solution fields at every timestep
     * converge: Generate code for computing analutical solution and L2 norms
     * profiling: Generate code for gathering profiling information via PAPI
+    * pluto: Define scop for pluto optimisation
     """
     template_base = 'staggered3d_tmpl.cpp'
 
-    template_keys = ['io', 'profiling', 'numevents_papi',
+    template_keys = ['pluto', 'io', 'profiling', 'numevents_papi',
                      'time_stepping', 'define_constants', 'declare_fields',
                      'define_fields', 'store_fields', 'load_fields',
                      'initialise', 'initialise_bc', 'stress_loop',
@@ -60,7 +61,7 @@ class StaggeredGrid(Grid):
                      'define_profiling', 'define_papi_events', 'sum_papi_events']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
-                 'output_vts', 'converge', 'profiling']
+                 'output_vts', 'converge', 'profiling', 'pluto']
 
     _papi_events = []
 
@@ -68,7 +69,8 @@ class StaggeredGrid(Grid):
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
                  expand=True, eval_const=True, output_vts=False,
-                 converge=False, profiling=False):
+                 converge=False, profiling=False, pluto=False):
+
         self.dimension = dimension
 
         template_dir = path.join(get_package_dir(), "templates")
@@ -80,6 +82,7 @@ class StaggeredGrid(Grid):
         self.vfields = []
 
         # Switches
+        self.pluto = pluto
         self.omp = omp
         self.ivdep = ivdep
         self.simd = simd
@@ -105,7 +108,7 @@ class StaggeredGrid(Grid):
                             (self.dim[k].value-1-self.margin.value*2)),
                         self.real_t, True) for k in range(self.dimension)]
 
-        self.t = Symbol('t')
+        self.t = Symbol('_t')
         self.set_index(index)
 
         # default 2nd order in time, 4th order in space, i.e. (2,4) scheme
@@ -158,7 +161,7 @@ class StaggeredGrid(Grid):
         # add time variables for time stepping: t0, t1 ...
         self.time = []
         for k in range(self.order[0]):
-            name = 't' + str(k)
+            name = str(self.t) + str(k)
             v = Variable(name, 0, 'int', False)
             self.time.append(v)
         self.margin.value = self.order[1]/2
@@ -1021,8 +1024,10 @@ class StaggeredGrid(Grid):
         replace array indices [t] with [0]
         - return generated code as string
         """
-        result = self.stress_bc_getter(init=True).replace('[t1]', '[0]')
-        result += self.velocity_bc.replace('[t1]', '[0]')
+        t1 = "'["+str(self.t)+"1]'"
+        rep = "'[0]'"
+        result = self.stress_bc_getter(init=True).replace(t1, rep)
+        result += self.velocity_bc.replace(t1, rep)
         return result
 
     @property
@@ -1054,12 +1059,12 @@ class StaggeredGrid(Grid):
                         + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
-            if self.ivdep and d == self.dimension-1:
+            if not self.pluto and self.ivdep and d == self.dimension-1:
                     body = '%s\n' % self.compiler._ivdep + body
-            if self.simd and d == self.dimension-1:
+            if not self.pluto and self.simd and d == self.dimension-1:
                     body = '#pragma simd\n' + body
 
-        if self.omp:
+        if not self.pluto and self.omp:
             body = '#pragma omp for\n' + body
 
         return body
@@ -1093,12 +1098,12 @@ class StaggeredGrid(Grid):
                         + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
             body = render(tmpl, dict1)
-            if self.ivdep and d == self.dimension-1:
+            if not self.pluto and self.ivdep and d == self.dimension-1:
                     body = '%s\n' % self.compiler._ivdep + body
-            if self.simd and d == self.dimension-1:
+            if not self.pluto and self.simd and d == self.dimension-1:
                     body = '#pragma simd\n' + body
 
-        if self.omp:
+        if not self.pluto and self.omp:
             body = '#pragma omp for\n' + body
 
         return body
@@ -1150,6 +1155,7 @@ class StaggeredGrid(Grid):
                             else:
                                 i0 = 0
                                 i1 = self.dim[d2]
+
                             if body == '':
                                 # inner loop, populate ghost cell calculation
                                 # body = field.bc[d+1][side]
@@ -1160,7 +1166,7 @@ class StaggeredGrid(Grid):
                                     body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
                                 if self.ivdep:
                                     body = '#pragma ivdep\n' + body
                                 if self.simd:
@@ -1168,7 +1174,7 @@ class StaggeredGrid(Grid):
                             else:
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
 
                     result += body
 
@@ -1215,14 +1221,14 @@ class StaggeredGrid(Grid):
                                 else:
                                     body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
                                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
                                 if self.ivdep:
                                     body = '%s\n' % self.compiler._ivdep + body
                                 if self.simd:
                                     body = '#pragma simd\n' + body
                             else:
                                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
+                                body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
 
                     result += body
 

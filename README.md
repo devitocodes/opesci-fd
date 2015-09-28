@@ -91,3 +91,15 @@ fields. To switch off this output, change output_convergence from True
 to False in the Python test definition. Further parameter switches for
 controlling model input, the data type used (single of double
 precision or explicit vectorisation are also provided.
+
+
+##### Auto-tuning for pluto
+
+Here is a script to test the best tile size to get the best optimisation effect:
+```
+python tests/pluto_tile_test.py -b -s -l -- nthreads=4 tile_size="4 4 8"
+```
+The results will be in the "results" folder.
+The list "sizes" contains all the tile sizes that will be tested. 
+This script depends on [pybench.py](https://github.com/firedrakeproject/pybench)
+

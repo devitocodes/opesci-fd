@@ -8,7 +8,7 @@ _test_dir = path.join(path.dirname(__file__), "src")
 
 def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
                 accuracy_order=[1, 2, 2, 2],
-                omp=True, simd=False, ivdep=True, double=False,
+                omp=True, simd=False, ivdep=True, double=False, pluto=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
                 rho_file='', vp_file='', vs_file=''):
     """
@@ -39,6 +39,8 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     :param rho_file: file name for input file of rho (density)
     :param vp_file: file name for input file of Vp (primary velocity)
     :param vs_file: file name for input file of Vs (secondary velocity)
+    :param pluto: switch for inserting #pragma scop and #pragma endscop for
+    pluto optimisation
     """
 
     print 'domain size: ' + str(domain_size)
@@ -61,7 +63,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     grid = StaggeredGrid(dimension=3, domain_size=domain_size,
                          grid_size=grid_size,
                          stress_fields=[Txx, Tyy, Tzz, Txy, Tyz, Txz],
-                         velocity_fields=[U, V, W])
+                         velocity_fields=[U, V, W], pluto=pluto)
     grid.set_time_step(dt, tmax)
 
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, double=double,
@@ -70,7 +72,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
     # define parameters
     rho, beta, lam, mu = symbols('rho beta lambda mu')
-    t, x, y, z = symbols('t x y z')
+    t, x, y, z = symbols('_t x y z')
     grid.set_index([x, y, z])
 
     if read:
@@ -145,10 +147,14 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 def default(compiler=None, execute=False, nthreads=1,
             accuracy_order=[2, 4, 4, 4],
-            output=False, profiling=False, papi_events=[]):
+            output=False, profiling=False, papi_events=[], pluto=False, tile=' '):
     """
     Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
+    if pluto:
+        f = open('tile.sizes', 'w')
+        f.write(str(tile))
+        f.close()
     domain_size = (1.0, 1.0, 1.0)
     grid_size = (100, 100, 100)
     dt = 0.002
@@ -157,22 +163,44 @@ def default(compiler=None, execute=False, nthreads=1,
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        accuracy_order=accuracy_order,
                        o_converge=True, omp=True, simd=False,
-                       ivdep=True, filename=filename)
+                       ivdep=True, filename=filename, pluto=pluto)
     grid.set_switches(output_vts=output, profiling=profiling)
     grid.set_papi_events(papi_events)
-    if compiler is None:
+    out = None
+    if pluto:
         grid.generate(filename)
+        filename_p = grid.pluto_op(filename)
+        if compiler in ['clang', 'clang++']:
+            # an ugly fix, but pluto will always attack <omp.h> to the first line
+            # which would fail clang
+            with open(filename_p, 'r') as fin:
+                data = fin.read().splitlines(True)
+            with open(filename_p, 'w') as fout:
+                fout.writelines(data[1:])
+        grid.src_file = filename_p
+        if compiler is None:
+            share = True
+        else:
+            share = False
+            out = grid.compile(filename_p, compiler=compiler, shared=share)
     else:
-        grid.compile(filename, compiler=compiler, shared=False)
+        filename_p = filename
+        if compiler is None:
+            grid.generate(filename_p)
+        else:
+            out = grid.compile(filename_p, compiler=compiler, shared=False)
+
     if execute:
         # Test Python-based execution for the base test
-        grid.execute(filename, compiler=compiler, nthreads=nthreads)
+        grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
         grid.convergence()
+    return out
 
 
 def read_data(compiler=None, execute=False, nthreads=1,
               accuracy_order=[2, 4, 4, 4],
               output=False, profiling=False, papi_events=[]):
+
     """Test for model intialisation from input file
 
     Computes eigenwave on a unit cube grid (200 x 200 x 200)
@@ -280,6 +308,10 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                    help='Activate performance profiling from PAPI')
     p.add_argument('--papi-events', dest='papi_events', nargs='+', default=[],
                    help='Specific PAPI events to measure')
+    p.add_argument('--tile', default=None,
+                   help="tile-size for pluto optimisation e.g. --tile '4 4 32'")
+    p.add_argument('--pluto', action='store_true', default=False,
+                   help="Apply pluto optimisation ")
 
     args = p.parse_args()
     print "Eigenwave3D example (mode=%s)" % args.mode
@@ -288,7 +320,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         default(compiler=args.compiler, execute=args.execute,
                 nthreads=args.nthreads, output=args.output,
                 accuracy_order=[2, args.so, args.so, args.so],
-                profiling=args.profiling, papi_events=args.papi_events)
+                profiling=args.profiling, papi_events=args.papi_events,
+                pluto=args.pluto, tile=args.tile)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,

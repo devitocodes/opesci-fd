@@ -1,6 +1,6 @@
 from compilation import GNUCompiler, IntelCompiler, ClangCompiler
 from codeprinter import ccode
-
+import subprocess
 from StringIO import StringIO
 from mako.runtime import Context
 from ctypes import cdll, Structure, POINTER, c_float, pointer, c_longlong
@@ -96,6 +96,7 @@ class Grid(object):
         out = self.compiler.compile(self.src_file, shared=shared)
         if shared:
             self.src_lib = out
+        return out
 
     def execute(self, filename, compiler='g++', nthreads=1, affinity='close'):
         # Parallel thread settings
@@ -171,3 +172,27 @@ You need to you run grid.execute() first!""")
         opesci_convergence(pointer(self._arg_grid), pointer(arg_conv))
         for field, _ in arg_conv._fields_:
             print "%s: %.10f" % (field, getattr(arg_conv, field))
+
+    def pluto_op(self, filename):
+        out = filename.split('.')[0]+"_pluto.c"
+        cc = 'polycc %s --tile --parallel' % filename + " -o " + out
+        with file('%s_pluto_opt.log' % filename, 'w') as logfile:
+            logfile.write("Compiling: %s\n" % cc)
+            try:
+                subprocess.check_call(cc, shell=True, stdout=logfile, stderr=logfile)
+            except OSError:
+                err = """OSError during compilation"""
+                raise RuntimeError(err)
+            except subprocess.CalledProcessError:
+                err = """Error during compilation:
+Compilation command: %s
+Source file: %s
+Log file: %s""" % (" ".join(cc), filename, logfile.name)
+                raise RuntimeError(err)
+            print "Generated:", out
+
+            import fileinput
+            import re
+            for line in fileinput.input(out, inplace=True):
+                print re.sub('pragma omp parallel for', 'pragma omp for', line.rstrip())
+        return out

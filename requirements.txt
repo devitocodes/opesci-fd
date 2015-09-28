@@ -2,3 +2,4 @@ sympy>=0.7.6
 Mako>=1.0.1
 flake8>=2.1.0
 mpmath>=0.19
+-e git://github.com/firedrakeproject/pybench.git#egg=pybench
