@@ -93,6 +93,7 @@ class StaggeredGrid(Grid):
 
         # number of ghost cells for boundary
         self.margin = Variable('margin', 2, 'int', True)
+        self.grid_size = (10, 10, 10)
         self.size = [1.0] * dimension  # default domain size
         # grid size symbols, dim1, dim2, ...
         self.dim = [Variable('dim'+str(k+1),
@@ -108,8 +109,8 @@ class StaggeredGrid(Grid):
         self.set_index(index)
 
         # default 2nd order in time, 4th order in space, i.e. (2,4) scheme
-        default_accuracy = [1] + [2]*self.dimension
-        self.set_accuracy(default_accuracy)
+        default_order = [2] + [4]*self.dimension
+        self.set_order(default_order)
 
         self.dt = Variable('dt', 0.01, self.real_t, True)
         self.ntsteps = Variable('ntsteps', 100, 'int', True)
@@ -128,7 +129,7 @@ class StaggeredGrid(Grid):
         # user defined variables
         # use dictionary because of potential duplication
         self.defined_variable = {}
-        self.update_field_accuracy()
+        self.update_field_order()
         self._update_spacing()
 
     @property
@@ -140,32 +141,37 @@ class StaggeredGrid(Grid):
         """Flag whether to include I/O headers"""
         return self.read or self.output_vts
 
-    def set_accuracy(self, accuracy):
+    def set_order(self, order):
         """
-        - set the accuracy of the scheme
+        - set the order of approximation of the scheme
         - create the t variables for time stepping
         e.g. t0, t1 for 2nd order scheme, t0, t1, t2, t3 for 4th order scheme
-        :param accuracy: list of time accuracy followed by spatial accuracy
-        e.g. [1,2,2,2] for (2,4) scheme
+        :param order: list of time order followed by spatial orders
+        e.g. [2,4,4,4] for (2,4) scheme
         """
-        self.order = accuracy
+        for x in order:
+            if x % 2 == 1:
+                raise ValueError(str(x) + ' is not a valid order (require even integer)')
+        self.order = order
         # periodicity for time stepping
-        self.tp = Variable('tp', self.order[0]*2, 'int', True)
+        self.tp = Variable('tp', self.order[0], 'int', True)
         # add time variables for time stepping: t0, t1 ...
         self.time = []
-        for k in range(self.order[0]*2):
+        for k in range(self.order[0]):
             name = 't' + str(k)
             v = Variable(name, 0, 'int', False)
             self.time.append(v)
-        self.update_field_accuracy()
+        self.margin.value = self.order[1]/2
+        self.set_grid_size(self.grid_size)
+        self.update_field_order()
 
-    def update_field_accuracy(self):
+    def update_field_order(self):
         """
         update the order of acuracy of the fields
         """
         if hasattr(self, 'sfields') and hasattr(self, 'vfields'):
             for field in self.sfields + self.vfields:
-                field.set_accuracy(self.order)
+                field.set_order(self.order)
 
     def set_switches(self, **kwargs):
         for switch, value in kwargs.items():
@@ -190,7 +196,7 @@ class StaggeredGrid(Grid):
                         self.size[k]/(self.dim[k].value-1-self.margin.value*2),
                         self.real_t, True) for k in range(self.dimension)]
 
-        expr = 2*self.order[0]
+        expr = self.order[0]
         for d in self.dim:
             expr *= d
         self.vec_size = Variable('vec_size', expr, 'int', True)
@@ -209,6 +215,7 @@ class StaggeredGrid(Grid):
         update the spacing variables with new value (domain size / grid size)
         :param size: grid spacing as tuple, e.g. (100, 100, 100)
         """
+        self.grid_size = size
         self.dim = [Variable('dim'+str(k+1), size[k]+1+2*self.margin.value,
                     'int', True) for k in range(self.dimension)]
 
@@ -261,9 +268,9 @@ class StaggeredGrid(Grid):
         r = self.defined_variable['rho'].value
         Vp = ((l + 2*m)/r)**0.5
         h = min([sp.value for sp in self.spacing])
-        if self.order[1] == 1:
+        if self.order[1] == 2:
             return h/Vp/(3**0.5)
-        elif self.order[1] == 2:
+        elif self.order[1] == 4:
             return 0.495*h/Vp
         else:
             return 'not implemented yet'
@@ -341,18 +348,19 @@ class StaggeredGrid(Grid):
         for eq in self.eq:
             derivatives = get_all_objects(eq, DDerivative)
             for deriv in derivatives:
-                # this might need changing for higher order scheme
                 eq = eq.subs(deriv, deriv.fd[deriv.max_accuracy])
             eqs += [eq]
 
         t = self.t
-        t1 = t+hf+(self.order[0]-1)  # the most advanced time index
+        t1 = t+hf+(self.order[0]/2-1)  # the most advanced time index
         index = [t1] + self.index
+
+        simplify = True if max(self.order[1:]) <= 4 else False
 
         for field, eq in zip(self.vfields+self.sfields, eqs):
             # want the LHS of express to be at time t+1
-            kernel = solve(eq, field[index])[0]
-            kernel = kernel.subs({t: t+1-hf-(self.order[0]-1)})
+            kernel = solve(eq, field[index], simplify=simplify)[0]
+            kernel = kernel.subs({t: t+hf-(self.order[0]/2-1)})
 
             field.set_fd_kernel(kernel)
 
@@ -399,7 +407,7 @@ class StaggeredGrid(Grid):
                 bc_new = bc_new.subs(self.const_dict)
 
             bc_new_list.append(bc_new)
-        return kernel_new
+        return bc_new_list
 
     def associate_fields(self):
         """
@@ -435,12 +443,16 @@ class StaggeredGrid(Grid):
         :param side: the side of the surface
         side=0 for bottom surface, side=1 for top surface
         """
+        algo = 'robertsson'
+        if self.order[dimension] == 4:
+            # using different algorithm for free surface for 4th order
+            algo = 'levander'
         self.associate_fields()
         for field in self.sfields+self.vfields:
             if side == 0:
-                field.set_free_surface(dimension, self.margin.value, side)
+                field.set_free_surface(dimension, self.margin.value, side, algo=algo)
             else:
-                field.set_free_surface(dimension, self.dim[dimension-1]-self.margin.value-1, side)
+                field.set_free_surface(dimension, self.dim[dimension-1]-self.margin.value-1, side, algo=algo)
 
     def set_media_params(self, read=False, rho=1.0, vp=1.0, vs=0.5,
                          rho_file='', vp_file='', vs_file=''):
@@ -597,7 +609,7 @@ class StaggeredGrid(Grid):
 
     def get_stress_kernel_ai(self):
         """
-        - get the arithmetic intensity of velocity kernel
+        - get the arithmetic intensity of stress kernel
         - get the number of different operations of the stress field kernel
         - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
         - #LOAD = number of unique fields in the kernel
@@ -627,6 +639,133 @@ class StaggeredGrid(Grid):
         ai_w = ai*(add+mul)/max(add, mul)/2.0
 
         return (ai, ai_w, add, mul, load, store)
+
+    def get_velocity_bc_ai(self):
+        """
+        - get the arithmetic intensity of velocity boundary conditions
+        - get the number of different operations of the velocity boundary condition computation
+        - return list of AIs and # ops for each boundary
+        - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
+        - #LOAD = number of unique fields in the kernel
+        - return tuple (#ADD, #MUL, #LOAD, #STORE)
+        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
+        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
+        """
+        result = []
+        if self.eval_const:
+            self.create_const_dict()
+
+        # 8 byte if double, 4 if float used
+        # media parameter fields are always float, need to amend this
+        word_size = 8 if self.double else 4
+
+        for field in self.vfields:
+            for dimension in range(1, 4):
+                for side in range(2):
+                    store = 0
+                    add = 0
+                    mul = 0
+                    load = 0
+                    arrays = []  # to store name of arrays loaded
+                    bc_list = self.transform_bc(field, dimension, side)
+                    for bc in bc_list:
+                        store += 1  # increment STORE by 1 (assignment)
+                        add2, mul2, arrays2 = get_ops_expr(bc.rhs, arrays)
+                        add += add2  # accumulate # ADD
+                        mul += mul2  # accumulate # MUL
+                        arrays = arrays2  # replace with new list of field names
+                    load = len(arrays)
+                    if (store == 0):
+                        ai = 0
+                        weight = 0  # weight of AI in overall AI calculation
+                    else:
+                        ai = float(add+mul)/(load+store)/word_size
+                        weight = 1.0/(self.dim[dimension-1].value-self.margin.value*2)
+                        if (add == 0 and mul == 0):
+                            ai_w = ai
+                        else:
+                            ai_w = ai*(add+mul)/max(add, mul)/2.0
+                    result.append({'weight': weight, 'ai': ai, 'ai_w': ai_w, 'add': add, 'mul': mul, 'load': load, 'store': store})
+        return result
+
+    def get_stress_bc_ai(self):
+        """
+        - get the arithmetic intensity of stress boundary conditions
+        - get the number of different operations of the stress boundary condition computation
+        - return list of AIs and # ops for each boundary
+        - types of operations are ADD (inc -), MUL (inc /), LOAD, STORE
+        - #LOAD = number of unique fields in the kernel
+        - return tuple (#ADD, #MUL, #LOAD, #STORE)
+        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
+        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
+        """
+        result = []
+        if self.eval_const:
+            self.create_const_dict()
+
+        # 8 byte if double, 4 if float used
+        # media parameter fields are always float, need to amend this
+        word_size = 8 if self.double else 4
+
+        for field in self.sfields:
+            for dimension in range(1, 4):
+                for side in range(2):
+                    store = 0
+                    add = 0
+                    mul = 0
+                    load = 0
+                    arrays = []  # to store name of arrays loaded
+                    bc_list = self.transform_bc(field, dimension, side)
+                    for bc in bc_list:
+                        store += 1  # increment STORE by 1 (assignment)
+                        add2, mul2, arrays2 = get_ops_expr(bc.rhs, arrays)
+                        add += add2  # accumulate # ADD
+                        mul += mul2  # accumulate # MUL
+                        arrays = arrays2  # replace with new list of field names
+                    load = len(arrays)
+                    if (store == 0):
+                        ai = 0
+                        weight = 0  # weight of AI in overall AI calculation
+                    else:
+                        ai = float(add+mul)/(load+store)/word_size
+                        weight = 1.0/(self.dim[dimension-1].value-self.margin.value*2)
+                        if (add == 0 and mul == 0):
+                            ai_w = ai
+                        else:
+                            ai_w = ai*(add+mul)/max(add, mul)/2.0
+                    result.append({'weight': weight, 'ai': ai, 'ai_w': ai_w, 'add': add, 'mul': mul, 'load': load, 'store': store})
+        return result
+
+    def get_overall_kernel_ai(self):
+        """
+        - get the overall arithmetic intensity of the kernel (velocity and stress)
+        - arithmetic intensity AI = (ADD+MUL)/[(LOAD+STORE)*word size]
+        - weighted AI, AI_w = (ADD+MUL)/(2*Max(ADD,MUL)) * AI
+        """
+        # get the AI of kernels and boundary conditions
+        velocity_ai = self.get_velocity_kernel_ai()
+        stress_ai = self.get_stress_kernel_ai()
+        velocity_bc_ai = self.get_velocity_bc_ai()
+        stress_bc_ai = self.get_stress_bc_ai()
+        total_weight = 2.0  # velocity kernel and stress kernel
+        overall_ai = velocity_ai[0] + stress_ai[0]
+        overall_ai_w = velocity_ai[1] + stress_ai[1]
+
+        for ai in velocity_bc_ai+stress_bc_ai:
+            total_weight += ai['weight']
+            overall_ai += ai['ai']*ai['weight']
+            overall_ai_w += ai['ai_w']*ai['weight']
+
+        overall_ai /= total_weight
+        overall_ai_w /= total_weight
+
+        # calculate adjustment due to ghost cells
+        ghost_adj = 1.0
+        for d in self.dim[1:]:
+            ghost_adj *= 1 - float(self.margin.value)/d.value
+        overall_ai *= ghost_adj
+        overall_ai_w *= ghost_adj
+        return overall_ai, overall_ai_w
 
     # ------------------- sub-routines for output -------------------- #
 
@@ -683,7 +822,7 @@ class StaggeredGrid(Grid):
         vsize = 1
         for d in self.dim:
             vsize *= d.value
-        vsize *= self.order[0]*2
+        vsize *= self.order[0]
         for field in self.sfields + self.vfields:
             vec = '_' + ccode(field.label) + '_vec'
             # alloc aligned memory (on windows and linux)
@@ -979,6 +1118,8 @@ class StaggeredGrid(Grid):
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
         result = ''
+        if self.eval_const:
+            self.create_const_dict()
         for field in self.sfields:
             # normal stress, not shear stress
             normal = field.direction[0] == field.direction[1]
@@ -1012,10 +1153,11 @@ class StaggeredGrid(Grid):
                             if body == '':
                                 # inner loop, populate ghost cell calculation
                                 # body = field.bc[d+1][side]
+                                bc_list = self.transform_bc(field, d+1, side)
                                 if self.read:
-                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in bc_list)
                                 else:
-                                    body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
                                 body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
@@ -1043,6 +1185,8 @@ class StaggeredGrid(Grid):
         """
         tmpl = self.lookup.get_template('generic_loop.txt')
         result = ''
+        if self.eval_const:
+            self.create_const_dict()
         for d in range(self.dimension):
             # update the staggered field first
             # because other fields depends on it
@@ -1065,10 +1209,11 @@ class StaggeredGrid(Grid):
                             if body == '':
                                 # inner loop, populate ghost cell calculation
                                 # body = field.bc[d+1][side]
+                                bc_list = self.transform_bc(field, d+1, side)
                                 if self.read:
-                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in bc_list)
                                 else:
-                                    body = ''.join(ccode_eq(bc)+';\n' for bc in field.bc[d+1][side])
+                                    body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
                                 dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
                                 body = render(tmpl, dict1).replace('[t + 1]', '[t1]').replace('[t]', '[t0]')
                                 if self.ivdep:

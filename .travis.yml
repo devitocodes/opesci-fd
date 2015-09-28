@@ -26,3 +26,5 @@ script:
     - OMP_NUM_THREADS=1 tests/src/eigenwave3d
     - python tests/eigenwave3d.py default --output
     - python tests/eigenwave3d.py read
+    - python tests/eigenwave3d.py default --compiler=g++ -so=8
+    - OMP_NUM_THREADS=4 tests/src/eigenwave3d

@@ -7,6 +7,7 @@ _test_dir = path.join(path.dirname(__file__), "src")
 
 
 def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
+                accuracy_order=[1, 2, 2, 2],
                 omp=True, simd=False, ivdep=True, double=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
                 rho_file='', vp_file='', vs_file=''):
@@ -42,6 +43,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
     print 'domain size: ' + str(domain_size)
     print 'grid size: ' + str(grid_size)
+    print 'approxmiation order: ' + str(accuracy_order)
     print 'dt: ' + str(dt)
     print 'tmax: ' + str(tmax)
 
@@ -102,6 +104,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     Tyz.set_analytic_solution(Tyz_func)
     Txz.set_analytic_solution(Txz_func)
 
+    grid.set_order(accuracy_order)
     grid.calc_derivatives()
 
     # PDEs: momentum equations
@@ -125,12 +128,26 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     grid.set_free_surface_boundary(dimension=3, side=0)
     grid.set_free_surface_boundary(dimension=3, side=1)
 
+    # print 'kernel Weighted AI: ' + '%.2f' % grid.get_overall_kernel_ai()[1]
+    print 'stress kernel AI'
+    print '%.2f, %.2f (weighted), %d ADD, %d MUL, %d LOAD, %d STORE' % grid.get_stress_kernel_ai()
+    print 'velocity kernel AI'
+    print '%.2f, %.2f (weighted), %d ADD, %d MUL, %d LOAD, %d STORE' % grid.get_velocity_kernel_ai()
+    # print 'stress bc AI'
+    # print grid.get_stress_bc_ai()
+    # print 'velocity bc AI'
+    # print grid.get_velocity_bc_ai()
+    print 'overall algorithm AI'
+    print '%.2f, %.2f (weighted)' % grid.get_overall_kernel_ai()
+
     return grid
 
 
 def default(compiler=None, execute=False, nthreads=1,
+            accuracy_order=[2, 4, 4, 4],
             output=False, profiling=False, papi_events=[]):
-    """Eigenwave test case on a unit cube grid (100 x 100 x 100)
+    """
+    Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
     domain_size = (1.0, 1.0, 1.0)
     grid_size = (100, 100, 100)
@@ -138,6 +155,7 @@ def default(compiler=None, execute=False, nthreads=1,
     tmax = 1.0
     filename = path.join(_test_dir, 'eigenwave3d.cpp')
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
+                       accuracy_order=accuracy_order,
                        o_converge=True, omp=True, simd=False,
                        ivdep=True, filename=filename)
     grid.set_switches(output_vts=output, profiling=profiling)
@@ -153,6 +171,7 @@ def default(compiler=None, execute=False, nthreads=1,
 
 
 def read_data(compiler=None, execute=False, nthreads=1,
+              accuracy_order=[2, 4, 4, 4],
               output=False, profiling=False, papi_events=[]):
     """Test for model intialisation from input file
 
@@ -164,6 +183,7 @@ def read_data(compiler=None, execute=False, nthreads=1,
     tmax = 1.0
     filename = path.join(_test_dir, 'eigenwave3d_read.cpp')
     grid = eigenwave3d(domain_size, grid_size, dt, tmax, read=True,
+                       accuracy_order=accuracy_order,
                        o_converge=False, omp=True, simd=False, ivdep=True,
                        filename=filename, rho_file='RHOhomogx200',
                        vp_file='VPhomogx200', vs_file='VShomogx200')
@@ -246,6 +266,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                        formatter_class=RawTextHelpFormatter)
     p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
+    p.add_argument('-so', '--spatial_order', default=4, type=int, dest='so',
+                   help='order of the spatial discretisation to use for code generation * 2, eg. order=4 to use 4th order approximation in x,y,z')
     p.add_argument('-c', '--compiler', default=None,
                    help='C++ Compiler to use for model compilation, eg. g++ or icpc')
     p.add_argument('-x', '--execute', action='store_true', default=False,
@@ -265,10 +287,12 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
     if args.mode == 'default':
         default(compiler=args.compiler, execute=args.execute,
                 nthreads=args.nthreads, output=args.output,
+                accuracy_order=[2, args.so, args.so, args.so],
                 profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,
+                  accuracy_order=[2, args.so, args.so, args.so],
                   profiling=args.profiling, papi_events=args.papi_events)
     elif args.mode == 'converge':
         converge_test()

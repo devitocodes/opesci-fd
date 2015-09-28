@@ -60,18 +60,18 @@ class Field(IndexedBase):
         """
         self.spacing = spacing
 
-    def set_accuracy(self, accuracy):
+    def set_order(self, order):
         """
         set order of accuracy of the field, e.g. [1,2,2,2] for (2,4) scheme
         """
-        self.accuracy = accuracy
+        self.order = order
 
     def calc_derivative(self, l, k, d, n):
         """
         return FD approximations field derivatives
         input param description same as Deriv_half()
         """
-        return Deriv_half(self, l, k, d, n)[1]
+        return Deriv_half(self, l, k, d, n/2)[1]
 
     def populate_derivatives(self, max_order=1):
         """
@@ -88,9 +88,10 @@ class Field(IndexedBase):
             for order in range(1, max_order+1):
                 # iterate through all orders of derivatives
                 # create DDerivative objects (name, dependent variable, derivative order, max_accuracy needed)
-                name = 'D'+'_'+self.label.name+'_'+str(index)+'_'+str(order)  # e.g. D_U_x_1 = dU/dx
-                self.d[d][order] = DDerivative(name, index, order, self.accuracy[d])
-                for accuracy in range(1, self.accuracy[d]+1):
+                # name = 'D'+'_'+self.label.name+'_'+str(index)+'_'+str(order)  # e.g. D_U_x_1 = dU/dx
+                name = ''.join(['\partial ', self.label.name, '/\partial ', str(index)])
+                self.d[d][order] = DDerivative(name, index, order, self.order[d])
+                for accuracy in range(2, self.order[d]+2, 2):
                     # assign FD approximation expression of different order of accuracy
                     self.d[d][order].fd[accuracy] = self.calc_derivative(self.indices, d, self.spacing[d], accuracy)
 
@@ -201,51 +202,76 @@ class VField(Field):
         staggered[direction] = True
         Field.set(self, dimension, staggered)
 
-    def set_free_surface(self, d, b, side):
+    def set_free_surface(self, d, b, side, algo='robertsson'):
         """
         - set free surface boundary condition to boundary d, at index b
         :param d: direction of the boundary surface normal
         :param b: location of the boundary (index)
         :param side: lower boundary (0) or upper boundary (1)
+        :param algo: which algorithm to use to compute ghost cells
+        algo == 'robertsson' [1]: setting all velocities at ghost cells to zero
+        algo == 'levander' [2]: only valid for 4th spatial order. using 2nd order FD approximation for velocities
         - e.g. set_free_surface([t,x,y,z],1,2,0)
         set y-z plane at x=2 to be lower free surface
         - ghost cells are calculated using reflection of stress fields
         - store the symbolic equations to populate ghost cells in self.bc
+        [1] Robertsson, Johan OA. "A numerical free-surface condition for elastic/viscoelastic finite-difference modeling in the presence of topography." Geophysics 61.6 (1996): 1921-1934.
+        [2] Levander, Alan R. "Fourth-order finite-difference P-SV seismograms." Geophysics 53.11 (1988): 1425-1436.
         """
-        # use this stress field to solve for ghost cell expression
-        field = self.sfields[d]
-        expr = field.dt
-        idx = list(self.indices)
-        # create substituion dictionary
-        dict1 = {}
-        derivatives = get_all_objects(expr, DDerivative)
-        for deriv in derivatives:
-            # using 2nd order approximation
-            dict1[deriv] = deriv.fd[1]
-        expr = expr.subs(dict1)
-        if self.staggered[d]:
-            # if staggered, solve ghost cell using T'[b]=0 (e.g. W at z surface, using Tzz)
-            eq = Eq(expr)
-            shift = hf
-            t = b - hf  # real boundary location
+        if algo == 'levander':
+            # use this stress field to solve for ghost cell expression
+            field = self.sfields[d]
+            expr = field.dt
+            idx = list(self.indices)
+            # create substituion dictionary
+            dict1 = {}
+            derivatives = get_all_objects(expr, DDerivative)
+            for deriv in derivatives:
+                # using 2nd order approximation
+                dict1[deriv] = deriv.fd[2]
+            expr = expr.subs(dict1)
+            if self.staggered[d]:
+                # if staggered, solve ghost cell using T'[b]=0 (e.g. W at z surface, using Tzz)
+                eq = Eq(expr)
+                shift = hf
+                t = b - hf  # real boundary location
+            else:
+                # if not staggered, solve ghost cell using T'[b-1/2]=T'[b+1/2] (e.g. U at z surface, using Txz)
+                eq = Eq(expr.subs(idx[d], idx[d]-hf),
+                        expr.subs(idx[d], idx[d]+hf))
+                shift = 1
+                t = b
+
+            idx[d] -= ((-1)**side)*shift
+            lhs = self[idx]
+            rhs = solve(eq, lhs)[0]
+            lhs = lhs.subs(self.indices[d], t)
+            rhs = self.align(rhs.subs(self.indices[d], t))
+
+            # change ti to t+1
+            lhs = lhs.subs(idx[0], idx[0]+1)
+            rhs = rhs.subs(idx[0], idx[0]+1)
+
+            self.bc[d][side] = [Eq(lhs, rhs)]
+        elif algo == 'robertsson':
+            idx = list(self.indices)
+            if self.staggered[d]:
+                # e.g. W at z boundary
+                idx[d] = b - (1-side)
+            else:
+                # e.g. U at z boundary
+                idx[d] = b - (-1)**side
+            eq = Eq(self[idx])
+            eq = eq.subs(idx[0], idx[0]+1)
+            self.bc[d][side] = [eq]
+            # populate all ghost cells
+            for depth in range(self.order[d]/2-1):
+                idx[d] -= (-1)**side
+                eq = Eq(self[idx])
+                eq = eq.subs(idx[0], idx[0]+1)
+                self.bc[d][side].append(eq)
         else:
-            # if not staggered, solve ghost cell using T'[b-1/2]=T'[b+1/2] (e.g. U at z surface, using Txz)
-            eq = Eq(expr.subs(idx[d], idx[d]-hf),
-                    expr.subs(idx[d], idx[d]+hf))
-            shift = 1
-            t = b
-
-        idx[d] -= ((-1)**side)*shift
-        lhs = self[idx]
-        rhs = solve(eq, lhs)[0]
-        lhs = lhs.subs(self.indices[d], t)
-        rhs = self.align(rhs.subs(self.indices[d], t))
-
-        # change ti to t+1
-        lhs = lhs.subs(idx[0], idx[0]+1)
-        rhs = rhs.subs(idx[0], idx[0]+1)
-
-        self.bc[d][side] = [Eq(lhs, rhs)]
+            raise ValueError('Unknown boundary condition algorithm')
 
 
 class SField(Field):
@@ -278,21 +304,27 @@ class SField(Field):
                 staggered[direction[i]] = True
             Field.set(self, dimension, staggered)
 
-    def set_free_surface(self, d, b, side):
+    def set_free_surface(self, d, b, side, algo='robertsson'):
         """
         set free surface boundary condition to boundary d, at index b
         :param indices: list of indices, e.g. [t,x,y,z] for 3D
         :param d: direction of the boundary surface normal
         :param b: location of the boundary (index)
+        :param algo: which algorithm to use to compute ghost cells
+        algo == 'robertsson' [1]: setting all velocities at ghost cells to zero
+        algo == 'levander' [2]: only valid for 4th spatial order. using 2nd order FD approximation for velocities
         side: lower boundary (0) or upper boundary (1)
         e.g. set_free_surface([t,x,y,z],1,2,0)
         set y-z plane at x=2 to be lower free surface
         ghost cells are calculated using reflection of stress fields
         store the code to populate ghost cells to self.bc
+        [1] Robertsson, Johan OA. "A numerical free-surface condition for elastic/viscoelastic finite-difference modeling in the presence of topography." Geophysics 61.6 (1996): 1921-1934.
+        [2] Levander, Alan R. "Fourth-order finite-difference P-SV seismograms." Geophysics 53.11 (1988): 1425-1436.
         """
         idx = list(self.indices)
+
         if d not in self.direction:
-            if not self.direction[0] == self.direction[1]:
+            if (not algo == 'levander') or (not self.direction[0] == self.direction[1]):
                 # shear stress, e.g. Tyz no need to recalculate at x boundary (only depends on dV/dz and dW/dy)
                 self.bc[d][side] = []
                 return
@@ -312,9 +344,9 @@ class SField(Field):
                 # substitution dictionary
                 dict1 = {}
                 for deriv in derivatives:
-                    dict1[deriv] = deriv.fd[2]
+                    dict1[deriv] = deriv.fd[4]
                 expr = expr.subs(dict1)
-                eq = Eq(self.d[0][1].fd[1], expr)
+                eq = Eq(self.d[0][1].fd[2], expr)
                 eq = eq.subs(idx[d], b)
                 t = idx[0]
                 idx[0] = t+hf
@@ -333,6 +365,9 @@ class SField(Field):
                 self.bc[d][side] = [eq2]
                 return
 
+        # use anti-symmetry to ensure stress at boundary=0
+        # this applies for all algorithms
+
         idx = list(self.indices)  # ghost cell
         idx2 = list(self.indices)  # cell inside domain
 
@@ -346,15 +381,17 @@ class SField(Field):
             idx[d] = b - (1-side)
             idx2[d] = idx[d] + (-1)**side
             eq1 = Eq(self[idx], -self[idx2])
-
-        idx[d] -= (-1)**side
-        idx2[d] += (-1)**side
-        eq2 = Eq(self[idx], -self[idx2])
-        # change t to t+1
         eq1 = eq1.subs(idx[0], idx[0]+1)
-        eq2 = eq2.subs(idx[0], idx[0]+1)
-        # self.bc[d][side] = ccode_eq(eq1) + ';\n' + ccode_eq(eq2) + ';\n'
-        self.bc[d][side] = [eq1, eq2]
+        self.bc[d][side] = [eq1]
+
+        for depth in range(self.order[d]/2-1):
+            # populate ghost cells
+            idx[d] -= (-1)**side
+            idx2[d] += (-1)**side
+            eq = Eq(self[idx], -self[idx2])
+            # change t to t+1
+            eq = eq.subs(idx[0], idx[0]+1)
+            self.bc[d][side].append(eq)
 
 
 class Media(IndexedBase):
