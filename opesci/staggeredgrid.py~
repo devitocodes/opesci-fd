@@ -984,7 +984,7 @@ class StaggeredGrid(Grid):
         for field in self.sfields+self.vfields:
             body = ''
             if self.omp:
-                result += '#pragma omp for schedule(static,1)\n'
+                result += '#pragma omp for\n'
             # populate xvalue, yvalue zvalue code
             for d in range(self.dimension-1, -1, -1):
                 i = loop[d]
