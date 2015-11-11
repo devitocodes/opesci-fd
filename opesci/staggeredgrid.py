@@ -984,7 +984,7 @@ class StaggeredGrid(Grid):
         for field in self.sfields+self.vfields:
             body = ''
             if self.omp:
-                result += '#pragma omp for\n'
+                result += '#pragma omp for schedule(static,1)\n'
             # populate xvalue, yvalue zvalue code
             for d in range(self.dimension-1, -1, -1):
                 i = loop[d]
@@ -1065,7 +1065,7 @@ class StaggeredGrid(Grid):
                     body = '#pragma simd\n' + body
 
         if not self.pluto and self.omp:
-            body = '#pragma omp for\n' + body
+            body = '#pragma omp for schedule(static,1)\n' + body
 
         return body
 
@@ -1104,7 +1104,7 @@ class StaggeredGrid(Grid):
                     body = '#pragma simd\n' + body
 
         if not self.pluto and self.omp:
-            body = '#pragma omp for\n' + body
+            body = '#pragma omp for schedule(static,1)\n' + body
 
         return body
 
@@ -1137,7 +1137,7 @@ class StaggeredGrid(Grid):
                     if field.bc[d+1][side] == []:
                         continue
                     if self.omp:
-                        result += '#pragma omp for\n'
+                        result += '#pragma omp for schedule(static,1)\n'
                     body = ''
                     for d2 in range(self.dimension-1, -1, -1):
                         # loop through other dimensions
@@ -1204,7 +1204,7 @@ class StaggeredGrid(Grid):
                     if field.bc[d+1][side] == '':
                         continue
                     if self.omp:
-                        result += '#pragma omp for\n'
+                        result += '#pragma omp for schedule(static,1)\n'
                     body = ''
                     for d2 in range(self.dimension-1, -1, -1):
                         # loop through other dimensions
