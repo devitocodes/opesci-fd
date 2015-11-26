@@ -103,3 +103,12 @@ The results will be in the "results" folder.
 The list "sizes" contains all the tile sizes that will be tested. 
 This script depends on [pybench.py](https://github.com/firedrakeproject/pybench)
 
+
+##### Loop Fission optimisation
+
+To enable the fission of the kernel inner loop type:
+```
+python tests/eigenwave3d.py -so <order> --fission
+```
+
+
