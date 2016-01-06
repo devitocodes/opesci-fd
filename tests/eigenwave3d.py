@@ -41,7 +41,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     :param vs_file: file name for input file of Vs (secondary velocity)
     :param pluto: switch for inserting #pragma scop and #pragma endscop for
     pluto optimisation
-    :param fission: switch for doing loop fission optmisation
+    :param fission: switch for doing loop fission optimisation
     """
 
     print 'domain size: ' + str(domain_size)
@@ -148,7 +148,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 def default(compiler=None, execute=False, nthreads=1,
             accuracy_order=[2, 4, 4, 4],
-            output=False, profiling=False, papi_events=[], pluto=False, tile=' ' ,fission=False):
+            output=False, profiling=False, papi_events=[], pluto=False, tile=' ', fission=False):
     """
     Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
@@ -157,7 +157,7 @@ def default(compiler=None, execute=False, nthreads=1,
         f.write(str(tile))
         f.close()
     domain_size = (1.0, 1.0, 1.0)
-    grid_size = (247, 247, 247)
+    grid_size = (100, 100, 100)
     dt = 0.002
     tmax = 1.0
     filename = path.join(_test_dir, 'eigenwave3d.cpp')
