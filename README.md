@@ -12,7 +12,7 @@ Opesci-FD can be installed with:
 pip install --local git+https://github.com/opesci/opesci-fd.git
 ```
 This will install the latest version of the `opesci` python package
-locally. To get the latests updates for your local copy simply add
+locally. To get the latest updates for your local copy simply add
 `--upgrade` to the above command. For a developer checkout of the code
 run:
 ```
@@ -41,13 +41,13 @@ automatically.
 
 Opesci-FD provides automatic compilation and execution that allows 
 developers to test their code directly from the Python environment. 
-To compile the generted souce code:
+To compile the generated source code:
 ```
 python tests/eigenwave3d.py --compiler <cc>
 ```
 where `<cc>` is either `g++`,`clang` or `icpc`, indicating which compiler to
-use.Make sure your [clang](http://clang-omp.github.io/) compiler support openmp 
-for multithreads program.
+use. Make sure your [clang](http://clang-omp.github.io/) compiler supports openmp 
+for multithreaded execution.
 To compile and execute the above test case in parallel run:
 ```
 python tests/eigenwave3d.py --compiler <cc> --execute --nthreads <nt>
