@@ -5,6 +5,20 @@ Difference models from a high-level description of the model
 equations. It allows the rapid development, analysis and optimisation
 of propagator codes for use in seismic imaging.
 
+### Dependencies
+
+Before installation, ensure that all the dependencies specified in the `requirements.txt` file are installed, using
+
+```
+pip install -r requirements.txt
+```
+
+In addition, CMake must also be installed. This can either be done using
+
+```sudo apt-get install cmake```
+
+or by [building CMake from source](https://cmake.org/install/).
+
 ### Installation
 
 Opesci-FD can be installed with:
@@ -17,7 +31,7 @@ locally. To get the latest updates for your local copy simply add
 run:
 ```
 git clone https://github.com/opesci/opesci-fd.git
-cd opesci-fd; pip install -r requirements.txt
+cd opesci-fd
 export PYTHONPATH=`pwd`:$PYTHONPATH
 python setup.py build_clib --build-clib=`pwd`
 ```
