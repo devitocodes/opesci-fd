@@ -5,7 +5,7 @@ Difference models from a high-level description of the model
 equations. It allows the rapid development, analysis and optimisation
 of propagator codes for use in seismic imaging.
 
-### Dependencies
+## Dependencies
 
 Before installation, ensure that all the dependencies specified in the `requirements.txt` file are installed, using
 
@@ -19,7 +19,7 @@ In addition, CMake must also be installed. This can either be done using
 
 or by [building CMake from source](https://cmake.org/install/).
 
-### Installation
+## Installation
 
 Opesci-FD can be installed with:
 ```
@@ -36,7 +36,7 @@ export PYTHONPATH=`pwd`:$PYTHONPATH
 python setup.py build_clib --build-clib=`pwd`
 ```
 
-### Getting started
+## Getting started
 
 An example of the high-level model description is provided under
 `tests/eigenwave3d.py`. This script generates a stencil code that
@@ -51,7 +51,7 @@ This will generate the mode source code in `tests/src/eigenwave3d.cpp`.
 The source code can be compiled and executed either manually or 
 automatically.
 
-##### Automatic compilation and execution
+#### Automatic compilation and execution
 
 Opesci-FD provides automatic compilation and execution that allows 
 developers to test their code directly from the Python environment. 
@@ -72,7 +72,7 @@ For additional options please see:
 python tests/eigenwave3d.py --help
 ```
 
-##### Profiling
+#### Profiling
 
 If the PAPI library is found on your system during the initial build,
 Opesci-FD can also provide profiling information, such as the achieved
@@ -87,7 +87,7 @@ python tests/eigenwave3d.py -c g++ -x --n 4 --profiling --papi-events PAPI_TOT_C
 Please note that the availability of PAPI events is highly dependent
 on the hardware you are running on and the local PAPI install.
 
-##### Manual compilation
+#### Manual compilation
 
 The generated source file can also be compiled by hand using the
 provided CMake file:
@@ -107,7 +107,7 @@ controlling model input, the data type used (single of double
 precision or explicit vectorisation are also provided.
 
 
-##### Auto-tuning for pluto
+#### Auto-tuning for pluto
 
 Here is a script to test the best tile size to get the best optimisation effect:
 ```
