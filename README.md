@@ -1,5 +1,7 @@
 # Opesci-FD
 
+[![Build Status](https://travis-ci.org/opesci/opesci-fd.svg?branch=master)](https://travis-ci.org/opesci/opesci-fd)
+
 Opesci-FD is a software package to automatically generate Finite
 Difference models from a high-level description of the model
 equations. It allows the rapid development, analysis and optimisation
