@@ -10,7 +10,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
                 accuracy_order=[1, 2, 2, 2],
                 omp=True, simd=False, ivdep=True, double=False, pluto=False,
                 filename='test.cpp', read=False, expand=True, eval_const=True,
-                rho_file='', vp_file='', vs_file=''):
+                rho_file='', vp_file='', vs_file='', fission=False):
     """
     create 3D eigen waves and run FD simulation
     :param domain_size: define size of domain
@@ -41,6 +41,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     :param vs_file: file name for input file of Vs (secondary velocity)
     :param pluto: switch for inserting #pragma scop and #pragma endscop for
     pluto optimisation
+    :param fission: switch for doing loop fission optimisation
     """
 
     print 'domain size: ' + str(domain_size)
@@ -63,7 +64,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     grid = StaggeredGrid(dimension=3, domain_size=domain_size,
                          grid_size=grid_size,
                          stress_fields=[Txx, Tyy, Tzz, Txy, Tyz, Txz],
-                         velocity_fields=[U, V, W], pluto=pluto)
+                         velocity_fields=[U, V, W], pluto=pluto, fission=fission)
     grid.set_time_step(dt, tmax)
 
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, double=double,
@@ -147,7 +148,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
 def default(compiler=None, execute=False, nthreads=1,
             accuracy_order=[2, 4, 4, 4],
-            output=False, profiling=False, papi_events=[], pluto=False, tile=' '):
+            output=False, profiling=False, papi_events=[], pluto=False, tile=' ', fission=False):
     """
     Eigenwave test case on a unit cube grid (100 x 100 x 100)
     """
@@ -163,7 +164,7 @@ def default(compiler=None, execute=False, nthreads=1,
     grid = eigenwave3d(domain_size, grid_size, dt, tmax,
                        accuracy_order=accuracy_order,
                        o_converge=True, omp=True, simd=False,
-                       ivdep=True, filename=filename, pluto=pluto)
+                       ivdep=True, filename=filename, pluto=pluto, fission=fission)
     grid.set_switches(output_vts=output, profiling=profiling)
     grid.set_papi_events(papi_events)
     out = None
@@ -199,7 +200,7 @@ def default(compiler=None, execute=False, nthreads=1,
 
 def read_data(compiler=None, execute=False, nthreads=1,
               accuracy_order=[2, 4, 4, 4],
-              output=False, profiling=False, papi_events=[]):
+              output=False, profiling=False, papi_events=[], fission=False):
 
     """Test for model intialisation from input file
 
@@ -214,7 +215,7 @@ def read_data(compiler=None, execute=False, nthreads=1,
                        accuracy_order=accuracy_order,
                        o_converge=False, omp=True, simd=False, ivdep=True,
                        filename=filename, rho_file='RHOhomogx200',
-                       vp_file='VPhomogx200', vs_file='VShomogx200')
+                       vp_file='VPhomogx200', vs_file='VShomogx200', fission=fission)
     grid.set_switches(output_vts=output, profiling=profiling)
     grid.set_papi_events(papi_events)
     if compiler is None:
@@ -312,6 +313,8 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                    help="tile-size for pluto optimisation e.g. --tile '4 4 32'")
     p.add_argument('--pluto', action='store_true', default=False,
                    help="Apply pluto optimisation ")
+    p.add_argument('--fission', action='store_true', default=False,
+                   help="Apply loop fission optimisation")
 
     args = p.parse_args()
     print "Eigenwave3D example (mode=%s)" % args.mode
@@ -321,12 +324,12 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                 nthreads=args.nthreads, output=args.output,
                 accuracy_order=[2, args.so, args.so, args.so],
                 profiling=args.profiling, papi_events=args.papi_events,
-                pluto=args.pluto, tile=args.tile)
+                pluto=args.pluto, tile=args.tile, fission=args.fission)
     elif args.mode == 'read':
         read_data(compiler=args.compiler, execute=args.execute,
                   nthreads=args.nthreads, output=args.output,
                   accuracy_order=[2, args.so, args.so, args.so],
-                  profiling=args.profiling, papi_events=args.papi_events)
+                  profiling=args.profiling, papi_events=args.papi_events, fission=args.fission)
     elif args.mode == 'converge':
         converge_test()
     elif args.mode == 'cx1':
