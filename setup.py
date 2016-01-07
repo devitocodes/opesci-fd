@@ -22,14 +22,15 @@ class CMakeBuilder(build_clib):
         # Run cmake and make in temp dir
         self.mkpath(build_dir)
         chdir(build_dir)
-        cmake_cmd = ["cmake", root_dir]
+	print "done1"        
+	cmake_cmd = ["cmake", root_dir]
         if subprocess.call(cmake_cmd) != 0:
             raise EnvironmentError("error calling cmake")
 
         if subprocess.call("make") != 0:
             raise EnvironmentError("error calling make")
         chdir(root_dir)
-
+	
         # Copy lib and include directories to opesci package
         self.copy_tree(path.join(root_dir, 'include'),
                        path.join(clib_dir, 'opesci/include'))

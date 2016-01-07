@@ -786,6 +786,9 @@ class StaggeredGrid(Grid):
                 line += 'const '
             line += v.type + ' ' + v.name + ' = ' + str(v.value) + ';\n'
             result += line
+        print "****"
+        print result
+        print "****"
         return result
 
     @property
