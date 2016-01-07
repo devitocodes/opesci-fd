@@ -1,28 +1,44 @@
 # Opesci-FD
 
+[![Build Status](https://travis-ci.org/opesci/opesci-fd.svg?branch=master)](https://travis-ci.org/opesci/opesci-fd)
+
 Opesci-FD is a software package to automatically generate Finite
 Difference models from a high-level description of the model
 equations. It allows the rapid development, analysis and optimisation
 of propagator codes for use in seismic imaging.
 
-### Installation
+## Dependencies
+
+Before installation, ensure that all the dependencies specified in the `requirements.txt` file are installed, using
+
+```
+pip install -r requirements.txt
+```
+
+In addition, CMake must also be installed. This can either be done using
+
+```sudo apt-get install cmake```
+
+or by [building CMake from source](https://cmake.org/install/).
+
+## Installation
 
 Opesci-FD can be installed with:
 ```
 pip install --local git+https://github.com/opesci/opesci-fd.git
 ```
 This will install the latest version of the `opesci` python package
-locally. To get the latests updates for your local copy simply add
+locally. To get the latest updates for your local copy simply add
 `--upgrade` to the above command. For a developer checkout of the code
 run:
 ```
 git clone https://github.com/opesci/opesci-fd.git
-cd opesci-fd; pip install -r requirements.txt
+cd opesci-fd
 export PYTHONPATH=`pwd`:$PYTHONPATH
 python setup.py build_clib --build-clib=`pwd`
 ```
 
-### Getting started
+## Getting started
 
 An example of the high-level model description is provided under
 `tests/eigenwave3d.py`. This script generates a stencil code that
@@ -37,17 +53,17 @@ This will generate the mode source code in `tests/src/eigenwave3d.cpp`.
 The source code can be compiled and executed either manually or 
 automatically.
 
-##### Automatic compilation and execution
+#### Automatic compilation and execution
 
 Opesci-FD provides automatic compilation and execution that allows 
 developers to test their code directly from the Python environment. 
-To compile the generted souce code:
+To compile the generated source code:
 ```
 python tests/eigenwave3d.py --compiler <cc>
 ```
 where `<cc>` is either `g++`,`clang` or `icpc`, indicating which compiler to
-use.Make sure your [clang](http://clang-omp.github.io/) compiler support openmp 
-for multithreads program.
+use. Make sure your [clang](http://clang-omp.github.io/) compiler supports openmp 
+for multithreaded execution.
 To compile and execute the above test case in parallel run:
 ```
 python tests/eigenwave3d.py --compiler <cc> --execute --nthreads <nt>
@@ -58,7 +74,7 @@ For additional options please see:
 python tests/eigenwave3d.py --help
 ```
 
-##### Profiling
+#### Profiling
 
 If the PAPI library is found on your system during the initial build,
 Opesci-FD can also provide profiling information, such as the achieved
@@ -73,7 +89,7 @@ python tests/eigenwave3d.py -c g++ -x --n 4 --profiling --papi-events PAPI_TOT_C
 Please note that the availability of PAPI events is highly dependent
 on the hardware you are running on and the local PAPI install.
 
-##### Manual compilation
+#### Manual compilation
 
 The generated source file can also be compiled by hand using the
 provided CMake file:
@@ -93,7 +109,7 @@ controlling model input, the data type used (single of double
 precision or explicit vectorisation are also provided.
 
 
-##### Auto-tuning for pluto
+#### Auto-tuning for pluto
 
 Here is a script to test the best tile size to get the best optimisation effect:
 ```
