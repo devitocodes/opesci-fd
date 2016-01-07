@@ -9,7 +9,9 @@ from compilation import get_package_dir
 from sympy import Symbol, Rational, solve, expand, Eq
 from mako.lookup import TemplateLookup
 import mmap
+import cgen
 from os import path
+from __builtin__ import str
 
 __all__ = ['StaggeredGrid']
 
@@ -773,7 +775,7 @@ class StaggeredGrid(Grid):
     # ------------------- sub-routines for output -------------------- #
 
     @property
-    def define_constants(self):
+    def define_constants_old(self):
         """
         - generate code for declaring variables
         - return the generated code as string
@@ -792,11 +794,42 @@ class StaggeredGrid(Grid):
         return result
 
     @property
+    def define_constants(self):
+        """
+        - generate code for declaring variables
+        - return the generated code as string
+        """
+
+        result = ''
+        variables = self.get_all_variables()
+        for v in variables:
+            if v.constant:
+                line = cgen.Initializer(cgen.Const(cgen.Value(v.type, v.name)), v.value)
+            else:
+                line = cgen.Initializer(cgen.Value(v.type, v.name), v.value)
+            result += str(line)+"\n"
+
+        return result
+
+    @property
+    def define_fields_old(self):
+        """Code fragment that defines field arrays"""
+        result= '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
+                          for f in self.fields])
+        print result
+        print self.define_fields_cgen
+        return result
+    
+    @property
     def define_fields(self):
         """Code fragment that defines field arrays"""
-        return '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
-                          for f in self.fields])
-
+        result = ''
+        for f in self.fields:
+            var = cgen.Pointer(cgen.Value(self.real_t, ccode(f.label)))
+            result+=str(var)+"\n"
+            
+        return result
+    
     @property
     def store_fields(self):
         """Code fragment that stores field arrays to 'grid' struct"""
