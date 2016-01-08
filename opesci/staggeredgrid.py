@@ -1202,15 +1202,16 @@ class StaggeredGrid(Grid):
         return generated code as string
         """
 
-        tmpl = self.lookup.get_template('generic_loop.txt')
+        
         result = ''
         m = self.margin.value
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
-
+        
+        statements = []
         for field in self.sfields+self.vfields:
-            body = ''
+            body = []
             if self.omp:
-                result += str(cgen.Pragma('omp for schedule(static,1)'))
+                statements.append(cgen.Pragma('omp for schedule(static,1)'))
             # populate xvalue, yvalue zvalue code
             for d in range(self.dimension-1, -1, -1):
                 i = loop[d]
@@ -1221,9 +1222,9 @@ class StaggeredGrid(Grid):
                 else:
                     i1 = ccode(self.dim[d]-m)
                     expr = self.spacing[d]*(loop[d] - self.margin.value)
-                pre = self.real_t + ' ' + self.index[d].name + '= ' \
-                    + ccode(expr) + ';\n'
-                post = ''
+                pre = [cgen.Initializer(cgen.Value(self.real_t, self.index[d].name), ccode(expr))]
+                
+                post = []
                 if d == self.dimension-1:
                     # inner loop
                     # first time step
@@ -1234,12 +1235,15 @@ class StaggeredGrid(Grid):
                         sol = self.resolve_media_params(sol)
                         for idx in self.index:
                             sol = sol.subs(idx, '_'+idx.name)
-                    body = ccode(field[[0]+loop]) + '=' + ccode(sol) + ';\n'
+                    body = [cgen.Assign(ccode(field[[0]+loop]), ccode(sol))]
                 body = pre + body + post
-                dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-                body = render(tmpl, dict1)
+                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
 
-            result += body
+            statements.append(body[0])
+        
+        for line in statements:
+                result+=str(line)+'\n'
+        
         return result
 
     @property
