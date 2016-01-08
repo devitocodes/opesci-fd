@@ -1099,8 +1099,7 @@ class StaggeredGrid(Grid):
             statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.vp_file, self.vp.label, vsize)))
             statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.vs_file, self.vs.label, vsize)))
             
-            for line in statements:
-                result+=str(line)+'\n'
+            
             
             # calculated effective media parameter
             idx = self.index
@@ -1123,34 +1122,39 @@ class StaggeredGrid(Grid):
             idx011[2] += 1
             # beta
             kernel = cgen.Assign(ccode(self.beta[0][idx]),ccode(1.0/self.rho[idx]))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
             # beta1 (effective bouyancy in x direction)
             kernel = cgen.Assign(ccode(self.beta[1][idx]), ccode((self.beta[0][idx] + self.beta[0][idx100])/2.0))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
             # beta2 (effective bouyancy in y direction)
             kernel = cgen.Assign(ccode(self.beta[2][idx]), ccode((self.beta[0][idx] + self.beta[0][idx010])/2.0))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
             # beta3 (effective bouyancy in z direction)
             kernel = cgen.Assign(ccode(self.beta[3][idx]), ccode((self.beta[0][idx] + self.beta[0][idx001])/2.0))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
             # lambda
             kernel = cgen.Assign(ccode(self.lam[idx]), ccode(self.rho[idx]*(self.vp[idx]**2-2*self.vs[idx]**2)))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
             # mu
             kernel = cgen.Assign(ccode(self.mu[0][idx]), ccode(self.rho[idx]*(self.vs[idx]**2)))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
             # mu12 (effective shear modulus for shear stress sigma_xy)
             kernel = cgen.Assign(ccode(self.mu[1][idx]), ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx100] + 1.0/self.mu[0][idx010]+1.0/self.mu[0][idx110]))))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
             # mu13 (effective shear modulus for shear stress sigma_xz)
             kernel = cgen.Assign(ccode(self.mu[2][idx]), ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx100] + 1.0/self.mu[0][idx001]+1.0/self.mu[0][idx101]))))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
             # mu23 (effective shear modulus for shear stress sigma_yz)
             kernel = cgen.Assign(ccode(self.mu[3][idx]), ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx010] + 1.0/self.mu[0][idx001]+1.0/self.mu[0][idx011]))))
-            result += self.simple_loop(kernel)
+            statements.append(self.simple_loop(kernel))
+            
+            
+            for line in statements:
+                result+=str(line)+'\n'
+            
         return result
     
-    def simple_loop(self, kernel):
+    def simple_loop_old(self, kernel):
         """
         - helper function to generate simple nested loop over the entire domain
         (not including ghost cells) with kernel at the inner loop
@@ -1168,6 +1172,22 @@ class StaggeredGrid(Grid):
                 result += str(kernel) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': result}
             result = render(tmpl, dict1)
+        print result
+        print "***"
+        print self.simple_loop_cgen(kernel)
+        print "###"
+        return result
+    
+    def simple_loop(self, kernel):
+        """
+        - helper function to generate simple nested loop over the entire domain
+        (not including ghost cells) with kernel at the inner loop
+        - variables defined in self.index are used as loop variables
+        """
+        result = kernel
+        m = self.margin.value
+        for d in range(self.dimension-1, -1, -1):
+            result = cgen.For(cgen.InlineInitializer(cgen.Value('int', self.index[d]), m), cgen.Line('%s<%s'%(self.index[d], ccode(self.dim[d]-m))), cgen.Line('++%s'%self.index[d]), result)
         return result
 
     @property
@@ -1190,7 +1210,7 @@ class StaggeredGrid(Grid):
         for field in self.sfields+self.vfields:
             body = ''
             if self.omp:
-                result += '#pragma omp for schedule(static,1)\n'
+                result += str(cgen.Pragma('omp for schedule(static,1)'))
             # populate xvalue, yvalue zvalue code
             for d in range(self.dimension-1, -1, -1):
                 i = loop[d]
