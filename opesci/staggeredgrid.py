@@ -831,12 +831,25 @@ class StaggeredGrid(Grid):
         return result
     
     @property
-    def store_fields(self):
+    def store_fields_old(self):
         """Code fragment that stores field arrays to 'grid' struct"""
-        return '\n'.join(['grid->%s = (%s*) %s;' %
+        result = '\n'.join(['grid->%s = (%s*) %s;' %
                           (ccode(f.label), self.real_t, ccode(f.label))
                           for f in self.fields])
-
+        print result
+        print self.store_fields_cgen
+        return result
+    
+    @property
+    def store_fields(self):
+        """Code fragment that stores field arrays to 'grid' struct"""
+        result = ''
+        for f in self.fields:
+            assignment = cgen.Assign('grid->%s'%ccode(f.label), '(%s*) %s'%(self.real_t, ccode(f.label))) #There must be a better way of doing this. This hardly seems better than string manipulation
+            result+=str(assignment)+'\n'
+        
+        return result
+    
     @property
     def load_fields(self):
         """Code fragment that loads field arrays from 'grid' struct"""
