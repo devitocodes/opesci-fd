@@ -870,16 +870,15 @@ class StaggeredGrid(Grid):
         
         result = ''
         for f in self.fields:
-            #back_assign = cgen.Initializer(cgen.Pointer(cgen.Value(self.real_t, ccode(f.label)+idxs)), '(%s (*)%s) grid->%s'%(self.real_t, idxs, ccode(f.label)))
-            #back_assign = cgen.Initializer(cgen.Pointer(cgen.ArrayOf(cgen.ArrayOf(cgen.ArrayOf(cgen.Value(self.real_t, "(%s)"%ccode(f.label)), 105), 105),105)), '(%s (*)[105][105][105]) grid->%s'%(self.real_t, ccode(f.label)))
-            back_assign = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(f.label), idxs)), '(%s (*)[105][105][105]) grid->%s'%(self.real_t, ccode(f.label)))
+            
+            back_assign = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(f.label), idxs)), '(%s (*)%s) grid->%s'%(self.real_t, idxs, ccode(f.label))) #Another hackish attempt. 
             result+=str(back_assign)+'\n'
         
         
         return result
     
     @property
-    def declare_fields(self):
+    def declare_fields_old(self):
         """
         - generate code for delcaring fields
         - the generated code first declare fields as std::vector
@@ -912,7 +911,55 @@ class StaggeredGrid(Grid):
         if self.read:
             # add code to read data
             result += self.read_data()
-
+        print result
+        print "***"
+        print self.declare_fields_cgen
+        return result
+    
+    @property
+    def declare_fields(self):
+        """
+        - generate code for delcaring fields
+        - the generated code first declare fields as std::vector
+        of size=vec_size, then cast to multidimensional array
+        - return the generated code as string
+        """
+        result = ''
+        arr = ''  # = [dim1][dim2][dim3]...
+        for d in self.dim:
+            arr += '[' + d.name + ']'
+        vsize = 1
+        for d in self.dim:
+            vsize *= d.value
+        vsize *= self.order[0]
+        statements = []
+        for field in self.sfields + self.vfields:
+            vec = "_%s_vec"%ccode(field.label)
+            vec_value = cgen.Pointer(cgen.Value(self.real_t, vec))
+            # alloc aligned memory (on windows and linux)
+            statements.append(vec_value)
+            ifdef_line = cgen.Line('#ifdef _MSC_VER')
+            statements.append(ifdef_line)
+            vec_assign = cgen.Assign(vec, '(%s*) _aligned_malloc(%s*sizeof(%s), %s)'%(self.real_t, str(vsize), self.real_t, str(self.alignment)))
+            statements.append(vec_assign)
+            else_line = cgen.Line('#else')
+            statements.append(else_line)
+            function_call = cgen.Statement('posix_memalign((void **)(&%s), %d, %d*sizeof(%s))' % (vec, self.alignment, vsize, self.real_t))
+            statements.append(function_call)
+            endif_line = cgen.Line('#endif')
+            statements.append(endif_line)
+            # cast pointer to multidimensional array
+            
+            cast_pointer = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(field.label), arr)), '(%s (*)%s) %s'%(self.real_t, arr, vec))
+            
+            statements.append(cast_pointer)
+        
+        for line in statements:
+            result+=str(line)+'\n'
+        if self.read:
+            # add code to read data
+            result += self.read_data()
+        print result
         return result
 
     def read_data(self):
