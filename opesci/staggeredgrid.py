@@ -9,7 +9,7 @@ from compilation import get_package_dir
 from sympy import Symbol, Rational, solve, expand, Eq
 from mako.lookup import TemplateLookup
 import mmap
-import cgen
+import cgen_wrapper as cgen
 from os import path
 from __builtin__ import str
 
@@ -959,10 +959,10 @@ class StaggeredGrid(Grid):
         if self.read:
             # add code to read data
             result += self.read_data()
-        print result
+        
         return result
 
-    def read_data(self):
+    def read_data_old(self):
         """
         - generate code for reading data (rho, Vp, Vs) from input files
         - calculate effective media parameters beta, lambda, mu from the data
@@ -1057,8 +1057,99 @@ class StaggeredGrid(Grid):
                 + ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx010]
                         + 1.0/self.mu[0][idx001]+1.0/self.mu[0][idx011])))
             result += self.simple_loop(kernel)
+            print result
+            print "****"
+            print self.read_data_cgen()
         return result
 
+    def read_data(self):
+        """
+        - generate code for reading data (rho, Vp, Vs) from input files
+        - calculate effective media parameters beta, lambda, mu from the data
+        """
+        result = ''
+        statements = []
+        if self.read:
+            arr = ''  # =[dim2][dim3]...
+            for d in self.dim[1:]:
+                arr += '[' + d.name + ']'
+            vsize = 1
+            for d in self.dim:
+                vsize *= d.value
+            # declare fields to read physical parameters from file
+            # always use float not double
+            loop = [self.rho, self.vp, self.vs] + self.beta + [self.lam] + self.mu
+            for field in loop:
+                vec = "_%s_vec"%ccode(field.label)
+                vec_value = cgen.Pointer(cgen.Value(self.real_t, vec))
+                # alloc aligned memory (on windows and linux)
+                statements.append(vec_value)
+                ifdef = cgen.IfDef('_MSC_VER', [
+                                        cgen.Assign('vec', '(%s*) _aligned_malloc(%d * sizeof(%s), %d)'%(self.real_t, vsize, self.real_t, self.alignment))
+                                        ], [
+                                            cgen.Statement('posix_memalign((void **)(&%s), %d, %d*sizeof(%s))' % (vec, self.alignment, vsize, self.real_t))
+                                            ])
+                statements.append(ifdef)
+                cast_pointer = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(field.label), arr)), '(%s (*)%s) %s'%(self.real_t, arr, vec))
+                statements.append(cast_pointer)
+                
+
+            # read from file
+            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.rho_file, self.rho.label, vsize)))
+            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.vp_file, self.vp.label, vsize)))
+            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.vs_file, self.vs.label, vsize)))
+            
+            for line in statements:
+                result+=str(line)+'\n'
+            
+            # calculated effective media parameter
+            idx = self.index
+            # make copies of index
+            idx100 = list(idx)
+            idx010 = list(idx)
+            idx001 = list(idx)
+            idx110 = list(idx)
+            idx101 = list(idx)
+            idx011 = list(idx)
+            # shift the indices to obtain idx100=[x+1,y,z] etc
+            idx100[0] += 1
+            idx010[1] += 1
+            idx001[2] += 1
+            idx110[0] += 1
+            idx110[1] += 1
+            idx101[0] += 1
+            idx101[2] += 1
+            idx011[1] += 1
+            idx011[2] += 1
+            # beta
+            kernel = cgen.Assign(ccode(self.beta[0][idx]),ccode(1.0/self.rho[idx]))
+            result += self.simple_loop(kernel)
+            # beta1 (effective bouyancy in x direction)
+            kernel = cgen.Assign(ccode(self.beta[1][idx]), ccode((self.beta[0][idx] + self.beta[0][idx100])/2.0))
+            result += self.simple_loop(kernel)
+            # beta2 (effective bouyancy in y direction)
+            kernel = cgen.Assign(ccode(self.beta[2][idx]), ccode((self.beta[0][idx] + self.beta[0][idx010])/2.0))
+            result += self.simple_loop(kernel)
+            # beta3 (effective bouyancy in z direction)
+            kernel = cgen.Assign(ccode(self.beta[3][idx]), ccode((self.beta[0][idx] + self.beta[0][idx001])/2.0))
+            result += self.simple_loop(kernel)
+            # lambda
+            kernel = cgen.Assign(ccode(self.lam[idx]), ccode(self.rho[idx]*(self.vp[idx]**2-2*self.vs[idx]**2)))
+            result += self.simple_loop(kernel)
+            # mu
+            kernel = cgen.Assign(ccode(self.mu[0][idx]), ccode(self.rho[idx]*(self.vs[idx]**2)))
+            result += self.simple_loop(kernel)
+            # mu12 (effective shear modulus for shear stress sigma_xy)
+            kernel = cgen.Assign(ccode(self.mu[1][idx]), ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx100] + 1.0/self.mu[0][idx010]+1.0/self.mu[0][idx110]))))
+            result += self.simple_loop(kernel)
+            # mu13 (effective shear modulus for shear stress sigma_xz)
+            kernel = cgen.Assign(ccode(self.mu[2][idx]), ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx100] + 1.0/self.mu[0][idx001]+1.0/self.mu[0][idx101]))))
+            result += self.simple_loop(kernel)
+            # mu23 (effective shear modulus for shear stress sigma_yz)
+            kernel = cgen.Assign(ccode(self.mu[3][idx]), ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx010] + 1.0/self.mu[0][idx001]+1.0/self.mu[0][idx011]))))
+            result += self.simple_loop(kernel)
+        return result
+    
     def simple_loop(self, kernel):
         """
         - helper function to generate simple nested loop over the entire domain
@@ -1074,7 +1165,7 @@ class StaggeredGrid(Grid):
             i1 = ccode(self.dim[d]-m)
             if d == self.dimension-1:
                 # inner loop
-                result += kernel + ';\n'
+                result += str(kernel) + ';\n'
             dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': result}
             result = render(tmpl, dict1)
         return result

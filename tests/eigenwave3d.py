@@ -45,7 +45,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
     print 'domain size: ' + str(domain_size)
     print 'grid size: ' + str(grid_size)
-    print 'approxmiation order: ' + str(accuracy_order)
+    print 'approximation order: ' + str(accuracy_order)
     print 'dt: ' + str(dt)
     print 'tmax: ' + str(tmax)
 
