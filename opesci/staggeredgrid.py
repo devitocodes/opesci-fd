@@ -854,11 +854,12 @@ class StaggeredGrid(Grid):
     def load_fields(self):
         """Code fragment that loads field arrays from 'grid' struct"""
         idxs = ''.join(['[%d]' % d.value for d in self.dim])
-        return '\n'.join(['%s (*%s)%s = (%s (*)%s) grid->%s;' %
+        result = '\n'.join(['%s (*%s)%s = (%s (*)%s) grid->%s;' %
                           (self.real_t, ccode(f.label), idxs,
                            self.real_t, idxs, ccode(f.label))
                           for f in self.fields])
-
+        print result
+        return result
     @property
     def declare_fields(self):
         """
