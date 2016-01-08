@@ -851,15 +851,33 @@ class StaggeredGrid(Grid):
         return result
     
     @property
-    def load_fields(self):
+    def load_fields_old(self):
         """Code fragment that loads field arrays from 'grid' struct"""
         idxs = ''.join(['[%d]' % d.value for d in self.dim])
+        print idxs
         result = '\n'.join(['%s (*%s)%s = (%s (*)%s) grid->%s;' %
                           (self.real_t, ccode(f.label), idxs,
                            self.real_t, idxs, ccode(f.label))
                           for f in self.fields])
         print result
+        print self.load_fields_cgen
         return result
+    
+    @property
+    def load_fields(self):
+        """Code fragment that loads field arrays from 'grid' struct"""
+        idxs = ''.join(['[%d]' % d.value for d in self.dim])
+        
+        result = ''
+        for f in self.fields:
+            #back_assign = cgen.Initializer(cgen.Pointer(cgen.Value(self.real_t, ccode(f.label)+idxs)), '(%s (*)%s) grid->%s'%(self.real_t, idxs, ccode(f.label)))
+            #back_assign = cgen.Initializer(cgen.Pointer(cgen.ArrayOf(cgen.ArrayOf(cgen.ArrayOf(cgen.Value(self.real_t, "(%s)"%ccode(f.label)), 105), 105),105)), '(%s (*)[105][105][105]) grid->%s'%(self.real_t, ccode(f.label)))
+            back_assign = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(f.label), idxs)), '(%s (*)[105][105][105]) grid->%s'%(self.real_t, ccode(f.label)))
+            result+=str(back_assign)+'\n'
+        
+        
+        return result
+    
     @property
     def declare_fields(self):
         """
