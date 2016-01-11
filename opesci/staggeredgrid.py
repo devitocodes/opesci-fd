@@ -1,7 +1,7 @@
 from grid import Grid
 from variable import Variable
 from fields import Media
-from codeprinter import ccode, render, ccode_eq
+from codeprinter import ccode, ccode_eq
 from derivative import DDerivative
 from util import *
 from compilation import get_package_dir
@@ -801,33 +801,30 @@ class StaggeredGrid(Grid):
         for f in self.fields:
             var = cgen.Pointer(cgen.Value(self.real_t, ccode(f.label)))
             result.append(var)
-            
+
         return str(cgen.Module(result))
-    
+
     @property
     def store_fields(self):
         """Code fragment that stores field arrays to 'grid' struct"""
         result = []
         for f in self.fields:
-            assignment = cgen.Assign('grid->%s'%ccode(f.label), '(%s*) %s'%(self.real_t, ccode(f.label))) #There must be a better way of doing this. This hardly seems better than string manipulation
+            assignment = cgen.Assign('grid->%s' % ccode(f.label), '(%s*) %s' % (self.real_t, ccode(f.label)))  # There must be a better way of doing this. This hardly seems better than string manipulation
             result.append(assignment)
-        
+
         return str(cgen.Module(result))
-    
+
     @property
     def load_fields(self):
         """Code fragment that loads field arrays from 'grid' struct"""
         idxs = ''.join(['[%d]' % d.value for d in self.dim])
-        
         result = []
         for f in self.fields:
-            
-            back_assign = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(f.label), idxs)), '(%s (*)%s) grid->%s'%(self.real_t, idxs, ccode(f.label))) #Another hackish attempt. 
+            back_assign = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s" % (ccode(f.label), idxs)), '(%s (*)%s) grid->%s' % (self.real_t, idxs, ccode(f.label)))  # Another hackish attempt.
             result.append(back_assign)
-        
-        
+
         return str(cgen.Module(result))
-    
+
     @property
     def declare_fields(self):
         """
@@ -846,28 +843,20 @@ class StaggeredGrid(Grid):
         vsize *= self.order[0]
         statements = []
         for field in self.sfields + self.vfields:
-            vec = "_%s_vec"%ccode(field.label)
+            vec = "_%s_vec" % ccode(field.label)
             vec_value = cgen.Pointer(cgen.Value(self.real_t, vec))
             # alloc aligned memory (on windows and linux)
             statements.append(vec_value)
-            ifdef = cgen.IfDef('_MSC_VER', [
-                                            cgen.Assign(vec, '(%s*) _aligned_malloc(%s*sizeof(%s), %s)'%(self.real_t, str(vsize), self.real_t, str(self.alignment)))
-                                            ], [
-                                                cgen.Statement('posix_memalign((void **)(&%s), %d, %d*sizeof(%s))' % (vec, self.alignment, vsize, self.real_t))
-                                                ])
-            
+            ifdef = cgen.IfDef('_MSC_VER', [cgen.Assign(vec, '(%s*) _aligned_malloc(%s*sizeof(%s), %s)' % (self.real_t, str(vsize), self.real_t, str(self.alignment)))],
+                               [cgen.Statement('posix_memalign((void **)(&%s), %d, %d*sizeof(%s))' % (vec, self.alignment, vsize, self.real_t))])
             statements.append(ifdef)
             # cast pointer to multidimensional array
-            
-            cast_pointer = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(field.label), arr)), '(%s (*)%s) %s'%(self.real_t, arr, vec))
-            
+            cast_pointer = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s" % (ccode(field.label), arr)), '(%s (*)%s) %s' % (self.real_t, arr, vec))
             statements.append(cast_pointer)
-        
-        result+=statements
+        result += statements
         if self.read:
             # add code to read data
             result += self.read_data()
-        
         return str(cgen.Module(result))
 
     def read_data(self):
@@ -887,22 +876,19 @@ class StaggeredGrid(Grid):
             # always use float not double
             loop = [self.rho, self.vp, self.vs] + self.beta + [self.lam] + self.mu
             for field in loop:
-                vec = "_%s_vec"%ccode(field.label)
+                vec = "_%s_vec" % ccode(field.label)
                 vec_value = cgen.Pointer(cgen.Value(self.real_t, vec))
                 # alloc aligned memory (on windows and linux)
                 statements.append(vec_value)
-                ifdef = cgen.IfDef('_MSC_VER', [
-                                        cgen.Assign('vec', '(%s*) _aligned_malloc(%d * sizeof(%s), %d)'%(self.real_t, vsize, self.real_t, self.alignment))
-                                        ], [
-                                            cgen.Statement('posix_memalign((void **)(&%s), %d, %d*sizeof(%s))' % (vec, self.alignment, vsize, self.real_t))
-                                            ])
+                ifdef = cgen.IfDef('_MSC_VER', [cgen.Assign(vec, '(%s*) _aligned_malloc(%d * sizeof(%s), %d)' % (self.real_t, vsize, self.real_t, self.alignment))],
+                                   [cgen.Statement('posix_memalign((void **)(&%s), %d, %d*sizeof(%s))' % (vec, self.alignment, vsize, self.real_t))])
                 statements.append(ifdef)
-                cast_pointer = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(field.label), arr)), '(%s (*)%s) %s'%(self.real_t, arr, vec))
+                cast_pointer = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s" % (ccode(field.label), arr)), '(%s (*)%s) %s' % (self.real_t, arr, vec))
                 statements.append(cast_pointer)
             # read from file
-            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.rho_file, self.rho.label, vsize)))
-            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.vp_file, self.vp.label, vsize)))
-            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.vs_file, self.vs.label, vsize)))
+            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)' % (self.rho_file, self.rho.label, vsize)))
+            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)' % (self.vp_file, self.vp.label, vsize)))
+            statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)' % (self.vs_file, self.vs.label, vsize)))
             # calculated effective media parameter
             idx = self.index
             # make copies of index
@@ -923,7 +909,7 @@ class StaggeredGrid(Grid):
             idx011[1] += 1
             idx011[2] += 1
             # beta
-            kernel = cgen.Assign(ccode(self.beta[0][idx]),ccode(1.0/self.rho[idx]))
+            kernel = cgen.Assign(ccode(self.beta[0][idx]), ccode(1.0/self.rho[idx]))
             statements.append(self.simple_loop(kernel))
             # beta1 (effective bouyancy in x direction)
             kernel = cgen.Assign(ccode(self.beta[1][idx]), ccode((self.beta[0][idx] + self.beta[0][idx100])/2.0))
@@ -949,10 +935,8 @@ class StaggeredGrid(Grid):
             # mu23 (effective shear modulus for shear stress sigma_yz)
             kernel = cgen.Assign(ccode(self.mu[3][idx]), ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx010] + 1.0/self.mu[0][idx001]+1.0/self.mu[0][idx011]))))
             statements.append(self.simple_loop(kernel))
-            
-            
         return statements
-    
+
     def simple_loop(self, kernel):
         """
         - helper function to generate simple nested loop over the entire domain
@@ -962,7 +946,7 @@ class StaggeredGrid(Grid):
         result = kernel
         m = self.margin.value
         for d in range(self.dimension-1, -1, -1):
-            result = cgen.For(cgen.InlineInitializer(cgen.Value('int', self.index[d]), m), cgen.Line('%s<%s'%(self.index[d], ccode(self.dim[d]-m))), cgen.Line('++%s'%self.index[d]), result)
+            result = cgen.For(cgen.InlineInitializer(cgen.Value('int', self.index[d]), m), cgen.Line('%s<%s' % (self.index[d], ccode(self.dim[d]-m))), cgen.Line('++%s' % self.index[d]), result)
         return result
 
     @property
@@ -978,7 +962,7 @@ class StaggeredGrid(Grid):
         """
         m = self.margin.value
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
-        
+
         statements = []
         for field in self.sfields+self.vfields:
             body = []
@@ -995,7 +979,7 @@ class StaggeredGrid(Grid):
                     i1 = ccode(self.dim[d]-m)
                     expr = self.spacing[d]*(loop[d] - self.margin.value)
                 pre = [cgen.Initializer(cgen.Value(self.real_t, self.index[d].name), ccode(expr))]
-                
+
                 post = []
                 if d == self.dimension-1:
                     # inner loop
@@ -1009,7 +993,7 @@ class StaggeredGrid(Grid):
                             sol = sol.subs(idx, '_'+idx.name)
                     body = [cgen.Assign(ccode(field[[0]+loop]), ccode(sol))]
                 body = pre + body + post
-                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
 
             statements.append(body[0])
         return str(cgen.Module(statements))
@@ -1030,7 +1014,7 @@ class StaggeredGrid(Grid):
             if self.read:
                 kernel = self.resolve_media_params(kernel)
             body.append(cgen.Assign(ccode(field[idx]), ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]}))))
-        body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+        body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body))]
         if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
             body.insert(0, cgen.Statement(self.compiler._ivdep))
         if not self.pluto and self.simd and indexes[0] == self.dimension-1:
@@ -1038,12 +1022,11 @@ class StaggeredGrid(Grid):
 
         return body
 
-    def fission_kernel(self, grid_field, indexes, template):
+    def fission_kernel(self, grid_field, indexes):
         """
         Generate the inner loop with all fields from stress or velocity
         :param grid_field: stress or velocity field array
         :param indexes: array with dimension, dimension var, initial margin, final margin
-        :param template: mako string template
         - iterate through fields and for each dimension separate minus, plus and unitary strides
         on its own loop replacing it on mako template
         - return inner loop code as string
@@ -1074,9 +1057,8 @@ class StaggeredGrid(Grid):
                 remainder_kernel += kernel_stmt_neg.args
                 # Create the inner loop for with negative strides expressions
                 if not (len(kernel_stmt_neg.args) == 0):
-                    body_tmp = [cgen.Statement(ccode(field[idx]) + operator[operator_idx] \
-                        + ccode(kernel_stmt_neg.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
-                    body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s'%(i, indexes[3])), cgen.Line('++%s'%indexes[1]), cgen.Block(body_tmp))]
+                    body_tmp = [cgen.Statement(ccode(field[idx]) + operator[operator_idx] + ccode(kernel_stmt_neg.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
+                    body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body_tmp))]
                     if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
                         body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
                     if not self.pluto and self.simd and indexes[0] == self.dimension-1:
@@ -1085,9 +1067,8 @@ class StaggeredGrid(Grid):
                     operator_idx = 1
                 # Create the inner loop for with positive strides expressions
                 if not (len(kernel_stmt_pos.args) == 0):
-                    body_tmp = [cgen.Statement(ccode(field[idx]) + operator[operator_idx] \
-                        + ccode(kernel_stmt_pos.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
-                    body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s'%(i, indexes[3])), cgen.Line('++%s'%indexes[1]), cgen.Block(body_tmp))]
+                    body_tmp = [cgen.Statement(ccode(field[idx]) + operator[operator_idx] + ccode(kernel_stmt_pos.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
+                    body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body_tmp))]
                     if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
                         body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
                     if not self.pluto and self.simd and indexes[0] == self.dimension-1:
@@ -1098,9 +1079,8 @@ class StaggeredGrid(Grid):
             kernel_stmt = kernel
             for arg in remainder_kernel:
                 kernel_stmt = kernel_stmt.subs({arg: 0}, simultaneous=True)
-            body_tmp = [cgen.Statement(ccode(field[idx]) + '+=' \
-                + ccode(kernel_stmt.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
-            body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s'%(i, indexes[3])), cgen.Line('++%s'%indexes[1]), cgen.Block(body_tmp))]
+            body_tmp = [cgen.Statement(ccode(field[idx]) + '+=' + ccode(kernel_stmt.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
+            body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body_tmp))]
             if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
                 body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
             if not self.pluto and self.simd and indexes[0] == self.dimension-1:
@@ -1140,13 +1120,12 @@ class StaggeredGrid(Grid):
                 else:
                     body = self.fission_kernel(fields, [d, i, i0, i1])
             if not d == self.dimension-1:
-                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
 
         if not self.pluto and self.omp:
             body.insert(0, cgen.Pragma('omp for schedule(static,1)'))
-        
         return str(cgen.Module(body))
-    
+
     @property
     def velocity_loop(self):
         """
@@ -1162,7 +1141,6 @@ class StaggeredGrid(Grid):
     def stress_bc(self):
         return self.stress_bc_getter()
 
-    
     def stress_bc_getter(self, init=False):
         """
         generate code for updating stress field boundary ghost cells
@@ -1172,7 +1150,6 @@ class StaggeredGrid(Grid):
         - if init=True (initialisation), no need to generate code to overwrite Txx, Tyy, Tzz
         return generated code as string
         """
-        
         result = []
         body = []
         if self.eval_const:
@@ -1207,30 +1184,24 @@ class StaggeredGrid(Grid):
                             else:
                                 i0 = 0
                                 i1 = self.dim[d2]
-                            
+
                             if not body:
                                 # inner loop, populate ghost cell calculation
-                                
                                 bc_list = self.transform_bc(field, d+1, side)
-                                
-                                
                                 if self.read:
                                     body = [cgen.Statement(ccode_eq(self.resolve_media_params(bc)).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
                                 else:
                                     body = [cgen.Statement(ccode_eq(bc).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
-                                
-                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
-                                
+                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
                                 if self.ivdep:
                                     body.insert(0, cgen.Pragma('ivdep'))
                                 if self.simd:
                                     body.insert(0, cgen.Pragma('simd'))
                             else:
-                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
                     result += body
-        #print result
         return cgen.Module(result)
-    
+
     @property
     def velocity_bc(self):
         """
@@ -1270,19 +1241,18 @@ class StaggeredGrid(Grid):
                                     body = [cgen.Statement(ccode_eq(self.resolve_media_params(bc)).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
                                 else:
                                     body = [cgen.Statement(ccode_eq(bc).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
-                                
-                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
                                 if self.ivdep:
                                     body.insert(0, cgen.Pragma('ivdep'))
                                 if self.simd:
                                     body.insert(0, cgen.Pragma('simd'))
                             else:
-                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
 
                     result += body
 
         return cgen.Module(result)
-    
+
     @property
     def initialise_bc(self):
         """
@@ -1295,7 +1265,6 @@ class StaggeredGrid(Grid):
         rep = "'[0]'"
         result = [cgen.replace_in_code(self.stress_bc_getter(init=True), t1, rep)]
         result += [cgen.replace_in_code(self.velocity_bc, t1, rep)]
-        #print result
         return str(cgen.Module(result))
 
     @property
@@ -1332,26 +1301,22 @@ class StaggeredGrid(Grid):
         - typically output selected fields in vtk format
         - return generated code as string
         """
-        
         if self.output_vts:
             return self.vfields[0].vtk_save_field()
         return ''
-        
 
     @property
     def define_convergence(self):
         """Code fragment that defines convergence norms"""
         result = []
         for f in self.fields:
-            result.append(cgen.Value(self.real_t, '%s_l2'%ccode(f.label)))
+            result.append(cgen.Value(self.real_t, '%s_l2' % ccode(f.label)))
         return str(cgen.Module(result))
-        
+
     @property
     def print_convergence(self):
         """Code fragment that prints convergence norms"""
-        statements = [cgen.Statement('printf("%s %s\\n", conv.%s_l2)' %
-                          (ccode(f.label), '\t%.10f', ccode(f.label)))
-                          for f in self.fields]
+        statements = [cgen.Statement('printf("%s %s\\n", conv.%s_l2)' % (ccode(f.label), '\t%.10f', ccode(f.label))) for f in self.fields]
         return str(cgen.Module(statements))
 
     @property
@@ -1366,13 +1331,13 @@ class StaggeredGrid(Grid):
         result = []
         if not self.converge:
             return str(cgen.Module(result))
-        
+
         m = self.margin.value
         ti = self.ntsteps.value % 2  # last updated grid
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
 
         for i in range(len(self.spacing)):
-            result.append(cgen.Statement('printf("%d\\n")'%self.spacing[i].value))
+            result.append(cgen.Statement('printf("%d\\n")' % self.spacing[i].value))
 
         for field in self.sfields+self.vfields:
             body = []
@@ -1390,16 +1355,16 @@ class StaggeredGrid(Grid):
                     i1 = ccode(self.dim[d]-m)
                     expr = self.spacing[d]*(loop[d] - self.margin.value)
                 pre = [cgen.Initializer(cgen.Value(self.real_t, self.index[d].name), ccode(expr))]
-                
+
                 if d == self.dimension-1:
                     # inner loop
                     tn = self.dt.value*self.ntsteps.value \
                         if not field.staggered[0] \
                         else self.dt.value*self.ntsteps.value \
                         + self.dt.value/2.0
-                    body = [cgen.Statement( '%s += %s' %(l2, ccode((field[idx] - (field.sol.subs(self.t, tn)))**2.0)))]
+                    body = [cgen.Statement('%s += %s' % (l2, ccode((field[idx] - (field.sol.subs(self.t, tn)))**2.0)))]
                 body = pre+body
-                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
 
             result += body
             volume = 1.0
@@ -1418,9 +1383,8 @@ class StaggeredGrid(Grid):
     @property
     def define_profiling(self):
         """Code fragment that defines global PAPI counters and events"""
-        code = [cgen.Initializer(cgen.Value('float',  'g_%s'% v), 0.0)  for v in
-                         ['rtime', 'ptime', 'mflops']]
-        code += [cgen.Initializer(cgen.Value('long long', 'g_%s'%e), 0) for e in self._papi_events]
+        code = [cgen.Initializer(cgen.Value('float', 'g_%s' % v), 0.0) for v in ['rtime', 'ptime', 'mflops']]
+        code += [cgen.Initializer(cgen.Value('long long', 'g_%s' % e), 0) for e in self._papi_events]
         return str(cgen.Module(code))
 
     @property
@@ -1434,13 +1398,11 @@ class StaggeredGrid(Grid):
         code.append(cgen.Initializer(cgen.Value('int', 'numevents'), self.numevents_papi))
         code.append(cgen.ArrayOf(cgen.Value('int', 'events'), self.numevents_papi))
         code.append(cgen.ArrayOf(cgen.Value('long long', 'counters'), self.numevents_papi))
-        code += [cgen.Statement('opesci_papi_name2event("%s", &(events[%d]))' % (e, i))
-                          for i, e in enumerate(self._papi_events)]
+        code += [cgen.Statement('opesci_papi_name2event("%s", &(events[%d]))' % (e, i)) for i, e in enumerate(self._papi_events)]
         return str(cgen.Module(code))
 
     @property
     def sum_papi_events(self):
         """Code fragment that reads PAPI counters for specified events"""
-        code = [cgen.Statement('profiling->g_%s += counters[%d]' % (e, i))
-                          for i, e in enumerate(self._papi_events)]
+        code = [cgen.Statement('profiling->g_%s += counters[%d]' % (e, i)) for i, e in enumerate(self._papi_events)]
         return str(cgen.Module(code))

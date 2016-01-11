@@ -170,7 +170,6 @@ def default(compiler=None, execute=False, nthreads=1,
     out = None
     if pluto:
         grid.generate(filename)
-        
         filename_p = grid.pluto_op(filename)
         if compiler in ['clang', 'clang++']:
             # an ugly fix, but pluto will always attack <omp.h> to the first line
@@ -191,9 +190,7 @@ def default(compiler=None, execute=False, nthreads=1,
             grid.generate(filename_p)
         else:
             out = grid.compile(filename_p, compiler=compiler, shared=False)
-    
-    
-    
+
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
