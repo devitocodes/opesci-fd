@@ -1247,20 +1247,6 @@ class StaggeredGrid(Grid):
         return result
 
     @property
-    def initialise_bc(self):
-        """
-        - generate code for initialisation of boundary ghost cells
-        - generate generic boundary cell code
-        replace array indices [t] with [0]
-        - return generated code as string
-        """
-        t1 = "'["+str(self.t)+"1]'"
-        rep = "'[0]'"
-        result = self.stress_bc_getter(init=True).replace(t1, rep)
-        result += self.velocity_bc.replace(t1, rep)
-        return result
-
-    @property
     def stress_loop(self):
         """
         generate code for stress field update loop
@@ -1269,11 +1255,17 @@ class StaggeredGrid(Grid):
         - recursive insertion to generate nested loop
         return generated code as string
         """
-        tmpl = self.lookup.get_template('generic_loop.txt')
+        return self.generate_loop(self.sfields)
+
+    def generate_loop(self, fields):
+        """
+        The functions to generate stress loops and velocity loops are identical,
+        save for a single parameter. Moved the common code to this function to reduce repetition of code.
+        """
         if self.eval_const:
             self.create_const_dict()
         m = self.margin.value
-        body = ''
+        body = []
         for d in range(self.dimension-1, -1, -1):
             i = self.index[d]
             i0 = m
@@ -1281,24 +1273,24 @@ class StaggeredGrid(Grid):
             if d == self.dimension-1:
                 # inner loop
                 idx = [self.time[1]] + self.index
-                for field in self.sfields:
+                for field in fields:
                     kernel = self.transform_kernel(field)
                     if self.read:
                         kernel = self.resolve_media_params(kernel)
-                    body += ccode(field[idx]) + '=' \
-                        + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
-            dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-            body = render(tmpl, dict1)
+                    body.append(cgen.Assign(ccode(field[idx]), ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]}))))
+                    
+            
+            body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
             if not self.pluto and self.ivdep and d == self.dimension-1:
-                    body = '%s\n' % self.compiler._ivdep + body
+                    body.insert(0, cgen.Statement(self.compiler._ivdep))
             if not self.pluto and self.simd and d == self.dimension-1:
-                    body = '#pragma simd\n' + body
+                    body.insert(0, cgen.Pragma('simd'))
 
         if not self.pluto and self.omp:
-            body = '#pragma omp for schedule(static,1)\n' + body
-
-        return body
-
+            body.insert(0, cgen.Pragma('omp for schedule(static,1)'))
+        
+        return str(cgen.Block(body))
+    
     @property
     def velocity_loop(self):
         """
@@ -1308,6 +1300,11 @@ class StaggeredGrid(Grid):
         - recursive insertion to generate nested loop
         return generated code as string
         """
+        return self.generate_loop(self.vfields)
+    
+    @property
+    def velocity_loop_old(self):
+        
         tmpl = self.lookup.get_template('generic_loop.txt')
         if self.eval_const:
             self.create_const_dict()
@@ -1342,7 +1339,7 @@ class StaggeredGrid(Grid):
     def stress_bc(self):
         return self.stress_bc_getter()
 
-    def stress_bc_getter(self, init=False):
+    def stress_bc_getter_old(self, init=False):
         """
         generate code for updating stress field boundary ghost cells
         - generate inner loop by inserting boundary code (saved in field.bc)
@@ -1390,10 +1387,12 @@ class StaggeredGrid(Grid):
                                 # inner loop, populate ghost cell calculation
                                 # body = field.bc[d+1][side]
                                 bc_list = self.transform_bc(field, d+1, side)
+                                
                                 if self.read:
                                     body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in bc_list)
                                 else:
                                     body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
+                                #print body
                                 dict1 = {'i': i, 'i0': i0,
                                          'i1': i1, 'body': body}
                                 body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
@@ -1407,8 +1406,82 @@ class StaggeredGrid(Grid):
                                 body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
 
                     result += body
-
+        print result
+        
+        print "***"
+        
+        print self.stress_bc_getter_cgen(init)
+        
         return result
+    
+    def stress_bc_getter(self, init=False):
+        """
+        generate code for updating stress field boundary ghost cells
+        - generate inner loop by inserting boundary code (saved in field.bc)
+        - recursive insertion to generate nested loop
+        - loop through all stress fields and sides
+        - if init=True (initialisation), no need to generate code to overwrite Txx, Tyy, Tzz
+        return generated code as string
+        """
+        
+        result = []
+        body = []
+        if self.eval_const:
+            self.create_const_dict()
+        for field in self.sfields:
+            # normal stress, not shear stress
+            normal = field.direction[0] == field.direction[1]
+            for d in range(self.dimension):
+                if init and normal and (not field.direction[0] == d+1):
+                    # skip re-calc Txx, Tyy at z plane etc, when initialisation
+                    continue
+                for side in range(2):
+                    # skip if this boundary calculation is not needed
+                    if field.bc[d+1][side] == []:
+                        continue
+                    if self.omp:
+                        result += [cgen.Pragma('omp for schedule(static,1)')]
+                    body = []
+                    for d2 in range(self.dimension-1, -1, -1):
+                        # loop through other dimensions
+                        if not d2 == d:
+                            i = self.index[d2]
+                            if normal:
+                                if field.direction[0] == d+1:
+                                    # Txx in x plane
+                                    i0 = 0
+                                    i1 = self.dim[d2]
+                                else:
+                                    # Txx in y, z plane
+                                    i0 = self.margin.value+1
+                                    i1 = self.dim[d2]-self.margin.value-1
+                            else:
+                                i0 = 0
+                                i1 = self.dim[d2]
+                            
+                            if not body:
+                                # inner loop, populate ghost cell calculation
+                                
+                                bc_list = self.transform_bc(field, d+1, side)
+                                
+                                
+                                if self.read:
+                                    body = [cgen.Statement(ccode_eq(self.resolve_media_params(bc)).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
+                                else:
+                                    body = [cgen.Statement(ccode_eq(bc).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
+                                
+                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                                
+                                if self.ivdep:
+                                    body.insert(0, cgen.Pragma('ivdep'))
+                                if self.simd:
+                                    body.insert(0, cgen.Pragma('simd'))
+                            else:
+                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                    result += body
+        #print result
+        return str(cgen.Block(result))+'\n'
+    
 
     @property
     def velocity_bc(self):
@@ -1462,6 +1535,21 @@ class StaggeredGrid(Grid):
 
                     result += body
 
+        return result
+
+    @property
+    def initialise_bc(self):
+        """
+        - generate code for initialisation of boundary ghost cells
+        - generate generic boundary cell code
+        replace array indices [t] with [0]
+        - return generated code as string
+        """
+        t1 = "'["+str(self.t)+"1]'"
+        rep = "'[0]'"
+        result = self.stress_bc_getter(init=True).replace(t1, rep)
+        result += self.velocity_bc.replace(t1, rep)
+        #print result
         return result
 
     @property
