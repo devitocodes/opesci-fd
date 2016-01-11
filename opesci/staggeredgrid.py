@@ -781,60 +781,60 @@ class StaggeredGrid(Grid):
         - return the generated code as string
         """
 
-        result = ''
+        result = []
         variables = self.get_all_variables()
         for v in variables:
             if v.constant:
                 line = cgen.Initializer(cgen.Const(cgen.Value(v.type, v.name)), v.value)
             else:
                 line = cgen.Initializer(cgen.Value(v.type, v.name), v.value)
-            result += str(line)+"\n"
+            result.append(line)
 
-        return result
+        return str(cgen.Module(result))
 
     @property
     def define_fields(self):
         """Code fragment that defines field arrays"""
-        result = ''
+        result = []
         for f in self.fields:
             var = cgen.Pointer(cgen.Value(self.real_t, ccode(f.label)))
-            result+=str(var)+"\n"
+            result.append(var)
             
-        return result
+        return str(cgen.Module(result))
     
     @property
     def store_fields(self):
         """Code fragment that stores field arrays to 'grid' struct"""
-        result = ''
+        result = []
         for f in self.fields:
             assignment = cgen.Assign('grid->%s'%ccode(f.label), '(%s*) %s'%(self.real_t, ccode(f.label))) #There must be a better way of doing this. This hardly seems better than string manipulation
-            result+=str(assignment)+'\n'
+            result.append(assignment)
         
-        return result
+        return str(cgen.Module(result))
     
     @property
     def load_fields(self):
         """Code fragment that loads field arrays from 'grid' struct"""
         idxs = ''.join(['[%d]' % d.value for d in self.dim])
         
-        result = ''
+        result = []
         for f in self.fields:
             
             back_assign = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(f.label), idxs)), '(%s (*)%s) grid->%s'%(self.real_t, idxs, ccode(f.label))) #Another hackish attempt. 
-            result+=str(back_assign)+'\n'
+            result.append(back_assign)
         
         
-        return result
+        return str(cgen.Module(result))
     
     @property
     def declare_fields(self):
         """
-        - generate code for delcaring fields
+        - generate code for declaring fields
         - the generated code first declare fields as std::vector
         of size=vec_size, then cast to multidimensional array
         - return the generated code as string
         """
-        result = ''
+        result = []
         arr = ''  # = [dim1][dim2][dim3]...
         for d in self.dim:
             arr += '[' + d.name + ']'
@@ -861,13 +861,12 @@ class StaggeredGrid(Grid):
             
             statements.append(cast_pointer)
         
-        for line in statements:
-            result+=str(line)+'\n'
+        result+=statements
         if self.read:
             # add code to read data
             result += self.read_data()
         
-        return result
+        return str(cgen.Module(result))
 
     def read_data(self):
         """
@@ -956,10 +955,7 @@ class StaggeredGrid(Grid):
             statements.append(self.simple_loop(kernel))
             
             
-            for line in statements:
-                result+=str(line)+'\n'
-            
-        return result
+        return statements
     
     def simple_loop(self, kernel):
         """
@@ -1024,10 +1020,9 @@ class StaggeredGrid(Grid):
 
             statements.append(body[0])
         
-        for line in statements:
-                result+=str(line)+'\n'
         
-        return result
+        
+        return str(cgen.Module(statements))
 
     @property
     def stress_loop(self):
@@ -1072,7 +1067,7 @@ class StaggeredGrid(Grid):
         if not self.pluto and self.omp:
             body.insert(0, cgen.Pragma('omp for schedule(static,1)'))
         
-        return str(cgen.Block(body))
+        return str(cgen.Module(body))
     
     @property
     def velocity_loop(self):
@@ -1156,63 +1151,7 @@ class StaggeredGrid(Grid):
                                 body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
                     result += body
         #print result
-        return str(cgen.Block(result))+'\n'
-    
-    @property
-    def velocity_bc_old(self):
-        """
-        generate code for updating stress field boundary ghost cells
-        - generate inner loop by inserting boundary code (saved in field.bc)
-        - recursive insertion to generate nested loop
-        - loop through all velocity fields and sides
-        return generated code as string
-        """
-        tmpl = self.lookup.get_template('generic_loop.txt')
-        result = ''
-        if self.eval_const:
-            self.create_const_dict()
-        for d in range(self.dimension):
-            # update the staggered field first
-            # because other fields depends on it
-            sequence = [f for f in self.vfields if f.staggered[d+1]] \
-                + [f for f in self.vfields if not f.staggered[d+1]]
-            for field in sequence:
-                for side in range(2):
-                    # skip if this boundary calculation is not needed
-                    if field.bc[d+1][side] == '':
-                        continue
-                    if self.omp:
-                        result += '#pragma omp for schedule(static,1)\n'
-                    body = ''
-                    for d2 in range(self.dimension-1, -1, -1):
-                        # loop through other dimensions
-                        if not d2 == d:
-                            i = self.index[d2]
-                            i0 = 1
-                            i1 = self.dim[d2]-1
-                            if body == '':
-                                # inner loop, populate ghost cell calculation
-                                # body = field.bc[d+1][side]
-                                bc_list = self.transform_bc(field, d+1, side)
-                                if self.read:
-                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in bc_list)
-                                else:
-                                    body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
-                                dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
-                                if self.ivdep:
-                                    body = '%s\n' % self.compiler._ivdep + body
-                                if self.simd:
-                                    body = '#pragma simd\n' + body
-                            else:
-                                dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
-
-                    result += body
-        print result
-        print "****"
-        print self.velocity_bc_cgen
-        return result
+        return cgen.Module(result)
     
     @property
     def velocity_bc(self):
@@ -1264,7 +1203,7 @@ class StaggeredGrid(Grid):
 
                     result += body
 
-        return str(cgen.Block(result))+'\n'
+        return cgen.Module(result)
     
     @property
     def initialise_bc(self):
@@ -1276,10 +1215,10 @@ class StaggeredGrid(Grid):
         """
         t1 = "'["+str(self.t)+"1]'"
         rep = "'[0]'"
-        result = self.stress_bc_getter(init=True).replace(t1, rep)
-        result += self.velocity_bc.replace(t1, rep)
+        result = [cgen.replace_in_code(self.stress_bc_getter(init=True), t1, rep)]
+        result += [cgen.replace_in_code(self.velocity_bc, t1, rep)]
         #print result
-        return result
+        return str(cgen.Module(result))
 
     @property
     def time_stepping(self):
@@ -1293,10 +1232,8 @@ class StaggeredGrid(Grid):
         return generated code as string
         """
 
-        result = ''
-        tmpl = self.lookup.get_template('time_stepping.txt')
         _ti = Symbol('_ti')
-        body = ''
+        body = []
 
         for i in range(len(self.time)):
             lhs = self.time[i].name
@@ -1304,11 +1241,11 @@ class StaggeredGrid(Grid):
                 rhs = ccode(_ti % self.tp)
             else:
                 rhs = ccode((self.time[i-1]+1) % self.tp)
-            body += lhs + ' = ' + rhs + ';\n'
+            body.append(cgen.Assign(lhs, rhs))
 
-        dict1 = {'body': body}
-        result = render(tmpl, dict1)
-        return result
+        body = cgen.Block(body)
+        body = cgen.Module([cgen.Pragma('omp single'), body])
+        return str(body)
 
     @property
     def output_step(self):
@@ -1317,23 +1254,27 @@ class StaggeredGrid(Grid):
         - typically output selected fields in vtk format
         - return generated code as string
         """
-        result = ''
+        
         if self.output_vts:
-            result += self.vfields[0].vtk_save_field()
-        return result
+            return self.vfields[0].vtk_save_field()
+        return ''
+        
 
     @property
     def define_convergence(self):
         """Code fragment that defines convergence norms"""
-        return '\n'.join(['%s %s_l2;' % (self.real_t, ccode(f.label))
-                          for f in self.fields])
-
+        result = []
+        for f in self.fields:
+            result.append(cgen.Value(self.real_t, '%s_l2'%ccode(f.label)))
+        return str(cgen.Module(result))
+        
     @property
     def print_convergence(self):
         """Code fragment that prints convergence norms"""
-        return '\n'.join(['printf("%s %s\\n", conv.%s_l2);' %
-                          (ccode(f.label), '\t%.10f', ccode(f.label))
-                          for f in self.fields])
+        statements = [cgen.Statement('printf("%s %s\\n", conv.%s_l2)' %
+                          (ccode(f.label), '\t%.10f', ccode(f.label)))
+                          for f in self.fields]
+        return str(cgen.Module(statements))
 
     @property
     def converge_test(self):
@@ -1344,22 +1285,22 @@ class StaggeredGrid(Grid):
         - L2 norm of each field is calculated and output with printf()
         - return generated code as string
         """
-        result = ''
+        result = []
         if not self.converge:
-            return result
-        tmpl = self.lookup.get_template('generic_loop.txt')
+            return str(cgen.Module(result))
+        
         m = self.margin.value
         ti = self.ntsteps.value % 2  # last updated grid
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
 
         for i in range(len(self.spacing)):
-            result += 'printf("' + str(self.spacing[i].value) + '\\n");\n'
+            result.append(cgen.Statement('printf("%d\\n")'%self.spacing[i].value))
 
         for field in self.sfields+self.vfields:
-            body = ''
+            body = []
             l2 = ccode(field.label)+'_l2'
             idx = [ti] + loop
-            result += self.real_t + ' ' + l2 + ' = 0.0;\n'
+            result.append(cgen.Initializer(cgen.Value(self.real_t, l2), 0.0))
             # populate xvalue, yvalue zvalue code
             for d in range(self.dimension-1, -1, -1):
                 i = loop[d]
@@ -1370,29 +1311,26 @@ class StaggeredGrid(Grid):
                 else:
                     i1 = ccode(self.dim[d]-m)
                     expr = self.spacing[d]*(loop[d] - self.margin.value)
-                pre = self.real_t + ' ' + self.index[d].name + '= ' \
-                    + ccode(expr) + ';\n'
+                pre = [cgen.Initializer(cgen.Value(self.real_t, self.index[d].name), ccode(expr))]
+                
                 if d == self.dimension-1:
                     # inner loop
                     tn = self.dt.value*self.ntsteps.value \
                         if not field.staggered[0] \
                         else self.dt.value*self.ntsteps.value \
                         + self.dt.value/2.0
-                    body = l2 + '+=' \
-                        + ccode((field[idx] -
-                                (field.sol.subs(self.t, tn)))**2.0) + ';\n'
-                body = pre + body
-                dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-                body = render(tmpl, dict1)
+                    body = [cgen.Statement( '%s += %s' %(l2, ccode((field[idx] - (field.sol.subs(self.t, tn)))**2.0)))]
+                body = pre+body
+                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
 
             result += body
             volume = 1.0
             for i in range(len(self.spacing)):
                 volume *= self.spacing[i].value
             l2_value = 'pow(' + l2 + '*' + ccode(volume) + ', 0.5)'
-            result += 'conv->%s = %s;\n' % (l2, l2_value)
+            result.append(cgen.Statement('conv->%s = %s' % (l2, l2_value)))
 
-        return result
+        return str(cgen.Module(result))
 
     # ------------------- sub-routines for PAPI profiling ------------ #
 
@@ -1402,11 +1340,10 @@ class StaggeredGrid(Grid):
     @property
     def define_profiling(self):
         """Code fragment that defines global PAPI counters and events"""
-        code = '\n'.join('float g_%s = 0.0;' % v for v in
-                         ['rtime', 'ptime', 'mflops'])
-        code += '\n' + '\n'.join('long long g_%s = 0;' % e for e in
-                                 self._papi_events)
-        return code
+        code = [cgen.Initializer(cgen.Value('float',  'g_%s'% v), 0.0)  for v in
+                         ['rtime', 'ptime', 'mflops']]
+        code += [cgen.Initializer(cgen.Value('long long', 'g_%s'%e), 0) for e in self._papi_events]
+        return str(cgen.Module(code))
 
     @property
     def numevents_papi(self):
@@ -1415,15 +1352,17 @@ class StaggeredGrid(Grid):
     @property
     def define_papi_events(self):
         """Code fragment that starts PAPI counters for specified events"""
-        code = 'int numevents = %d;\n' % self.numevents_papi
-        code += 'int events[%d];\n' % self.numevents_papi
-        code += 'long long counters[%d];\n' % self.numevents_papi
-        code += '\n'.join(['opesci_papi_name2event("%s", &(events[%d]));' % (e, i)
-                          for i, e in enumerate(self._papi_events)])
-        return code
+        code = []
+        code.append(cgen.Initializer(cgen.Value('int', 'numevents'), self.numevents_papi))
+        code.append(cgen.ArrayOf(cgen.Value('int', 'events'), self.numevents_papi))
+        code.append(cgen.ArrayOf(cgen.Value('long long', 'counters'), self.numevents_papi))
+        code += [cgen.Statement('opesci_papi_name2event("%s", &(events[%d]))' % (e, i))
+                          for i, e in enumerate(self._papi_events)]
+        return str(cgen.Module(code))
 
     @property
     def sum_papi_events(self):
         """Code fragment that reads PAPI counters for specified events"""
-        return '\n'.join(['profiling->g_%s += counters[%d];' % (e, i)
-                          for i, e in enumerate(self._papi_events)])
+        code = [cgen.Statement('profiling->g_%s += counters[%d]' % (e, i))
+                          for i, e in enumerate(self._papi_events)]
+        return str(cgen.Module(code))

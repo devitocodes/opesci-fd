@@ -21,8 +21,7 @@ class CMakeBuilder(build_clib):
 
         # Run cmake and make in temp dir
         self.mkpath(build_dir)
-        chdir(build_dir)
-	print "done1"        
+        chdir(build_dir)     
 	cmake_cmd = ["cmake", root_dir]
         if subprocess.call(cmake_cmd) != 0:
             raise EnvironmentError("error calling cmake")
