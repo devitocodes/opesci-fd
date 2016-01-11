@@ -775,25 +775,6 @@ class StaggeredGrid(Grid):
     # ------------------- sub-routines for output -------------------- #
 
     @property
-    def define_constants_old(self):
-        """
-        - generate code for declaring variables
-        - return the generated code as string
-        """
-        result = ''
-        variables = self.get_all_variables()
-        for v in variables:
-            line = ''
-            if v.constant:
-                line += 'const '
-            line += v.type + ' ' + v.name + ' = ' + str(v.value) + ';\n'
-            result += line
-        print "****"
-        print result
-        print "****"
-        return result
-
-    @property
     def define_constants(self):
         """
         - generate code for declaring variables
@@ -812,15 +793,6 @@ class StaggeredGrid(Grid):
         return result
 
     @property
-    def define_fields_old(self):
-        """Code fragment that defines field arrays"""
-        result= '\n'.join(['%s *%s;' % (self.real_t, ccode(f.label))
-                          for f in self.fields])
-        print result
-        print self.define_fields_cgen
-        return result
-    
-    @property
     def define_fields(self):
         """Code fragment that defines field arrays"""
         result = ''
@@ -831,16 +803,6 @@ class StaggeredGrid(Grid):
         return result
     
     @property
-    def store_fields_old(self):
-        """Code fragment that stores field arrays to 'grid' struct"""
-        result = '\n'.join(['grid->%s = (%s*) %s;' %
-                          (ccode(f.label), self.real_t, ccode(f.label))
-                          for f in self.fields])
-        print result
-        print self.store_fields_cgen
-        return result
-    
-    @property
     def store_fields(self):
         """Code fragment that stores field arrays to 'grid' struct"""
         result = ''
@@ -848,19 +810,6 @@ class StaggeredGrid(Grid):
             assignment = cgen.Assign('grid->%s'%ccode(f.label), '(%s*) %s'%(self.real_t, ccode(f.label))) #There must be a better way of doing this. This hardly seems better than string manipulation
             result+=str(assignment)+'\n'
         
-        return result
-    
-    @property
-    def load_fields_old(self):
-        """Code fragment that loads field arrays from 'grid' struct"""
-        idxs = ''.join(['[%d]' % d.value for d in self.dim])
-        print idxs
-        result = '\n'.join(['%s (*%s)%s = (%s (*)%s) grid->%s;' %
-                          (self.real_t, ccode(f.label), idxs,
-                           self.real_t, idxs, ccode(f.label))
-                          for f in self.fields])
-        print result
-        print self.load_fields_cgen
         return result
     
     @property
@@ -875,45 +824,6 @@ class StaggeredGrid(Grid):
             result+=str(back_assign)+'\n'
         
         
-        return result
-    
-    @property
-    def declare_fields_old(self):
-        """
-        - generate code for delcaring fields
-        - the generated code first declare fields as std::vector
-        of size=vec_size, then cast to multidimensional array
-        - return the generated code as string
-        """
-        result = ''
-        arr = ''  # = [dim1][dim2][dim3]...
-        for d in self.dim:
-            arr += '[' + d.name + ']'
-        vsize = 1
-        for d in self.dim:
-            vsize *= d.value
-        vsize *= self.order[0]
-        for field in self.sfields + self.vfields:
-            vec = '_' + ccode(field.label) + '_vec'
-            # alloc aligned memory (on windows and linux)
-            result += self.real_t + ' *' + vec + ';\n'
-            result += '#ifdef _MSC_VER\n'
-            result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
-                + '*sizeof(' + self.real_t + '), ' + str(self.alignment) + ');\n'
-            result += '#else\n'
-            result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.alignment) \
-                + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
-            result += '#endif\n'
-            # cast pointer to multidimensional array
-            result += self.real_t + ' (*' + ccode(field.label) + ')' + arr \
-                + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
-
-        if self.read:
-            # add code to read data
-            result += self.read_data()
-        print result
-        print "***"
-        print self.declare_fields_cgen
         return result
     
     @property
@@ -938,16 +848,13 @@ class StaggeredGrid(Grid):
             vec_value = cgen.Pointer(cgen.Value(self.real_t, vec))
             # alloc aligned memory (on windows and linux)
             statements.append(vec_value)
-            ifdef_line = cgen.Line('#ifdef _MSC_VER')
-            statements.append(ifdef_line)
-            vec_assign = cgen.Assign(vec, '(%s*) _aligned_malloc(%s*sizeof(%s), %s)'%(self.real_t, str(vsize), self.real_t, str(self.alignment)))
-            statements.append(vec_assign)
-            else_line = cgen.Line('#else')
-            statements.append(else_line)
-            function_call = cgen.Statement('posix_memalign((void **)(&%s), %d, %d*sizeof(%s))' % (vec, self.alignment, vsize, self.real_t))
-            statements.append(function_call)
-            endif_line = cgen.Line('#endif')
-            statements.append(endif_line)
+            ifdef = cgen.IfDef('_MSC_VER', [
+                                            cgen.Assign(vec, '(%s*) _aligned_malloc(%s*sizeof(%s), %s)'%(self.real_t, str(vsize), self.real_t, str(self.alignment)))
+                                            ], [
+                                                cgen.Statement('posix_memalign((void **)(&%s), %d, %d*sizeof(%s))' % (vec, self.alignment, vsize, self.real_t))
+                                                ])
+            
+            statements.append(ifdef)
             # cast pointer to multidimensional array
             
             cast_pointer = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(field.label), arr)), '(%s (*)%s) %s'%(self.real_t, arr, vec))
@@ -960,106 +867,6 @@ class StaggeredGrid(Grid):
             # add code to read data
             result += self.read_data()
         
-        return result
-
-    def read_data_old(self):
-        """
-        - generate code for reading data (rho, Vp, Vs) from input files
-        - calculate effective media parameters beta, lambda, mu from the data
-        """
-        result = ''
-        if self.read:
-            arr = ''  # =[dim2][dim3]...
-            for d in self.dim[1:]:
-                arr += '[' + d.name + ']'
-            vsize = 1
-            for d in self.dim:
-                vsize *= d.value
-            # declare fields to read physical parameters from file
-            # always use float not double
-            loop = [self.rho, self.vp, self.vs] + self.beta + [self.lam] + self.mu
-            for field in loop:
-                vec = '_' + ccode(field.label) + '_vec'
-                # alloc aligned memory (on windows and linux)
-                result += self.real_t + ' *' + vec + ';\n'
-                result += '#ifdef _MSC_VER\n'
-                result += vec + ' = (' + self.real_t + '*) _aligned_malloc(' + str(vsize) \
-                    + '*sizeof(' + self.real_t + '), ' + str(self.alignment) + ');\n'
-                result += '#else\n'
-                result += 'posix_memalign((void **)(&' + vec + '), ' + str(self.alignment) \
-                    + ', ' + str(vsize) + '*sizeof(' + self.real_t + '));\n'
-                result += '#endif\n'
-                # cast pointer to multidimensional array
-                result += self.real_t + ' (*' + ccode(field.label) + ')' + arr \
-                    + '= (' + self.real_t + ' (*)' + arr + ') ' + vec + ';\n'
-
-            # read from file
-            result += 'opesci_read_simple_binary_ptr("' + self.rho_file + '",_' \
-                + ccode(self.rho.label) + '_vec, ' + str(vsize) + ');\n'
-            result += 'opesci_read_simple_binary_ptr("' + self.vp_file + '",_' \
-                + ccode(self.vp.label) + '_vec, ' + str(vsize) + ');\n'
-            result += 'opesci_read_simple_binary_ptr("' + self.vs_file + '",_' \
-                + ccode(self.vs.label) + '_vec, ' + str(vsize) + ');\n'
-            # calculated effective media parameter
-            idx = self.index
-            # make copies of index
-            idx100 = list(idx)
-            idx010 = list(idx)
-            idx001 = list(idx)
-            idx110 = list(idx)
-            idx101 = list(idx)
-            idx011 = list(idx)
-            # shift the indices to obtain idx100=[x+1,y,z] etc
-            idx100[0] += 1
-            idx010[1] += 1
-            idx001[2] += 1
-            idx110[0] += 1
-            idx110[1] += 1
-            idx101[0] += 1
-            idx101[2] += 1
-            idx011[1] += 1
-            idx011[2] += 1
-            # beta
-            kernel = ccode(self.beta[0][idx]) + '=' + ccode(1.0/self.rho[idx])
-            result += self.simple_loop(kernel)
-            # beta1 (effective bouyancy in x direction)
-            kernel = ccode(self.beta[1][idx]) + '=' \
-                + ccode((self.beta[0][idx] + self.beta[0][idx100])/2.0)
-            result += self.simple_loop(kernel)
-            # beta2 (effective bouyancy in y direction)
-            kernel = ccode(self.beta[2][idx]) + '=' \
-                + ccode((self.beta[0][idx] + self.beta[0][idx010])/2.0)
-            result += self.simple_loop(kernel)
-            # beta3 (effective bouyancy in z direction)
-            kernel = ccode(self.beta[3][idx]) + '=' + \
-                ccode((self.beta[0][idx] + self.beta[0][idx001])/2.0)
-            result += self.simple_loop(kernel)
-            # lambda
-            kernel = ccode(self.lam[idx]) + '=' + \
-                ccode(self.rho[idx]*(self.vp[idx]**2-2*self.vs[idx]**2))
-            result += self.simple_loop(kernel)
-            # mu
-            kernel = ccode(self.mu[0][idx]) + '=' \
-                + ccode(self.rho[idx]*(self.vs[idx]**2))
-            result += self.simple_loop(kernel)
-            # mu12 (effective shear modulus for shear stress sigma_xy)
-            kernel = ccode(self.mu[1][idx]) + '=' \
-                + ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx100]
-                        + 1.0/self.mu[0][idx010]+1.0/self.mu[0][idx110])))
-            result += self.simple_loop(kernel)
-            # mu13 (effective shear modulus for shear stress sigma_xz)
-            kernel = ccode(self.mu[2][idx]) + '=' \
-                + ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx100]
-                        + 1.0/self.mu[0][idx001]+1.0/self.mu[0][idx101])))
-            result += self.simple_loop(kernel)
-            # mu23 (effective shear modulus for shear stress sigma_yz)
-            kernel = ccode(self.mu[3][idx]) + '=' \
-                + ccode(1.0/(0.25*(1.0/self.mu[0][idx]+1.0/self.mu[0][idx010]
-                        + 1.0/self.mu[0][idx001]+1.0/self.mu[0][idx011])))
-            result += self.simple_loop(kernel)
-            print result
-            print "****"
-            print self.read_data_cgen()
         return result
 
     def read_data(self):
@@ -1152,30 +959,6 @@ class StaggeredGrid(Grid):
             for line in statements:
                 result+=str(line)+'\n'
             
-        return result
-    
-    def simple_loop_old(self, kernel):
-        """
-        - helper function to generate simple nested loop over the entire domain
-        (not including ghost cells) with kernel at the inner loop
-        - variables defined in self.index are used as loop variables
-        """
-        result = ''
-        tmpl = self.lookup.get_template('generic_loop.txt')
-        m = self.margin.value
-        for d in range(self.dimension-1, -1, -1):
-            i = self.index[d]
-            i0 = m
-            i1 = ccode(self.dim[d]-m)
-            if d == self.dimension-1:
-                # inner loop
-                result += str(kernel) + ';\n'
-            dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': result}
-            result = render(tmpl, dict1)
-        print result
-        print "***"
-        print self.simple_loop_cgen(kernel)
-        print "###"
         return result
     
     def simple_loop(self, kernel):
@@ -1303,116 +1086,9 @@ class StaggeredGrid(Grid):
         return self.generate_loop(self.vfields)
     
     @property
-    def velocity_loop_old(self):
-        
-        tmpl = self.lookup.get_template('generic_loop.txt')
-        if self.eval_const:
-            self.create_const_dict()
-        m = self.margin.value
-        body = ''
-        for d in range(self.dimension-1, -1, -1):
-            i = self.index[d]
-            i0 = m
-            i1 = ccode(self.dim[d]-m)
-            if d == self.dimension-1:
-                # inner loop
-                idx = [self.time[1]] + self.index
-                for field in self.vfields:
-                    kernel = self.transform_kernel(field)
-                    if self.read:
-                        kernel = self.resolve_media_params(kernel)
-                    body += ccode(field[idx]) + '=' \
-                        + ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})) + ';\n'
-            dict1 = {'i': i, 'i0': i0, 'i1': i1, 'body': body}
-            body = render(tmpl, dict1)
-            if not self.pluto and self.ivdep and d == self.dimension-1:
-                    body = '%s\n' % self.compiler._ivdep + body
-            if not self.pluto and self.simd and d == self.dimension-1:
-                    body = '#pragma simd\n' + body
-
-        if not self.pluto and self.omp:
-            body = '#pragma omp for schedule(static,1)\n' + body
-
-        return body
-
-    @property
     def stress_bc(self):
         return self.stress_bc_getter()
 
-    def stress_bc_getter_old(self, init=False):
-        """
-        generate code for updating stress field boundary ghost cells
-        - generate inner loop by inserting boundary code (saved in field.bc)
-        - recursive insertion to generate nested loop
-        - loop through all stress fields and sides
-        - if init=True (initialisation), no need to generate code to overwrite Txx, Tyy, Tzz
-        return generated code as string
-        """
-        tmpl = self.lookup.get_template('generic_loop.txt')
-        result = ''
-        if self.eval_const:
-            self.create_const_dict()
-        for field in self.sfields:
-            # normal stress, not shear stress
-            normal = field.direction[0] == field.direction[1]
-            for d in range(self.dimension):
-                if init and normal and (not field.direction[0] == d+1):
-                    # skip re-calc Txx, Tyy at z plane etc, when initialisation
-                    continue
-                for side in range(2):
-                    # skip if this boundary calculation is not needed
-                    if field.bc[d+1][side] == []:
-                        continue
-                    if self.omp:
-                        result += '#pragma omp for schedule(static,1)\n'
-                    body = ''
-                    for d2 in range(self.dimension-1, -1, -1):
-                        # loop through other dimensions
-                        if not d2 == d:
-                            i = self.index[d2]
-                            if normal:
-                                if field.direction[0] == d+1:
-                                    # Txx in x plane
-                                    i0 = 0
-                                    i1 = self.dim[d2]
-                                else:
-                                    # Txx in y, z plane
-                                    i0 = self.margin.value+1
-                                    i1 = self.dim[d2]-self.margin.value-1
-                            else:
-                                i0 = 0
-                                i1 = self.dim[d2]
-
-                            if body == '':
-                                # inner loop, populate ghost cell calculation
-                                # body = field.bc[d+1][side]
-                                bc_list = self.transform_bc(field, d+1, side)
-                                
-                                if self.read:
-                                    body = ''.join(ccode_eq(self.resolve_media_params(bc))+';\n' for bc in bc_list)
-                                else:
-                                    body = ''.join(ccode_eq(bc)+';\n' for bc in bc_list)
-                                #print body
-                                dict1 = {'i': i, 'i0': i0,
-                                         'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
-                                if self.ivdep:
-                                    body = '#pragma ivdep\n' + body
-                                if self.simd:
-                                    body = '#pragma simd\n' + body
-                            else:
-                                dict1 = {'i': i, 'i0': i0,
-                                         'i1': i1, 'body': body}
-                                body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
-
-                    result += body
-        print result
-        
-        print "***"
-        
-        print self.stress_bc_getter_cgen(init)
-        
-        return result
     
     def stress_bc_getter(self, init=False):
         """
@@ -1482,9 +1158,8 @@ class StaggeredGrid(Grid):
         #print result
         return str(cgen.Block(result))+'\n'
     
-
     @property
-    def velocity_bc(self):
+    def velocity_bc_old(self):
         """
         generate code for updating stress field boundary ghost cells
         - generate inner loop by inserting boundary code (saved in field.bc)
@@ -1534,9 +1209,63 @@ class StaggeredGrid(Grid):
                                 body = render(tmpl, dict1).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')
 
                     result += body
-
+        print result
+        print "****"
+        print self.velocity_bc_cgen
         return result
+    
+    @property
+    def velocity_bc(self):
+        """
+        generate code for updating stress field boundary ghost cells
+        - generate inner loop by inserting boundary code (saved in field.bc)
+        - recursive insertion to generate nested loop
+        - loop through all velocity fields and sides
+        return generated code as string
+        """
+        result = []
+        if self.eval_const:
+            self.create_const_dict()
+        for d in range(self.dimension):
+            # update the staggered field first
+            # because other fields depends on it
+            sequence = [f for f in self.vfields if f.staggered[d+1]] \
+                + [f for f in self.vfields if not f.staggered[d+1]]
+            for field in sequence:
+                for side in range(2):
+                    # skip if this boundary calculation is not needed
+                    if field.bc[d+1][side] == '':
+                        continue
+                    if self.omp:
+                        result += [cgen.Pragma('omp for schedule(static,1)')]
+                    body = []
+                    for d2 in range(self.dimension-1, -1, -1):
+                        # loop through other dimensions
+                        if not d2 == d:
+                            i = self.index[d2]
+                            i0 = 1
+                            i1 = self.dim[d2]-1
+                            if not body:
+                                # inner loop, populate ghost cell calculation
+                                # body = field.bc[d+1][side]
+                                bc_list = self.transform_bc(field, d+1, side)
+                                if self.read:
+                                    body = [cgen.Statement(ccode_eq(self.resolve_media_params(bc)).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
+                                else:
+                                    body = [cgen.Statement(ccode_eq(bc).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
+                                
+                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+                                if self.ivdep:
+                                    body.insert(0, cgen.Pragma('ivdep'))
+                                if self.simd:
+                                    body.insert(0, cgen.Pragma('simd'))
+                            else:
+                                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
 
+                    result += body
+
+        return str(cgen.Block(result))+'\n'
+    
     @property
     def initialise_bc(self):
         """
