@@ -21,15 +21,15 @@ class CMakeBuilder(build_clib):
 
         # Run cmake and make in temp dir
         self.mkpath(build_dir)
-        chdir(build_dir)     
-	cmake_cmd = ["cmake", root_dir]
-        if subprocess.call(cmake_cmd) != 0:
-            raise EnvironmentError("error calling cmake")
+        chdir(build_dir)
+        cmake_cmd = "cmake %s" % root_dir
+        if subprocess.call(cmake_cmd, shell=True) != 0:
+            raise EnvironmentError("Error calling cmake. Check that it's installed? Check the path provided to the Opesci-FD root directory?")
 
         if subprocess.call("make") != 0:
-            raise EnvironmentError("error calling make")
+            raise EnvironmentError("Error calling make")
         chdir(root_dir)
-	
+
         # Copy lib and include directories to opesci package
         self.copy_tree(path.join(root_dir, 'include'),
                        path.join(clib_dir, 'opesci/include'))

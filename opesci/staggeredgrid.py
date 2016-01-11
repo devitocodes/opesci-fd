@@ -51,6 +51,7 @@ class StaggeredGrid(Grid):
     * converge: Generate code for computing analutical solution and L2 norms
     * profiling: Generate code for gathering profiling information via PAPI
     * pluto: Define scop for pluto optimisation
+    * fission: Define loop fission optimisation
     """
     template_base = 'staggered3d_tmpl.cpp'
 
@@ -63,7 +64,7 @@ class StaggeredGrid(Grid):
                      'define_profiling', 'define_papi_events', 'sum_papi_events']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
-                 'output_vts', 'converge', 'profiling', 'pluto']
+                 'output_vts', 'converge', 'profiling', 'pluto', 'fission']
 
     _papi_events = []
 
@@ -71,7 +72,7 @@ class StaggeredGrid(Grid):
                  time_step=None, stress_fields=None, velocity_fields=None,
                  omp=True, ivdep=True, simd=False, double=False, io=False,
                  expand=True, eval_const=True, output_vts=False,
-                 converge=False, profiling=False, pluto=False):
+                 converge=False, profiling=False, pluto=False, fission=False):
 
         self.dimension = dimension
 
@@ -95,6 +96,7 @@ class StaggeredGrid(Grid):
         self.output_vts = output_vts
         self.converge = converge
         self.profiling = profiling
+        self.fission = fission
 
         # number of ghost cells for boundary
         self.margin = Variable('margin', 2, 'int', True)
@@ -873,7 +875,6 @@ class StaggeredGrid(Grid):
         - generate code for reading data (rho, Vp, Vs) from input files
         - calculate effective media parameters beta, lambda, mu from the data
         """
-        result = ''
         statements = []
         if self.read:
             arr = ''  # =[dim2][dim3]...
@@ -898,15 +899,10 @@ class StaggeredGrid(Grid):
                 statements.append(ifdef)
                 cast_pointer = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s"%(ccode(field.label), arr)), '(%s (*)%s) %s'%(self.real_t, arr, vec))
                 statements.append(cast_pointer)
-                
-
             # read from file
             statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.rho_file, self.rho.label, vsize)))
             statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.vp_file, self.vp.label, vsize)))
             statements.append(cgen.Statement('opesci_read_simple_binary_ptr("%s", _%s_vec, %d)'%(self.vs_file, self.vs.label, vsize)))
-            
-            
-            
             # calculated effective media parameter
             idx = self.index
             # make copies of index
@@ -980,9 +976,6 @@ class StaggeredGrid(Grid):
         - recursive insertion to generate nested loop
         return generated code as string
         """
-
-        
-        result = ''
         m = self.margin.value
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
         
@@ -1019,10 +1012,102 @@ class StaggeredGrid(Grid):
                 body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
 
             statements.append(body[0])
-        
-        
-        
         return str(cgen.Module(statements))
+
+    def simple_kernel(self, grid_field, indexes):
+        """
+        Generate the inner loop with all fields from stress or velocity
+        :param grid_field: stress or velocity field array
+        :param indexes: array with dimension, dimension var, initial margin, final margin
+        - iterate through fields and replace mako template
+        - return inner loop code as string
+        """
+        body = []
+        idx = [self.time[1]] + self.index
+        # This loop create the most inner loop with all fields
+        for field in grid_field:
+            kernel = self.transform_kernel(field)
+            if self.read:
+                kernel = self.resolve_media_params(kernel)
+            body.append(cgen.Assign(ccode(field[idx]), ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]}))))
+        body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
+        if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
+            body.insert(0, cgen.Statement(self.compiler._ivdep))
+        if not self.pluto and self.simd and indexes[0] == self.dimension-1:
+            body.insert(0, cgen.Pragma('simd'))
+
+        return body
+
+    def fission_kernel(self, grid_field, indexes, template):
+        """
+        Generate the inner loop with all fields from stress or velocity
+        :param grid_field: stress or velocity field array
+        :param indexes: array with dimension, dimension var, initial margin, final margin
+        :param template: mako string template
+        - iterate through fields and for each dimension separate minus, plus and unitary strides
+        on its own loop replacing it on mako template
+        - return inner loop code as string
+        """
+        body = []
+        body_tmp = []
+        operator = ['=', '+=']
+        idx = [self.time[1]] + self.index
+        for field in grid_field:
+            remainder_kernel = ()
+            operator_idx = 0
+            kernel = self.transform_kernel(field)
+            if self.read:
+                kernel = self.resolve_media_params(kernel)
+            kernel_args = kernel.args
+            for dim in range(self.dimension-1, -1, -1):
+                dimension = self.index[dim]
+                kernel_stmt_pos = kernel
+                kernel_stmt_neg = kernel
+                # For each dimension in each field iterate through its expressions to separate
+                # positive and negative strides
+                for arg in kernel_args:
+                    if not (str(dimension) + " -" in str(arg)):
+                        kernel_stmt_neg = kernel_stmt_neg.subs({arg: 0}, simultaneous=True)
+                    if not (str(dimension) + " +" in str(arg)):
+                        kernel_stmt_pos = kernel_stmt_pos.subs({arg: 0}, simultaneous=True)
+                remainder_kernel += kernel_stmt_pos.args
+                remainder_kernel += kernel_stmt_neg.args
+                # Create the inner loop for with negative strides expressions
+                if not (len(kernel_stmt_neg.args) == 0):
+                    body_tmp = [cgen.Statement(ccode(field[idx]) + operator[operator_idx] \
+                        + ccode(kernel_stmt_neg.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
+                    body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s'%(i, indexes[3])), cgen.Line('++%s'%indexes[1]), cgen.Block(body_tmp))]
+                    if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
+                        body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
+                    if not self.pluto and self.simd and indexes[0] == self.dimension-1:
+                        body_tmp.insert(0, cgen.Pragma('simd'))
+                    body = body + body_tmp
+                    operator_idx = 1
+                # Create the inner loop for with positive strides expressions
+                if not (len(kernel_stmt_pos.args) == 0):
+                    body_tmp = [cgen.Statement(ccode(field[idx]) + operator[operator_idx] \
+                        + ccode(kernel_stmt_pos.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
+                    body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s'%(i, indexes[3])), cgen.Line('++%s'%indexes[1]), cgen.Block(body_tmp))]
+                    if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
+                        body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
+                    if not self.pluto and self.simd and indexes[0] == self.dimension-1:
+                        body_tmp.insert(0, cgen.Pragma('simd'))
+                    body = body + body_tmp
+                    operator_idx = 1
+            # Create the inner loop for unit strided array access
+            kernel_stmt = kernel
+            for arg in remainder_kernel:
+                kernel_stmt = kernel_stmt.subs({arg: 0}, simultaneous=True)
+            body_tmp = [cgen.Statement(ccode(field[idx]) + '+=' \
+                + ccode(kernel_stmt.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
+            body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s'%(i, indexes[3])), cgen.Line('++%s'%indexes[1]), cgen.Block(body_tmp))]
+            if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
+                body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
+            if not self.pluto and self.simd and indexes[0] == self.dimension-1:
+                body_tmp.insert(0, cgen.Pragma('simd'))
+            body = body + body_tmp
+
+        return body
 
     @property
     def stress_loop(self):
@@ -1050,19 +1135,12 @@ class StaggeredGrid(Grid):
             i1 = ccode(self.dim[d]-m)
             if d == self.dimension-1:
                 # inner loop
-                idx = [self.time[1]] + self.index
-                for field in fields:
-                    kernel = self.transform_kernel(field)
-                    if self.read:
-                        kernel = self.resolve_media_params(kernel)
-                    body.append(cgen.Assign(ccode(field[idx]), ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]}))))
-                    
-            
-            body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
-            if not self.pluto and self.ivdep and d == self.dimension-1:
-                    body.insert(0, cgen.Statement(self.compiler._ivdep))
-            if not self.pluto and self.simd and d == self.dimension-1:
-                    body.insert(0, cgen.Pragma('simd'))
+                if not self.fission:
+                    body = self.simple_kernel(fields, [d, i, i0, i1])
+                else:
+                    body = self.fission_kernel(fields, [d, i, i0, i1])
+            if not d == self.dimension-1:
+                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s'%(i, i1)), cgen.Line('++%s'%i), cgen.Block(body))]
 
         if not self.pluto and self.omp:
             body.insert(0, cgen.Pragma('omp for schedule(static,1)'))
@@ -1079,7 +1157,7 @@ class StaggeredGrid(Grid):
         return generated code as string
         """
         return self.generate_loop(self.vfields)
-    
+
     @property
     def stress_bc(self):
         return self.stress_bc_getter()
