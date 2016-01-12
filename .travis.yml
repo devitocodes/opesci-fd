@@ -2,7 +2,7 @@ language: python
 python:
     - "2.7"
 
-sudo: required
+sudo: false
 
 addons:
   apt:
@@ -25,11 +25,11 @@ install:
     - make -j4
     - chmod +x polycc
     - export PATH=$PATH:`pwd`
+    - export GCCVERSION=4.8
     - export CXX="g++-4.8"
     - cd ..
     - pip install --upgrade pip
     - pip install -r requirements.txt
-    - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
     - python setup.py build_clib --build-clib=`pwd`
 
 script:

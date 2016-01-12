@@ -58,6 +58,15 @@ class GNUCompiler(Compiler):
         cppargs = ['-Wall', '-std=c++11', '-I%s/include' % get_package_dir()] + opt_flags + cppargs
         ldargs = ['-lopesci', '-Wl,-rpath,%s/lib' % get_package_dir(),
                   '-L%s/lib' % get_package_dir()] + ldargs
+
+        # Check if the g++ version is set in the GCCVERSION environment variable. If it is,
+        # then adds the sufix of the version to the g++, and puts it in the CC variable.
+        # i.e. GCCVERSION=4.8 then CC = g++-4.8
+        gccVersion = environ.get('GCCVERSION')
+	
+        if gccVersion:
+            environ['CC'] = 'g++-' + gccVersion
+
         super(GNUCompiler, self).__init__("g++", cppargs=cppargs, ldargs=ldargs)
 
     @property
