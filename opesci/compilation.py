@@ -63,7 +63,7 @@ class GNUCompiler(Compiler):
         # then adds the sufix of the version to the g++, and puts it in the CC variable.
         # i.e. GCCVERSION=4.8 then CC = g++-4.8
         gccVersion = environ.get('GCCVERSION')
-	
+
         if gccVersion:
             environ['CC'] = 'g++-' + gccVersion
 
