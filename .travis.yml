@@ -25,7 +25,7 @@ install:
     - make -j4
     - chmod +x polycc
     - export PATH=$PATH:`pwd`
-    - export GCCVERSION=4.8
+    - export GCC_VERSION=4.8
     - export CXX="g++-4.8"
     - cd ..
     - pip install --upgrade pip
