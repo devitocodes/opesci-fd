@@ -26,7 +26,6 @@ install:
     - chmod +x polycc
     - export PATH=$PATH:`pwd`
     - export CXX="g++-4.8"
-    - export CC="g++-4.8"
     - cd ..
     - pip install --upgrade pip
     - pip install -r requirements.txt
@@ -36,6 +35,7 @@ script:
     - export PYTHONPATH=`pwd`:$PYTHONPATH
     - flake8 opesci
     - flake8 tests
+    - export CC="g++-4.8"
     - python tests/eigenwave3d.py default --compiler=g++ --execute --nthreads=4
     - OMP_NUM_THREADS=4 tests/src/eigenwave3d
     - python tests/eigenwave3d.py default --compiler=g++ --output
