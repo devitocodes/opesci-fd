@@ -1016,7 +1016,7 @@ class StaggeredGrid(Grid):
             body.append(cgen.Assign(ccode(field[idx]), ccode(kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]}))))
         body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body))]
         if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
-            body.insert(0, cgen.Statement(self.compiler._ivdep))
+            body.insert(0, self.compiler._ivdep)
         if not self.pluto and self.simd and indexes[0] == self.dimension-1:
             body.insert(0, cgen.Pragma('simd'))
 
@@ -1060,7 +1060,7 @@ class StaggeredGrid(Grid):
                     body_tmp = [cgen.Statement(ccode(field[idx]) + operator[operator_idx] + ccode(kernel_stmt_neg.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
                     body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body_tmp))]
                     if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
-                        body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
+                        body_tmp.insert(0, self.compiler._ivdep)
                     if not self.pluto and self.simd and indexes[0] == self.dimension-1:
                         body_tmp.insert(0, cgen.Pragma('simd'))
                     body = body + body_tmp
@@ -1070,7 +1070,7 @@ class StaggeredGrid(Grid):
                     body_tmp = [cgen.Statement(ccode(field[idx]) + operator[operator_idx] + ccode(kernel_stmt_pos.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
                     body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body_tmp))]
                     if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
-                        body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
+                        body_tmp.insert(0, self.compiler._ivdep)
                     if not self.pluto and self.simd and indexes[0] == self.dimension-1:
                         body_tmp.insert(0, cgen.Pragma('simd'))
                     body = body + body_tmp
@@ -1082,7 +1082,7 @@ class StaggeredGrid(Grid):
             body_tmp = [cgen.Statement(ccode(field[idx]) + '+=' + ccode(kernel_stmt.xreplace({self.t+1: self.time[1], self.t: self.time[0]})))]
             body_tmp = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body_tmp))]
             if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
-                body_tmp.insert(0, cgen.Statement(self.compiler._ivdep))
+                body_tmp.insert(0, self.compiler._ivdep)
             if not self.pluto and self.simd and indexes[0] == self.dimension-1:
                 body_tmp.insert(0, cgen.Pragma('simd'))
             body = body + body_tmp
@@ -1194,7 +1194,7 @@ class StaggeredGrid(Grid):
                                     body = [cgen.Statement(ccode_eq(bc).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
                                 body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
                                 if self.ivdep:
-                                    body.insert(0, cgen.Pragma('ivdep'))
+                                    body.insert(0, self.compiler._ivdep)
                                 if self.simd:
                                     body.insert(0, cgen.Pragma('simd'))
                             else:
@@ -1243,7 +1243,7 @@ class StaggeredGrid(Grid):
                                     body = [cgen.Statement(ccode_eq(bc).replace('[_t + 1]', '[_t1]').replace('[_t]', '[_t0]')) for bc in bc_list]
                                 body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
                                 if self.ivdep:
-                                    body.insert(0, cgen.Pragma('ivdep'))
+                                    body.insert(0, self.compiler._ivdep)
                                 if self.simd:
                                     body.insert(0, cgen.Pragma('simd'))
                             else:
