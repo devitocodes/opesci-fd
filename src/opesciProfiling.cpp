@@ -42,55 +42,60 @@
 #define OPESCI_PAPI_WARN "WARNING:: PAPI error: Flops/s counters are not reliable!\n"
 #define OPESCI_PAPI_MISSING "WARNING:: PAPI not found: Please re-build Opesci-FD with PAPI libraries\n"
 
-int opesci_papi_init() {
+int opesci_papi_init()
+{
 #if defined(OPESCI_HAVE_PAPI)
-  int err, version;
-  version = PAPI_library_init(PAPI_VER_CURRENT);
-  if (version != PAPI_VER_CURRENT) printf(OPESCI_PAPI_WARN);
+    int err, version;
+    version = PAPI_library_init(PAPI_VER_CURRENT);
+    if (version != PAPI_VER_CURRENT) printf(OPESCI_PAPI_WARN);
 
-  err = PAPI_thread_init((unsigned long (*)()) omp_get_thread_num);
-  if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
-  return err;
+    err = PAPI_thread_init((unsigned long (*)()) omp_get_thread_num);
+    if (err != PAPI_OK) printf(OPESCI_PAPI_WARN);
+    return err;
 #else
-  printf(OPESCI_PAPI_MISSING);
+    printf(OPESCI_PAPI_MISSING);
 #endif
 }
 
-int opesci_papi_start_counters(int numevents, int *events) {
+int opesci_papi_start_counters(int numevents, int *events)
+{
 #if defined(OPESCI_HAVE_PAPI)
-  if (PAPI_num_counters() < numevents) {
-    printf("WARNING: More events specified that hardware counters available\n");
-    printf(OPESCI_PAPI_WARN);
-  }
-  int err = PAPI_start_counters(events, numevents);
-  if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
+    if (PAPI_num_counters() < numevents) {
+        printf("WARNING: More events specified that hardware counters available\n");
+        printf(OPESCI_PAPI_WARN);
+    }
+    int err = PAPI_start_counters(events, numevents);
+    if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
 #else
-  printf(OPESCI_PAPI_MISSING);
+    printf(OPESCI_PAPI_MISSING);
 #endif
 }
 
-int opesci_papi_name2event(char *name, int *event) {
+int opesci_papi_name2event(char *name, int *event)
+{
 #if defined(OPESCI_HAVE_PAPI)
-  return PAPI_event_name_to_code(name, event);
+    return PAPI_event_name_to_code(name, event);
 #else
-  printf(OPESCI_PAPI_MISSING);
+    printf(OPESCI_PAPI_MISSING);
 #endif
 }
 
-int opesci_papi_read_counters(int numevents, long long *counters) {
+int opesci_papi_read_counters(int numevents, long long *counters)
+{
 #if defined(OPESCI_HAVE_PAPI)
-  int err = PAPI_read_counters(counters, numevents);
-  if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
+    int err = PAPI_read_counters(counters, numevents);
+    if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
 #else
-  printf(OPESCI_PAPI_MISSING);
+    printf(OPESCI_PAPI_MISSING);
 #endif
 }
 
-void opesci_flops(float *rtime, float *ptime, long long *flpins, float *mflops) {
+void opesci_flops(float *rtime, float *ptime, long long *flpins, float *mflops)
+{
 #if defined(OPESCI_HAVE_PAPI)
-  int err = PAPI_flops(rtime, ptime, flpins, mflops);
-  if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
+    int err = PAPI_flops(rtime, ptime, flpins, mflops);
+    if (err != PAPI_OK && omp_get_thread_num()==0) printf(OPESCI_PAPI_WARN);
 #else
-  printf(OPESCI_PAPI_MISSING);
+    printf(OPESCI_PAPI_MISSING);
 #endif
 }
