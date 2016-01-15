@@ -470,23 +470,13 @@ int opesci_read_model_segy(const char *filename, std::vector<float> &array, int 
     int Nx, Ny, Nz;
     for(int i=0; i<2; i++) { // Enables a re-try of header read.
         // 3201 - 3204 	Job identification number.
-        // std::cout<<"3201 - 3204 	Job identification number: "<<unpack_int32(header_buffer+3200, swap_endian)<<std::endl;
-
         // 3205 - 3208 	Line number.
-        // std::cout<<"3205 - 3208 	Line number: "<<unpack_int32(header_buffer+3204, swap_endian)<<std::endl;
-
         // 3209 - 3212 	Reel number.
-        // std::cout<<"3209 - 3212 	Reel number: "<<unpack_int32(header_buffer+3208, swap_endian)<<std::endl;
-
         // 3213 - 3214 	Number of data traces per record.
         Nx = unpack_int16(header_buffer+3212, swap_endian);
 
         // 3215 - 3216 	Number of auxiliary traces per record.
-        // std::cout<<"3215 - 3216 	Number of auxiliary traces per record: "<<unpack_int16(header_buffer+3214, swap_endian)<<std::endl;
-
         // 3217 - 3218 	Sample interval, microseconds, this file (reel).
-        // std::cout<<"3217 - 3218 	Sample interval, microseconds, this file (reel): "<<unpack_int16(header_buffer+3216, swap_endian)<<std::endl;
-
         // 3219 - 3220 	Sample interval, microseconds, original field recording.
         // 3221 - 3222 	Number of samples per data trace, this file (reel).
         Nz = unpack_int16(header_buffer+3220, swap_endian);
@@ -515,8 +505,6 @@ int opesci_read_model_segy(const char *filename, std::vector<float> &array, int 
         }
 
         // 3227 - 3228 	CDP fold.
-        // std::cout<<"3227 - 3228 	CDP fold: "<<unpack_int16(header_buffer+3226, swap_endian)<<std::endl;
-
         // 3229 - 3230 	Trace sorting code: Trace sorting code (i.e. type of ensemble) :
         //                                      -1 = Other (should be explained in user Extended Textual File Header stanza
         //                                       0 = Unknown
@@ -529,11 +517,7 @@ int opesci_read_model_segy(const char *filename, std::vector<float> &array, int 
         //                                       7 = Common offset point
         //                                       8 = Common mid-point
         //                                       9 = Common conversion point
-        // std::cout<<"3229 - 3230 	Trace sorting code: "<<unpack_int16(header_buffer+2328, swap_endian)<<std::endl;
-
         // 3231 - 3232 	Vertical sum code: 1 = no sum 2 = two sum ... N = N sum (N = 32,767)
-        // std::cout<<"3231 - 3232 	Vertical sum code: "<<unpack_int16(header_buffer+2330, swap_endian)<<std::endl;
-
         // 3233 - 3234 	Sweep frequency at start.
         // 3235 - 3236 	Sweep frequency at end.
         // 3237 - 3238 	Sweep length, ms.
@@ -542,40 +526,21 @@ int opesci_read_model_segy(const char *filename, std::vector<float> &array, int 
         //                                   3 = exponential
         //                                   4 = other
         // 3241 - 3242 	Trace number of sweep channel.
-        // std::cout<<"3241 - 3242 	Trace number of sweep channel: "<<unpack_int16(header_buffer+2340, swap_endian)<<std::endl;
-
         // 3243 - 3244 	Sweep trace taper length, ms, at start if tapered.
-        // std::cout<<"3243 - 3244 	Sweep trace taper length, ms, at start if tapered: "<<unpack_int16(header_buffer+2342, swap_endian)<<std::endl;
-
         // 3245 - 3246 	Sweep trace taper length, ms, at end.
-        // std::cout<<"3245 - 3246 	Sweep trace taper length, ms, at end: "<<unpack_int16(header_buffer+2344, swap_endian)<<std::endl;
-
         // 3247 - 3248 	Taper type: 1 = linear 2 = cos 3 = other
-        // std::cout<<"3247 - 3248 	Taper type: 1 = linear 2 = cos 3 = other: "<<unpack_int16(header_buffer+2346, swap_endian)<<std::endl;
-
         // 3249 - 3250 	Correlated data traces: 1 = no 2 = yes
-        // std::cout<<"3249 - 3250 	Correlated data traces: 1 = no 2 = yes"<<unpack_int16(header_buffer+2348, swap_endian)<<std::endl;
-
         // 3251 - 3252 	Binary gain recovered: 1 = yes 2 = no
-        // std::cout<<"3251 - 3252 	Binary gain recovered: 1 = yes 2 = no: "<<unpack_int16(header_buffer+2350, swap_endian)<<std::endl;
-
         // 3253 - 3254 	Amplitude recovery method: 1 = none 2 = spherical divergence 3 = AGC 4 = other
-        // std::cout<<"3253 - 3254 	Amplitude recovery method: 1 = none 2 = spherical divergence 3 = AGC 4 = other: "<<unpack_int16(header_buffer+2352, swap_endian)<<std::endl;
-
         // 3255 - 3256 	Measurement system: 1 = meters 2 = feet
-        // std::cout<<"3255 - 3256 	Measurement system: 1 = meters 2 = feet: "<<unpack_int16(header_buffer+2354, swap_endian)<<std::endl;
-
         // 3257 - 3258 	Impulse signal: 1 = Upward = negative number.
         //                                  2 = Upward = positive number.
-        // std::cout<<"3257 - 3258 	Impulse signal: "<<unpack_int16(header_buffer+2356, swap_endian)<<std::endl;
-
         // 3259 - 3260 	Vibratory polarity code - seismic signal lags pilot signal by: 1 = 337.5 - 22.5 degrees
         //                                                                                 2 = 22.5 - 67.5 degrees
         //                                                                                 3 = 67.5 - 112.5 degrees
         //                                                                                 4 = 112.5 - 157.5 degrees
         //                                                                                 5 = 157.5 - 202.5 degrees
         //                                                                                 6 = 202.5 - 247.5 degrees
-        // std::cout<<"3259 - 3260 	Vibratory polarity code - seismic signal lags pilot signal by: "<<unpack_int16(header_buffer+2358, swap_endian)<<std::endl;
 
         // Set tracesize
         tracesize = 240+4*Nz;
