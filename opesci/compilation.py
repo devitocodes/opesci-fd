@@ -1,5 +1,6 @@
 from os import path, environ
 import subprocess
+import cgen_wrapper as cgen
 
 
 def get_package_dir():
@@ -62,7 +63,7 @@ class GNUCompiler(Compiler):
 
     @property
     def _ivdep(self):
-        return '#pragma GCC ivdep'
+        return cgen.Pragma('GCC ivdep')
 
 
 class ClangCompiler(Compiler):
@@ -82,7 +83,7 @@ class ClangCompiler(Compiler):
 
     @property
     def _ivdep(self):
-        return '#pragma ivdep'
+        return cgen.Pragma('ivdep')
 
 
 class IntelCompiler(Compiler):
@@ -100,4 +101,4 @@ class IntelCompiler(Compiler):
 
     @property
     def _ivdep(self):
-        return '#pragma ivdep'
+        return cgen.Pragma('ivdep')
