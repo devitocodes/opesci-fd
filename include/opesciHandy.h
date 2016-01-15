@@ -43,7 +43,7 @@
 // Abort execution.
 void opesci_abort(std::string msg);
 void opesci_calculate_lame_costants(const std::vector<float> &vp, const std::vector<float> &vs, const std::vector<float> &rho,
-				    std::vector<float> &mu, std::vector<float> &lam);
+                                    std::vector<float> &mu, std::vector<float> &lam);
 float opesci_calculate_dt(const std::vector<float> &vp, float h);
 void opesci_dft(const float inreal[], const float inimag[], float outreal[], float outimag[], int n);
 void opesci_resample_timeseries(const std::vector<float> &src, float dt, double sdt, std::vector<float> &resampled_src);
