@@ -62,7 +62,7 @@ class CodePrinter(CCodePrinter):
             rv = '-0.' + rv[3:]
         elif rv.startswith('.0'):
             rv = '0.' + rv[2:]
-        return rv
+        return rv + 'F'
 
 
 def ccode(expr, **settings):
