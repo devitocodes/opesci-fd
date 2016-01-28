@@ -170,8 +170,7 @@ def Deriv(U, index, k, d, n):
                     index[3]+s[3]*x] for x in range(-n+1, n)])
     else:
         raise NotImplementedError(">4 dimensions, need to fix")
-
-    return M.inv('LU') * RX
+    return M.inv() * RX
 
 
 def Deriv_generic(U, index, dimension, delta, left, right, half=False):

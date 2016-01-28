@@ -5,8 +5,9 @@ from derivative import *
 from codeprinter import ccode, render
 from mako.lookup import TemplateLookup
 from os import path
+from numpy import half
 
-__all__ = ['SField', 'VField', 'Media']
+__all__ = ['SField', 'VField', 'Media', 'RegularField']
 
 
 class Field(IndexedBase):
@@ -66,12 +67,12 @@ class Field(IndexedBase):
         """
         self.order = order
 
-    def calc_derivative(self, l, k, d, n):
+    def calc_derivative(self, l, k, d, n, order_of_derivative):
         """
         return FD approximations field derivatives
         input param description same as Deriv_half()
         """
-        return Deriv_half(self, l, k, d, n/2)[1]
+        return Deriv_half(self, l, k, d, n/2)[order_of_derivative]
 
     def populate_derivatives(self, max_order=1):
         """
@@ -84,17 +85,23 @@ class Field(IndexedBase):
         self.d = [[None]*(max_order+1) for x in range(self.dimension+1)]
         for d in range(self.dimension+1):
             # iterate through all indices [t,x,y,z]
+           
             index = self.indices[d]
+           
             for order in range(1, max_order+1):
                 # iterate through all orders of derivatives
                 # create DDerivative objects (name, dependent variable, derivative order, max_accuracy needed)
                 # name = 'D'+'_'+self.label.name+'_'+str(index)+'_'+str(order)  # e.g. D_U_x_1 = dU/dx
                 name = ''.join(['\partial ', self.label.name, '/\partial ', str(index)])
+           
                 self.d[d][order] = DDerivative(name, index, order, self.order[d])
-                for accuracy in range(2, self.order[d]+2, 2):
+           
+                #for accuracy in range(2, self.order[d]+2, 2):
+                for accuracy in range(2, self.order[d]+1): #Testing if approximation can be calculated for odd orders of accuracy
                     # assign FD approximation expression of different order of accuracy
-                    self.d[d][order].fd[accuracy] = self.calc_derivative(self.indices, d, self.spacing[d], accuracy)
-
+           
+                    self.d[d][order].fd[accuracy] = self.calc_derivative(self.indices, d, self.spacing[d], accuracy, order)
+           
     def align(self, expr):
         """
         - shift the indices of fields in input expression
@@ -417,3 +424,14 @@ class Media(IndexedBase):
         self.dimension = dimension
         self.staggered = staggered
         self.index = index
+
+class RegularField(Field):
+    def __init__(self, *args, **kwargs):
+        super(RegularField, self).__init__(*args, **kwargs)
+    def calc_derivative(self, l, k, d, n, order_of_derivative):
+        """
+        return FD approximations field derivatives
+        input param description same as Deriv_half()
+        """
+        full = Deriv(self, l, k, d, n)[order_of_derivative]
+        return full 
