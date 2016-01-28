@@ -118,13 +118,22 @@ ${converge_test}
 return 0;
 }
 
+extern "C" int opesci_free(OpesciGrid *grid) {
+
+${free_memory}
+
+return 0;
+}
+
 int main(){
 OpesciGrid grid;
 OpesciConvergence conv;
 OpesciProfiling profiling;
 
- opesci_execute(&grid, &profiling);
+opesci_execute(&grid, &profiling);
 opesci_convergence(&grid, &conv);
+opesci_free(&grid);
+
 ${print_convergence}
 
 % if profiling==True:

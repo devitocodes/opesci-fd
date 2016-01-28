@@ -62,7 +62,10 @@ class StaggeredGrid(RegularGrid):
                      'initialise', 'initialise_bc', 'stress_loop',
                      'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
                      'define_convergence', 'converge_test', 'print_convergence',
-                     'define_profiling', 'define_papi_events', 'sum_papi_events', 'extra_loop']
+                     'define_profiling', 'define_papi_events', 'sum_papi_events', 'free_memory']
+
+    _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
+                 'output_vts', 'converge', 'profiling', 'pluto', 'fission']
 
     _papi_events = []
 
@@ -541,6 +544,21 @@ class StaggeredGrid(RegularGrid):
             return str(cgen.Module(result))
         else:
             return cgen.Module(result) 
+
+    @property
+    def free_memory(self):
+ 	"""
+        - generate code for free allocated memory
+        - return the generated code as string
+        """
+        statements = []
+        for field in self.sfields + self.vfields:
+            # alloc aligned memory (on windows and linux)
+            ifdef = cgen.IfDef('_MSC_VER', [cgen.Statement('_aligned_free(grid->%s)' % (ccode(field.label)))],
+                               [cgen.Statement('free(grid->%s)' % (ccode(field.label)))])
+            statements.append(ifdef)
+
+        return str(cgen.Module(statements))
 
     def read_data(self):
         """

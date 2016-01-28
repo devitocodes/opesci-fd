@@ -40,33 +40,34 @@
 #include "opesciIO.h"
 #include "opesciHandy.h"
 
-int main(int argc, char *argv[]){  
-  std::string filename(argv[1]);
+int main(int argc, char *argv[])
+{
+    std::string filename(argv[1]);
 
-  std::string basename;
-  {
-    size_t pos = filename.rfind(".sgy");
-    if(pos==std::string::npos){
-      pos = filename.rfind(".segy");
+    std::string basename;
+    {
+        size_t pos = filename.rfind(".sgy");
+        if(pos==std::string::npos) {
+            pos = filename.rfind(".segy");
+        }
+        if(pos==std::string::npos) {
+            pos = filename.rfind(".SGY");
+        }
+        if(pos==std::string::npos) {
+            pos = filename.rfind(".SEGY");
+        }
+        if(pos==std::string::npos) {
+            opesci_abort("Do not recognise file extension. Expecting either .segy or .sgy");
+        }
+        basename = filename.substr(0, pos);
     }
-    if(pos==std::string::npos){
-      pos = filename.rfind(".SGY");
-    }
-    if(pos==std::string::npos){
-      pos = filename.rfind(".SEGY");
-    }
-    if(pos==std::string::npos){
-      opesci_abort("Do not recognise file extension. Expecting either .segy or .sgy");
-    }
-    basename = filename.substr(0, pos);
-  }
 
-  std::vector<float> array;
-  int dim[] = {1, 1, 1};
-  float spacing[] = {1.0, 1.0, 1.0};
-  
-  opesci_read_model_segy(filename.c_str(), array, dim, spacing);
-  opesci_dump_field_vts(basename, dim, spacing, array);
+    std::vector<float> array;
+    int dim[] = {1, 1, 1};
+    float spacing[] = {1.0, 1.0, 1.0};
 
-  return 0;
+    opesci_read_model_segy(filename.c_str(), array, dim, spacing);
+    opesci_dump_field_vts(basename, dim, spacing, array);
+
+    return 0;
 }
