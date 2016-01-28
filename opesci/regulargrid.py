@@ -23,14 +23,14 @@ class RegularGrid(Grid):
     template_keys = ['pluto', 'io', 'profiling', 'numevents_papi',
                      'time_stepping', 'define_constants', 'declare_fields',
                      'define_fields', 'store_fields', 'load_fields',
-                     'initialise','define_profiling', 'define_papi_events', 'sum_papi_events', 'primary_loop']
+                     'initialise','define_profiling', 'define_papi_events', 'sum_papi_events', 'primary_loop', 'free_memory']
 
     _papi_events = []
     
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
                  'output_vts', 'converge', 'profiling', 'pluto', 'fission']
     _params = ['c', 'v']
-    def __init__(self, dimension, index=None, fields=[], double=False, profiling=False, pluto=False, fission=False, omp=True, ivdep=True, simd=False, io=False,
+    def __init__(self, dimension, index=None, fields=None, double=False, profiling=False, pluto=False, fission=False, omp=True, ivdep=True, simd=False, io=False,
                  expand=True, eval_const=True, grid_size=(10, 10, 10), domain_size=None):
         super(RegularGrid, self).__init__()
         
@@ -65,8 +65,9 @@ class RegularGrid(Grid):
         default_order = [2] + [4]*self.dimension
         self.t = Symbol('_t')
         self.grid_size = grid_size
-        self.max_derivative_order = 2
-        self.fields = fields
+        self.max_derivative_order = 1
+        if fields!=None:
+            self.fields = fields
         self.set_order(default_order)
         self.set_grid_size(grid_size)
         
@@ -114,11 +115,12 @@ class RegularGrid(Grid):
             var = var.name
         self.defined_variable[var] = Variable(var, value, type, constant)
     
-    def calc_derivatives(self, max_order=2):
+    def calc_derivatives(self, max_order=1):
         """
         populate field.d lists with Derivative objects
         """
         self.max_derivative_order = max_order
+        self.set_order(self.order)
         for field in self.fields:
             field.populate_derivatives(max_order=max_order)  # VS scheme only requare 1st derivatives
     
@@ -474,9 +476,13 @@ class RegularGrid(Grid):
             result.append(back_assign)
 
         return str(cgen.Module(result))
-
+    
+    
     @property
-    def declare_fields(self, as_string=True):
+    def declare_fields(self):
+        return self.declare_fields_raw(True)
+    
+    def declare_fields_raw(self, as_string=True):
         """
         - generate code for declaring fields
         - the generated code first declare fields as std::vector
@@ -622,9 +628,7 @@ class RegularGrid(Grid):
     
     def kernel_sympy(self, field):
         kernel = self.transform_kernel(field)
-        
         kernel = kernel.xreplace({self.t+1: self.time[2], self.t: self.time[1], self.t-1:self.time[0]})
-        
         return kernel
     
     def simple_kernel(self, grid_field, indexes):
@@ -636,12 +640,9 @@ class RegularGrid(Grid):
         - return inner loop code as string
         """
         body = []
-        idx = [self.time[2]] + self.index
+        idx = [self.time[len(self.time)-1]] + self.index
         # This loop create the most inner loop with all fields
         for field in grid_field:
-            
-            if self.read:
-                kernel = self.resolve_media_params(kernel)
             body.append(cgen.Assign(ccode(field[idx]), ccode(self.kernel_sympy(field))))
         body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', indexes[1]), indexes[2]), cgen.Line('%s<%s' % (indexes[1], indexes[3])), cgen.Line('++%s' % indexes[1]), cgen.Block(body))]
         if not self.pluto and self.ivdep and indexes[0] == self.dimension-1:
@@ -650,4 +651,20 @@ class RegularGrid(Grid):
             body.insert(0, cgen.Pragma('simd'))
 
         return body
+    
+    @property
+    def free_memory(self):
+        """
+       - generate code for free allocated memory
+       - return the generated code as string
+       """
+        statements = []
+        for field in self.fields:
+            # alloc aligned memory (on windows and linux)
+            ifdef = cgen.IfDef('_MSC_VER', [cgen.Statement('_aligned_free(grid->%s)' % (ccode(field.label)))],
+                               [cgen.Statement('free(grid->%s)' % (ccode(field.label)))])
+            statements.append(ifdef)
+
+        return str(cgen.Module(statements))
+
 

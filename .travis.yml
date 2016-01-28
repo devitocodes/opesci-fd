@@ -50,3 +50,6 @@ script:
     - OMP_NUM_THREADS=4 tests/src/eigenwave3d_pluto
     - python tests/eigenwave3d.py --output --pluto
     - python tests/eigenwave3d.py default --fission --compiler=g++ --execute --nthreads=4
+    - python tests/simplewaveequation.py default
+    - g++ tests/src/regular3d.cpp -lm
+    - ./a.out

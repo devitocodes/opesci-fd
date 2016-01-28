@@ -76,7 +76,7 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 #     else:
 #         grid.set_media_params(read=False, rho=1.0, vp=1.0, vs=0.5)
 
-    grid.set_params(c=1, v=1)
+    grid.set_params(c=2, v=1)
     
     # Check if its possible to calculate a limit for the simple case 
     #print 'require dt < ' + str(grid.get_time_step_limit())
@@ -85,10 +85,10 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     
     TEST_init_func = sin(x+y+z)
     TEST.set_analytic_solution(TEST_init_func)
-    grid.set_order([2, 2, 2, 2])
-    grid.calc_derivatives()
+    grid.set_order([2, 4, 4, 4])
+    grid.calc_derivatives(2)
   
-    eq0 = Eq(TEST.d[0][2], const_c*TEST.d[1][2])
+    eq0 = Eq(TEST.d[0][2], const_c*(TEST.d[1][2]+TEST.d[2][2]+TEST.d[3][2]))
     
     grid.solve_fd([eq0])
 

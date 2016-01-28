@@ -114,7 +114,6 @@ class Grid(object):
         # Compile code if this hasn't been done yet
         if self.src_lib is None:
             self.compile(filename, compiler=compiler, shared=True)
-
         # Load compiled binary
         self._load_library(src_lib=self.src_lib)
 
@@ -123,7 +122,6 @@ class Grid(object):
             _fields_ = [(ccode(f.label), POINTER(c_float)) for f in self.fields]
         self._arg_grid = OpesciGrid()
         self._arg_grid.values = [POINTER(c_float)() for f in self.fields]
-
         # Define OpesciProfiling struct and generate "profiling" argument
         class OpesciProfiling(Structure):
             _fields_ = [(var, c_float) for var in ['rtime', 'ptime', 'mflops']]
@@ -137,7 +135,6 @@ class Grid(object):
 
         print "Executing with %d threads (affinity=%s)" % (nthreads, affinity)
         opesci_execute(pointer(self._arg_grid), pointer(self._arg_profiling))
-
         if self.profiling:
             if len(self._papi_events) > 0:
                 for ev in self._papi_events:

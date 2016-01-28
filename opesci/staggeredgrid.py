@@ -71,6 +71,8 @@ class StaggeredGrid(RegularGrid):
 
     def __init__(self, stress_fields=None, velocity_fields=None, output_vts=False,
                  converge=False, **kwargs):
+        self.sfields = []
+        self.vfields = []
         super(StaggeredGrid, self).__init__(**kwargs)
         
         template_dir = path.join(get_package_dir(), "templates")
@@ -80,8 +82,7 @@ class StaggeredGrid(RegularGrid):
         self.output_vts = output_vts
         
         # List of associated fields
-        self.sfields = []
-        self.vfields = []
+        
         
         # Optional further grid settings
         if stress_fields:
@@ -91,7 +92,7 @@ class StaggeredGrid(RegularGrid):
 
     @property
     def fields(self):
-        return self.sfields + self.vfields
+        return self.vfields + self.sfields
 
     @property
     def io(self):
@@ -182,19 +183,14 @@ class StaggeredGrid(RegularGrid):
 
         t = self.t
         t1 = t+hf+(self.order[0]/2-1)  # the most advanced time index
-        t1_regular = t+1+(self.order[0]/2-1)
         index = [t1] + self.index
-        index_regular = [t1_regular] + self.index
         
         simplify = True if max(self.order[1:]) <= 4 else False
 
         for field, eq in zip(self.fields, eqs):
             # want the LHS of express to be at time t+1
-            if isinstance(field, RegularField):
-                kernel = solve(eq, field[index_regular], simplify=simplify)[0] 
-            else:
-                kernel = solve(eq, field[index], simplify=simplify)[0]
-            kernel = kernel.subs({t: t-(self.order[0]/2-1)})
+            kernel = solve(eq, field[index], simplify=simplify)[0]
+            kernel = kernel.subs({t: t+hf-(self.order[0]/2-1)})
 
             field.set_fd_kernel(kernel)
 
@@ -232,7 +228,6 @@ class StaggeredGrid(RegularGrid):
                 fields.append([f for f in self.sfields
                                if f.direction == lookfor][0])
             if not len(fields) == self.dimension+1:
-                print len(fields)
                 raise Exception('error in field directions')
             v.associate_stress_fields(fields)
 
@@ -381,6 +376,13 @@ class StaggeredGrid(RegularGrid):
         result = expr.func(*args)
         return result
 
+    def kernel_sympy(self, field):
+        kernel = self.transform_kernel(field)
+        if self.read:
+                kernel = self.resolve_media_params(kernel)
+        kernel = kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})
+        return kernel
+    
     def get_velocity_kernel_ai(self):
         """
         - get the arithmetic intensity of velocity kernel
@@ -535,30 +537,14 @@ class StaggeredGrid(RegularGrid):
     # ------------------- sub-routines for output -------------------- #
 
     @property
-    def declare_fields(self, as_string=True):
-        result = RegularGrid.declare_fields(self, as_string=False)
+    def declare_fields(self):
+        result = super(StaggeredGrid, self).declare_fields_raw(as_string=False)
         if self.read:
             # add code to read data
-            result += self.read_data()
-        if as_string:
-            return str(cgen.Module(result))
-        else:
-            return cgen.Module(result) 
-
-    @property
-    def free_memory(self):
- 	"""
-        - generate code for free allocated memory
-        - return the generated code as string
-        """
-        statements = []
-        for field in self.sfields + self.vfields:
-            # alloc aligned memory (on windows and linux)
-            ifdef = cgen.IfDef('_MSC_VER', [cgen.Statement('_aligned_free(grid->%s)' % (ccode(field.label)))],
-                               [cgen.Statement('free(grid->%s)' % (ccode(field.label)))])
-            statements.append(ifdef)
-
-        return str(cgen.Module(statements))
+            result = cgen.Module(result.contents+ self.read_data())
+        
+        return str(result)
+        
 
     def read_data(self):
         """

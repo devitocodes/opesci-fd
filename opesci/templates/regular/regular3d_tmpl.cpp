@@ -102,13 +102,20 @@ ${load_fields}
 return 0;
 }
 
+extern "C" int opesci_free(OpesciGrid *grid) {
+
+${free_memory}
+
+return 0;
+}
+
 int main(){
 OpesciGrid grid;
 OpesciConvergence conv;
 OpesciProfiling profiling;
 
- opesci_execute(&grid, &profiling);
-
+opesci_execute(&grid, &profiling);
+opesci_free(&grid);
 
 % if profiling==True:
 printf("PAPI:: Max real_time: %f (sec)\n", profiling.g_rtime);
