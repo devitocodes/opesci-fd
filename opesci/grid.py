@@ -122,6 +122,7 @@ class Grid(object):
             _fields_ = [(ccode(f.label), POINTER(c_float)) for f in self.fields]
         self._arg_grid = OpesciGrid()
         self._arg_grid.values = [POINTER(c_float)() for f in self.fields]
+
         # Define OpesciProfiling struct and generate "profiling" argument
         class OpesciProfiling(Structure):
             _fields_ = [(var, c_float) for var in ['rtime', 'ptime', 'mflops']]

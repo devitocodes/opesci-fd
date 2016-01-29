@@ -51,57 +51,40 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     print 'tmax: ' + str(tmax)
 
     # Declare fields
-    TEST = RegularField('TEST', dimension=3, staggered=[0,0,0])
-    
+    TEST = RegularField('TEST', dimension=3)
 
-    grid = RegularGrid(dimension=3, domain_size=domain_size,
-                         grid_size=grid_size,
-                         fields=[TEST], pluto=pluto, fission=fission)
+    grid = RegularGrid(dimension=3, domain_size=domain_size, grid_size=grid_size, fields=[TEST], pluto=pluto, fission=fission)
     grid.set_time_step(dt, tmax)
-
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, double=double,
                       expand=expand, eval_const=eval_const,
                       output_vts=output_vts, converge=o_converge)
-
-    
-    
     # define parameters
     const_c = symbols("c")
     t, x, y, z = symbols('_t x y z')
     grid.set_index([x, y, z])
-
-#     if read:
-#         grid.set_media_params(read=True, rho_file=rho_file,
-#                               vp_file=vp_file, vs_file=vs_file)
-#     else:
-#         grid.set_media_params(read=False, rho=1.0, vp=1.0, vs=0.5)
-
     grid.set_params(c=2, v=1)
-    
-    # Check if its possible to calculate a limit for the simple case 
-    #print 'require dt < ' + str(grid.get_time_step_limit())
+
+    # Check if its possible to calculate a limit for the simple case
+    # print 'require dt < ' + str(grid.get_time_step_limit())
 
     # define eigen waves
-    
+
     TEST_init_func = sin(x+y+z)
     TEST.set_analytic_solution(TEST_init_func)
-    grid.set_order([2, 4, 4, 4])
+    grid.set_order(accuracy_order)
     grid.calc_derivatives(2)
-  
-    eq0 = Eq(TEST.d[0][2], const_c*(TEST.d[1][2]+TEST.d[2][2]+TEST.d[3][2]))
-    
-    grid.solve_fd([eq0])
 
+    eq0 = Eq(TEST.d[0][2], const_c*(TEST.d[1][2] + TEST.d[2][2] + TEST.d[2][2]))
+
+    grid.solve_fd([eq0])
     # print 'kernel Weighted AI: ' + '%.2f' % grid.get_overall_kernel_ai()[1]
     print 'Kernel AI'
     print '%.2f, %.2f (weighted), %d ADD, %d MUL, %d LOAD, %d STORE' % grid.get_kernel_ai()
-    
-
     return grid
 
 
 def default(compiler=None, execute=False, nthreads=1,
-            accuracy_order=[4, 4, 4, 4],
+            accuracy_order=[2, 4, 4, 4],
             output=False, profiling=False, papi_events=[], pluto=False, tile=' ', fission=False):
     """
     Eigenwave test case on a unit cube grid (100 x 100 x 100)
@@ -148,7 +131,6 @@ def default(compiler=None, execute=False, nthreads=1,
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
-        grid.convergence()
     return out
 
 
@@ -288,6 +270,5 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
         converge_test()
     elif args.mode == 'cx1':
         cx1()
-
 if __name__ == "__main__":
     main()

@@ -1,5 +1,3 @@
-from grid import Grid
-from variable import Variable
 from fields import Media
 from codeprinter import ccode, ccode_eq
 from derivative import DDerivative
@@ -8,11 +6,9 @@ from compilation import get_package_dir
 
 from sympy import Symbol, Rational, solve, expand, Eq
 from mako.lookup import TemplateLookup
-import mmap
 import cgen_wrapper as cgen
 from os import path
 from __builtin__ import str
-from opesci.fields import RegularField
 from opesci.regulargrid import RegularGrid
 __all__ = ['StaggeredGrid']
 
@@ -74,16 +70,11 @@ class StaggeredGrid(RegularGrid):
         self.sfields = []
         self.vfields = []
         super(StaggeredGrid, self).__init__(**kwargs)
-        
         template_dir = path.join(get_package_dir(), "templates")
         staggered_dir = path.join(get_package_dir(), "templates/staggered")
         self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
         self.converge = converge
         self.output_vts = output_vts
-        
-        # List of associated fields
-        
-        
         # Optional further grid settings
         if stress_fields:
             self.set_stress_fields(stress_fields)
@@ -148,7 +139,7 @@ class StaggeredGrid(RegularGrid):
                             + str(num) + ' fields required.')
         self.vfields = vfields
         self.set_field_spacing()
-    
+
     def calc_derivatives(self):
         """
         populate field.d lists with Derivative objects
@@ -184,7 +175,6 @@ class StaggeredGrid(RegularGrid):
         t = self.t
         t1 = t+hf+(self.order[0]/2-1)  # the most advanced time index
         index = [t1] + self.index
-        
         simplify = True if max(self.order[1:]) <= 4 else False
 
         for field, eq in zip(self.fields, eqs):
@@ -382,7 +372,7 @@ class StaggeredGrid(RegularGrid):
                 kernel = self.resolve_media_params(kernel)
         kernel = kernel.xreplace({self.t+1: self.time[1], self.t: self.time[0]})
         return kernel
-    
+
     def get_velocity_kernel_ai(self):
         """
         - get the arithmetic intensity of velocity kernel
@@ -541,10 +531,8 @@ class StaggeredGrid(RegularGrid):
         result = super(StaggeredGrid, self).declare_fields_raw(as_string=False)
         if self.read:
             # add code to read data
-            result = cgen.Module(result.contents+ self.read_data())
-        
+            result = cgen.Module(result.contents + self.read_data())
         return str(result)
-        
 
     def read_data(self):
         """
@@ -984,5 +972,3 @@ class StaggeredGrid(RegularGrid):
             result.append(cgen.Statement('conv->%s = %s' % (l2, l2_value)))
 
         return str(cgen.Module(result))
-
-    
