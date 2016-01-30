@@ -32,6 +32,7 @@ ${define_profiling}
 extern "C" int opesci_execute(OpesciGrid *grid, OpesciProfiling *profiling) {
 % if profiling==True:
 int err = opesci_papi_init();
+${init_profiling}
 % endif
 
 ${define_constants}

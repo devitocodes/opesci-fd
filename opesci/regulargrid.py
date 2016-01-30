@@ -20,7 +20,8 @@ class RegularGrid(Grid):
     template_keys = ['pluto', 'io', 'profiling', 'numevents_papi',
                      'time_stepping', 'define_constants', 'declare_fields',
                      'define_fields', 'store_fields', 'load_fields',
-                     'initialise', 'define_profiling', 'define_papi_events', 'sum_papi_events', 'primary_loop', 'free_memory']
+                     'initialise', 'define_profiling', 'init_profiling',
+                     'define_papi_events', 'sum_papi_events', 'primary_loop', 'free_memory']
     _papi_events = []
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
                  'output_vts', 'converge', 'profiling', 'pluto', 'fission']
@@ -349,8 +350,15 @@ class RegularGrid(Grid):
     @property
     def define_profiling(self):
         """Code fragment that defines global PAPI counters and events"""
-        code = [cgen.Initializer(cgen.Value('float', 'g_%s' % v), 0.0) for v in ['rtime', 'ptime', 'mflops']]
-        code += [cgen.Initializer(cgen.Value('long long', 'g_%s' % e), 0) for e in self._papi_events]
+        code = [cgen.Value('float', 'g_%s' % v) for v in ['rtime', 'ptime', 'mflops']]
+        code += [cgen.Value('long long', 'g_%s' % e) for e in self._papi_events]
+        return str(cgen.Module(code))
+
+    @property
+    def init_profiling(self):
+        """Code fragment that initialises global PAPI counters and events"""
+        code = [cgen.Assign('profiling->g_%s' % v, 0.0) for v in ['rtime', 'ptime', 'mflops']]
+        code += [cgen.Assign('profiling->g_%s' % e, 0) for e in self._papi_events]
         return str(cgen.Module(code))
 
     @property
