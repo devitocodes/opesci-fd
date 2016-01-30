@@ -34,11 +34,6 @@ class Grid(object):
     _arg_grid = None
     _arg_conv = None
 
-    def __del__(self):
-        # Correctly close compiled kernel library
-        if self._library is not None:
-            cdll.LoadLibrary('libdl.so').dlclose(self._library._handle)
-
     def _load_library(self, src_lib):
         """Load a compiled dynamic binary using ctypes.cdll"""
         libname = src_lib or self.src_lib
