@@ -59,8 +59,8 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
                       expand=expand, eval_const=eval_const,
                       output_vts=output_vts, converge=o_converge)
     # define parameters
-    const_c = symbols("c")
-    t, x, y, z = symbols('_t x y z')
+    
+    x, y, z, const_c = symbols('x y z c')
     grid.set_index([x, y, z])
     grid.set_params(c=2, v=1)
 
@@ -133,37 +133,6 @@ def default(compiler=None, execute=False, nthreads=1,
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
     return out
 
-
-def read_data(compiler=None, execute=False, nthreads=1,
-              accuracy_order=[2, 4, 4, 4],
-              output=False, profiling=False, papi_events=[], fission=False):
-
-    """Test for model intialisation from input file
-
-    Computes eigenwave on a unit cube grid (200 x 200 x 200)
-    """
-    domain_size = (1.0, 1.0, 1.0)
-    grid_size = (195, 195, 195)
-    dt = 0.002
-    tmax = 1.0
-    filename = path.join(_test_dir, 'eigenwave3d_read.cpp')
-    grid = eigenwave3d(domain_size, grid_size, dt, tmax, read=True,
-                       accuracy_order=accuracy_order,
-                       o_converge=False, omp=True, simd=False, ivdep=True,
-                       filename=filename, rho_file='RHOhomogx200',
-                       vp_file='VPhomogx200', vs_file='VShomogx200', fission=fission)
-    grid.set_switches(output_vts=output, profiling=profiling)
-    grid.set_papi_events(papi_events)
-    if compiler is None:
-        grid.generate(filename)
-    else:
-        grid.compile(filename, compiler=compiler, shared=False)
-    if execute:
-        # Test Python-based execution for the base test
-        grid.execute(filename, compiler=compiler, nthreads=nthreads)
-        grid.convergence()
-
-
 def cx1():
     """
     test case for comparison between pragma simd and pragma ivdep on cx1
@@ -178,7 +147,6 @@ def cx1():
     eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=False,
                 omp=True, simd=True, ivdep=False,
                 filename=path.join(_test_dir, 'eigenwave3d_simd.cpp'))
-
 
 def converge_test():
     """
@@ -217,19 +185,16 @@ def converge_test():
 
 def main():
     ModeHelp = """Avalable testing modes:
-default:   Eigenwave test case on a unit cube grid (100 x 100 x 100)
-
-read:      Test for model intialisation from input file; computes
-           eigenwave on a unit cube grid (200 x 200 x 200)
+default:   Simple acoustic wave test case on a unit cube grid (100 x 100 x 100)
 
 converge:  Convergence test of the (2,4) scheme, which is 2nd order
            in time and 4th order in space. The test halves spacing
            starting from 0.1 and reduces dt by a factor of 4 for
            each step
 """
-    p = ArgumentParser(description="Standalone testing script for the Eigenwave3D example",
+    p = ArgumentParser(description="Standalone testing script for the Simple acoustic wave example",
                        formatter_class=RawTextHelpFormatter)
-    p.add_argument('mode', choices=('default', 'read', 'converge', 'cx1'),
+    p.add_argument('mode', choices=('default', 'converge', 'cx1'),
                    nargs='?', default='default', help=ModeHelp)
     p.add_argument('-so', '--spatial_order', default=4, type=int, dest='so',
                    help='order of the spatial discretisation to use for code generation * 2, eg. order=4 to use 4th order approximation in x,y,z')
