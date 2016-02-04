@@ -11,16 +11,12 @@ import cgen_wrapper as cgen
 from os import path
 from __builtin__ import str
 from opesci.fields import RegularField
+from templates import regular3d_tmpl
 
 __all__ = ['RegularGrid']
 
 
 class RegularGrid(Grid):
-    template_base = 'regular3d_tmpl.cpp'
-    template_keys = ['pluto', 'io', 'profiling', 'numevents_papi',
-                     'time_stepping', 'define_constants', 'declare_fields',
-                     'define_fields', 'store_fields', 'load_fields',
-                     'initialise', 'define_profiling', 'define_papi_events', 'sum_papi_events', 'primary_loop', 'free_memory']
     _papi_events = []
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
                  'output_vts', 'converge', 'profiling', 'pluto', 'fission']
@@ -30,9 +26,6 @@ class RegularGrid(Grid):
                  expand=True, eval_const=True, grid_size=(10, 10, 10), domain_size=None):
         super(RegularGrid, self).__init__()
 
-        template_dir = path.join(get_package_dir(), "templates")
-        regular_dir = path.join(get_package_dir(), "templates/regular")
-        self.lookup = TemplateLookup(directories=[template_dir, regular_dir])
         self.dimension = dimension
         self.double = double
         self.real_t = 'double' if self.double else 'float'
@@ -86,6 +79,7 @@ class RegularGrid(Grid):
         if domain_size:
             self.set_domain_size(domain_size)
         self.read = False
+        self.cgen_template = regular3d_tmpl.Regular3DTemplate(self)
 
     def set_variable(self, var, value=0, type='int', constant=False):
         """
@@ -351,7 +345,7 @@ class RegularGrid(Grid):
         """Code fragment that defines global PAPI counters and events"""
         code = [cgen.Initializer(cgen.Value('float', 'g_%s' % v), 0.0) for v in ['rtime', 'ptime', 'mflops']]
         code += [cgen.Initializer(cgen.Value('long long', 'g_%s' % e), 0) for e in self._papi_events]
-        return str(cgen.Module(code))
+        return cgen.Module(code)
 
     @property
     def numevents_papi(self):
@@ -365,13 +359,13 @@ class RegularGrid(Grid):
         code.append(cgen.ArrayOf(cgen.Value('int', 'events'), self.numevents_papi))
         code.append(cgen.ArrayOf(cgen.Value('long long', 'counters'), self.numevents_papi))
         code += [cgen.Statement('opesci_papi_name2event("%s", &(events[%d]))' % (e, i)) for i, e in enumerate(self._papi_events)]
-        return str(cgen.Module(code))
+        return cgen.Module(code)
 
     @property
     def sum_papi_events(self):
         """Code fragment that reads PAPI counters for specified events"""
         code = [cgen.Statement('profiling->g_%s += counters[%d]' % (e, i)) for i, e in enumerate(self._papi_events)]
-        return str(cgen.Module(code))
+        return cgen.Module(code)
 
     @property
     def io(self):
@@ -396,7 +390,7 @@ class RegularGrid(Grid):
                 line = cgen.Initializer(cgen.Value(v.type, v.name), v.value)
             result.append(line)
 
-        return str(cgen.Module(result))
+        return cgen.Module(result)
 
     @property
     def time_stepping(self):
@@ -423,7 +417,7 @@ class RegularGrid(Grid):
 
         body = cgen.Block(body)
         body = cgen.Module([cgen.Pragma('omp single'), body])
-        return str(body)
+        return body
 
     @property
     def define_fields(self):
@@ -433,7 +427,7 @@ class RegularGrid(Grid):
             var = cgen.Pointer(cgen.Value(self.real_t, ccode(f.label)))
             result.append(var)
 
-        return str(cgen.Module(result))
+        return cgen.Module(result)
 
     @property
     def store_fields(self):
@@ -443,7 +437,7 @@ class RegularGrid(Grid):
             assignment = cgen.Assign('grid->%s' % ccode(f.label), '(%s*) %s' % (self.real_t, ccode(f.label)))  # There must be a better way of doing this. This hardly seems better than string manipulation
             result.append(assignment)
 
-        return str(cgen.Module(result))
+        return cgen.Module(result)
 
     @property
     def load_fields(self):
@@ -454,13 +448,13 @@ class RegularGrid(Grid):
             back_assign = cgen.Initializer(cgen.Value(self.real_t, "(*%s)%s" % (ccode(f.label), idxs)), '(%s (*)%s) grid->%s' % (self.real_t, idxs, ccode(f.label)))  # Another hackish attempt.
             result.append(back_assign)
 
-        return str(cgen.Module(result))
+        return cgen.Module(result)
 
     @property
     def declare_fields(self):
-        return self.declare_fields_raw(True)
+        return self.declare_fields_raw()
 
-    def declare_fields_raw(self, as_string=True):
+    def declare_fields_raw(self):
         """
         - generate code for declaring fields
         - the generated code first declare fields as std::vector
@@ -490,10 +484,8 @@ class RegularGrid(Grid):
             statements.append(cast_pointer)
         result += statements
 
-        if as_string:
-            return str(cgen.Module(result))
-        else:
-            return cgen.Module(result)
+        
+        return cgen.Module(result)
 
     @property
     def initialise(self):
@@ -528,7 +520,7 @@ class RegularGrid(Grid):
 
             statements.append(body[0])
             statements += self.generate_second_initialisation()
-        return str(cgen.Module(statements))
+        return cgen.Module(statements)
 
     def generate_second_initialisation(self):
         loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
@@ -590,7 +582,7 @@ class RegularGrid(Grid):
 
         if not self.pluto and self.omp:
             body.insert(0, cgen.Pragma('omp for schedule(static,1)'))
-        return str(cgen.Module(body))
+        return cgen.Module(body)
 
     @property
     def primary_loop(self):
@@ -634,4 +626,4 @@ class RegularGrid(Grid):
                                [cgen.Statement('free(grid->%s)' % (ccode(field.label)))])
             statements.append(ifdef)
 
-        return str(cgen.Module(statements))
+        return cgen.Module(statements)

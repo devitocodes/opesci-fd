@@ -6,7 +6,6 @@ from mako.runtime import Context
 from ctypes import cdll, Structure, POINTER, c_float, pointer, c_longlong
 from os import environ
 
-
 class Grid(object):
     """Base class for grid objects that provides the code generation,
     compilation and execution infrastructure"""
@@ -67,16 +66,7 @@ class Grid(object):
         if compiler:
             self.compiler = compiler
 
-        # Generate a dictionary that maps template keys to code fragments
-        template = self.lookup.get_template(self.template_base)
-        template_keys = dict([(k, getattr(self, k)) for k in self.template_keys])
-
-        # Render code from provided template
-        buf = StringIO()
-        ctx = Context(buf, **template_keys)
-        template.render_context(ctx)
-        self.src_code = buf.getvalue()
-
+        self.src_code = str(self.cgen_template.generate())
         # Generate compilable source code
         self.src_file = filename
         with file(self.src_file, 'w') as f:

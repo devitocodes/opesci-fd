@@ -10,6 +10,7 @@ import cgen_wrapper as cgen
 from os import path
 from __builtin__ import str
 from opesci.regulargrid import RegularGrid
+from templates import staggered3d_tmpl
 __all__ = ['StaggeredGrid']
 
 hf = Rational(1, 2)  # 1/2
@@ -50,15 +51,6 @@ class StaggeredGrid(RegularGrid):
     * pluto: Define scop for pluto optimisation
     * fission: Define loop fission optimisation
     """
-    template_base = 'staggered3d_tmpl.cpp'
-
-    template_keys = ['pluto', 'io', 'profiling', 'numevents_papi',
-                     'time_stepping', 'define_constants', 'declare_fields',
-                     'define_fields', 'store_fields', 'load_fields',
-                     'initialise', 'initialise_bc', 'stress_loop',
-                     'velocity_loop', 'stress_bc', 'velocity_bc', 'output_step',
-                     'define_convergence', 'converge_test', 'print_convergence',
-                     'define_profiling', 'define_papi_events', 'sum_papi_events', 'free_memory']
 
     _switches = ['omp', 'ivdep', 'simd', 'double', 'expand', 'eval_const',
                  'output_vts', 'converge', 'profiling', 'pluto', 'fission']
@@ -69,18 +61,16 @@ class StaggeredGrid(RegularGrid):
                  converge=False, **kwargs):
         self.sfields = []
         self.vfields = []
-        super(StaggeredGrid, self).__init__(**kwargs)
-        template_dir = path.join(get_package_dir(), "templates")
-        staggered_dir = path.join(get_package_dir(), "templates/staggered")
-        self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
-        self.converge = converge
         self.output_vts = output_vts
+        super(StaggeredGrid, self).__init__(**kwargs)
+        self.converge = converge
+        
         # Optional further grid settings
         if stress_fields:
             self.set_stress_fields(stress_fields)
         if velocity_fields:
             self.set_velocity_fields(velocity_fields)
-
+        self.cgen_template = staggered3d_tmpl.Staggered3DTemplate(self)
     @property
     def fields(self):
         return self.vfields + self.sfields
@@ -528,11 +518,11 @@ class StaggeredGrid(RegularGrid):
 
     @property
     def declare_fields(self):
-        result = super(StaggeredGrid, self).declare_fields_raw(as_string=False)
+        result = super(StaggeredGrid, self).declare_fields_raw()
         if self.read:
             # add code to read data
             result = cgen.Module(result.contents + self.read_data())
-        return str(result)
+        return result
 
     def read_data(self):
         """
@@ -671,7 +661,7 @@ class StaggeredGrid(RegularGrid):
                 body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
 
             statements.append(body[0])
-        return str(cgen.Module(statements))
+        return cgen.Module(statements)
 
     def fission_kernel(self, grid_field, indexes):
         """
@@ -890,7 +880,7 @@ class StaggeredGrid(RegularGrid):
         rep = "'[0]'"
         result = [cgen.replace_in_code(self.stress_bc_getter(init=True), t1, rep)]
         result += [cgen.replace_in_code(self.velocity_bc, t1, rep)]
-        return str(cgen.Module(result))
+        return cgen.Module(result)
 
     @property
     def output_step(self):
@@ -901,7 +891,7 @@ class StaggeredGrid(RegularGrid):
         """
         if self.output_vts:
             return self.vfields[0].vtk_save_field()
-        return ''
+        return None
 
     @property
     def define_convergence(self):
@@ -909,13 +899,13 @@ class StaggeredGrid(RegularGrid):
         result = []
         for f in self.fields:
             result.append(cgen.Value(self.real_t, '%s_l2' % ccode(f.label)))
-        return str(cgen.Module(result))
+        return cgen.Module(result)
 
     @property
     def print_convergence(self):
         """Code fragment that prints convergence norms"""
         statements = [cgen.Statement('printf("%s %s\\n", conv.%s_l2)' % (ccode(f.label), '\t%.10f', ccode(f.label))) for f in self.fields]
-        return str(cgen.Module(statements))
+        return cgen.Module(statements)
 
     @property
     def converge_test(self):
@@ -928,7 +918,7 @@ class StaggeredGrid(RegularGrid):
         """
         result = []
         if not self.converge:
-            return str(cgen.Module(result))
+            return cgen.Module(result)
 
         m = self.margin.value
         ti = self.ntsteps.value % 2  # last updated grid
@@ -971,4 +961,4 @@ class StaggeredGrid(RegularGrid):
             l2_value = 'pow(' + l2 + '*' + ccode(volume) + ', 0.5)'
             result.append(cgen.Statement('conv->%s = %s' % (l2, l2_value)))
 
-        return str(cgen.Module(result))
+        return cgen.Module(result)
