@@ -51,15 +51,14 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     print 'tmax: ' + str(tmax)
 
     # Declare fields
-    TEST = RegularField('TEST', dimension=3)
+    MAIN_GRID = RegularField('MAIN_GRID', dimension=3)
 
-    grid = RegularGrid(dimension=3, domain_size=domain_size, grid_size=grid_size, fields=[TEST], pluto=pluto, fission=fission)
+    grid = RegularGrid(dimension=3, domain_size=domain_size, grid_size=grid_size, fields=[MAIN_GRID], pluto=pluto, fission=fission)
     grid.set_time_step(dt, tmax)
     grid.set_switches(omp=omp, simd=simd, ivdep=ivdep, double=double,
                       expand=expand, eval_const=eval_const,
                       output_vts=output_vts, converge=o_converge)
     # define parameters
-    
     x, y, z, const_c = symbols('x y z c')
     grid.set_index([x, y, z])
     grid.set_params(c=2, v=1)
@@ -69,12 +68,12 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
 
     # define eigen waves
 
-    TEST_init_func = sin(x+y+z)
-    TEST.set_analytic_solution(TEST_init_func)
+    MAIN_GRID_init_func = sin(x+y+z)
+    MAIN_GRID.set_analytic_solution(MAIN_GRID_init_func)
     grid.set_order(accuracy_order)
     grid.calc_derivatives(2)
 
-    eq0 = Eq(TEST.d[0][2], const_c*(TEST.d[1][2] + TEST.d[2][2] + TEST.d[2][2]))
+    eq0 = Eq(MAIN_GRID.d[0][2], const_c*(MAIN_GRID.d[1][2] + MAIN_GRID.d[2][2] + MAIN_GRID.d[2][2]))
 
     grid.solve_fd([eq0])
     # print 'kernel Weighted AI: ' + '%.2f' % grid.get_overall_kernel_ai()[1]
@@ -133,6 +132,7 @@ def default(compiler=None, execute=False, nthreads=1,
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
     return out
 
+
 def cx1():
     """
     test case for comparison between pragma simd and pragma ivdep on cx1
@@ -147,6 +147,7 @@ def cx1():
     eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=False,
                 omp=True, simd=True, ivdep=False,
                 filename=path.join(_test_dir, 'eigenwave3d_simd.cpp'))
+
 
 def converge_test():
     """
