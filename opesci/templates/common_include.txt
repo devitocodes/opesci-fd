@@ -1,7 +1,0 @@
-#include <cassert>
-#include <cstdlib>
-#include <cmath>
-
-#include <iostream>
-#include <fstream>
-#include <vector>

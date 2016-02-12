@@ -45,17 +45,15 @@ class Staggered3DTemplate(Regular3DTemplate):
         statements = []
         statements.append(self.grid.time_stepping)
         if self.pluto:
-            statements.append(cgen.Pragma("scop"))
-        statements.append(self.grid.stress_loop)
-        if self.pluto:
-            statements.append(cgen.Pragma("endscop"))
+            statements.append(cgen.Block([cgen.Pragma("scop"), self.grid.stress_loop, cgen.Pragma("endscop")]))
+        else:
+            statements.append(self.grid.stress_loop)
         statements.append(self.grid.stress_bc)
 
         if self.pluto:
-            statements.append(cgen.Pragma("scop"))
-        statements.append(self.grid.velocity_loop)
-        if self.pluto:
-            statements.append(cgen.Pragma("endscop"))
+            statements.append(cgen.Block([cgen.Pragma("scop"), self.grid.velocity_loop, cgen.Pragma("endscop")]))
+        else:
+            statements.append(self.grid.velocity_loop)
         statements.append(self.grid.velocity_bc)
         output_step = self.grid.output_step
         if output_step:
@@ -86,3 +84,12 @@ class Staggered3DTemplate(Regular3DTemplate):
             statements.append(cgen.Statement('printf("PAPI:: Total MFlops/s: %f\\n", profiling.g_mflops)'))
         statements.append(cgen.Statement('return 0'))
         return cgen.FunctionBody(cgen.FunctionDeclaration(cgen.Value('int', 'main'), []), cgen.Block(statements))
+
+
+def save_field_block(filename, field):
+    statements = []
+    statements.append(cgen.Initializer(cgen.Value("int", "dims[]"), "{dim1, dim1, dim1}"))
+    statements.append(cgen.Initializer(cgen.Value("float", "spacing[]"), "{dx1, dx2, dx3}"))
+    statements.append(cgen.Assign("std::string vtkfile", "\""+filename+"\" + std::to_string(_ti)"))
+    statements.append(cgen.Statement("opesci_dump_field_vts_3d(vtkfile, dims, spacing, 2, &"+field+"[_t1][0][0][0])"))
+    return cgen.Module([cgen.Pragma("omp single"), cgen.Block(statements)])

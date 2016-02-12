@@ -76,6 +76,9 @@ class RegularGrid(Grid):
         if domain_size:
             self.set_domain_size(domain_size)
         self.read = False
+        self.initialize_template()
+
+    def initialize_template(self):
         self.cgen_template = regular3d_tmpl.Regular3DTemplate(self)
 
     def set_variable(self, var, value=0, type='int', constant=False):
@@ -174,6 +177,7 @@ class RegularGrid(Grid):
             if switch == 'double':
                 self.real_t = 'double' if self.double else 'float'
                 self._update_spacing()
+        self.initialize_template()
 
     def _update_spacing(self):
         """

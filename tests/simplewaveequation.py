@@ -6,11 +6,11 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 _test_dir = path.join(path.dirname(__file__), "src")
 
 
-def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
-                accuracy_order=[1, 2, 2, 2],
-                omp=True, simd=False, ivdep=True, double=False, pluto=False,
-                filename='test.cpp', read=False, expand=True, eval_const=True,
-                rho_file='', vp_file='', vs_file='', fission=False):
+def simplewave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=True,
+                 accuracy_order=[1, 2, 2, 2],
+                 omp=True, simd=False, ivdep=True, double=False, pluto=False,
+                 filename='test.cpp', expand=True, eval_const=True,
+                 fission=False):
     """
     create 3D eigen waves and run FD simulation
     :param domain_size: define size of domain
@@ -22,11 +22,11 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     (such as save field as vtk file), default False (no output)
     :param o_converge: switch for code to calculate L2 norms
     for convergence test, default True (output)
-    :param omp: swtich for inserting #pragma omp for before outter loop
+    :param omp: swtich for inserting #pragma omp for before outer loop
     default True (use omp)
     :param simd: switch for inserting #pragma simd before inner loop
     default False (do not use simd)
-    :param ivddp: switch for inserting #praga ivdep before inner loop
+    :param ivdep: switch for inserting #praga ivdep before inner loop
     default True (use ivdep)
     default False (not include vtk header files)
     :param double: switch for using double as real number variables
@@ -34,11 +34,6 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
     :param expand: expand kernel fully (no factorisation), default True
     :param eval_const: evaluate all constants in kernel in generated code default True
     :param filename: output source code file name as string
-    :param read: switch for reading meida parameters from input files
-    default False (not reading)
-    :param rho_file: file name for input file of rho (density)
-    :param vp_file: file name for input file of Vp (primary velocity)
-    :param vs_file: file name for input file of Vs (secondary velocity)
     :param pluto: switch for inserting #pragma scop and #pragma endscop for
     pluto optimisation
     :param fission: switch for doing loop fission optimisation
@@ -59,21 +54,27 @@ def eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=T
                       expand=expand, eval_const=eval_const,
                       output_vts=output_vts, converge=o_converge)
     # define parameters
+    # const_c: The constant from the wave equation
     x, y, z, const_c = symbols('x y z c')
     grid.set_index([x, y, z])
+    # Set the values of the constant C from the wave equation, and the initial velocity (single scalar value for all dimensions=0)
     grid.set_params(c=2, v=1)
 
     # Check if its possible to calculate a limit for the simple case
     # print 'require dt < ' + str(grid.get_time_step_limit())
 
-    # define eigen waves
-
+    # Initial wave displacements
+    # In the cube for t=0, the initial displacement values are accepted as a function of x, y and z.
+    # Here we use sin(x+y+z) to populate the initial displacements
     MAIN_GRID_init_func = sin(x+y+z)
     MAIN_GRID.set_analytic_solution(MAIN_GRID_init_func)
     grid.set_order(accuracy_order)
+
+    # The equation involves second-order derivatives, so instruct the class not to drop second derivatives from the analysis
     grid.calc_derivatives(2)
 
-    eq0 = Eq(MAIN_GRID.d[0][2], const_c*(MAIN_GRID.d[1][2] + MAIN_GRID.d[2][2] + MAIN_GRID.d[2][2]))
+    # The DE that generates the kernel
+    eq0 = Eq(MAIN_GRID.d[0][2], (const_c**2)*(MAIN_GRID.d[1][2] + MAIN_GRID.d[2][2] + MAIN_GRID.d[2][2]))
 
     grid.solve_fd([eq0])
     # print 'kernel Weighted AI: ' + '%.2f' % grid.get_overall_kernel_ai()[1]
@@ -97,10 +98,10 @@ def default(compiler=None, execute=False, nthreads=1,
     dt = 0.002
     tmax = 1.0
     filename = path.join(_test_dir, 'regular3d.cpp')
-    grid = eigenwave3d(domain_size, grid_size, dt, tmax,
-                       accuracy_order=accuracy_order,
-                       o_converge=True, omp=True, simd=False,
-                       ivdep=True, filename=filename, pluto=pluto, fission=fission)
+    grid = simplewave3d(domain_size, grid_size, dt, tmax,
+                        accuracy_order=accuracy_order,
+                        o_converge=True, omp=True, simd=False,
+                        ivdep=True, filename=filename, pluto=pluto, fission=fission)
     grid.set_switches(output_vts=output, profiling=profiling)
     grid.set_papi_events(papi_events)
     out = None
@@ -141,12 +142,12 @@ def cx1():
     grid_size = (200, 200, 200)
     dt = 0.001
     tmax = 5.0
-    eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=False,
-                omp=True, simd=False, ivdep=True,
-                filename=path.join(_test_dir, 'eigenwave3d_ivdep.cpp'))
-    eigenwave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=False,
-                omp=True, simd=True, ivdep=False,
-                filename=path.join(_test_dir, 'eigenwave3d_simd.cpp'))
+    simplewave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=False,
+                 omp=True, simd=False, ivdep=True,
+                 filename=path.join(_test_dir, 'simplewave3d_ivdep.cpp'))
+    simplewave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=False,
+                 omp=True, simd=True, ivdep=False,
+                 filename=path.join(_test_dir, 'simplewave3d_simd.cpp'))
 
 
 def converge_test():
@@ -161,27 +162,27 @@ def converge_test():
     c = 0.4*s
     dt = c/(s**2)
     tmax = 5.0
-    eigenwave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
-                omp=True, simd=False, ivdep=True,
-                filename='tmp/test3d_'+str(s)+'.cpp')
+    simplewave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
+                 omp=True, simd=False, ivdep=True,
+                 filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    eigenwave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
-                omp=True, simd=False, ivdep=True,
-                filename='tmp/test3d_'+str(s)+'.cpp')
+    simplewave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
+                 omp=True, simd=False, ivdep=True,
+                 filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    eigenwave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
-                omp=True, simd=False, ivdep=True,
-                filename='tmp/test3d_'+str(s)+'.cpp')
+    simplewave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
+                 omp=True, simd=False, ivdep=True,
+                 filename='tmp/test3d_'+str(s)+'.cpp')
 
     s = s*2
     dt = c/(s**2)
-    eigenwave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
-                omp=True, simd=False, ivdep=True,
-                filename='tmp/test3d_'+str(s)+'.cpp')
+    simplewave3d(domain_size, (s, s, s), dt, tmax, output_vts=False, o_converge=True,
+                 omp=True, simd=False, ivdep=True,
+                 filename='tmp/test3d_'+str(s)+'.cpp')
 
 
 def main():
@@ -227,11 +228,6 @@ converge:  Convergence test of the (2,4) scheme, which is 2nd order
                 accuracy_order=[2, args.so, args.so, args.so],
                 profiling=args.profiling, papi_events=args.papi_events,
                 pluto=args.pluto, tile=args.tile, fission=args.fission)
-    elif args.mode == 'read':
-        read_data(compiler=args.compiler, execute=args.execute,
-                  nthreads=args.nthreads, output=args.output,
-                  accuracy_order=[2, args.so, args.so, args.so],
-                  profiling=args.profiling, papi_events=args.papi_events, fission=args.fission)
     elif args.mode == 'converge':
         converge_test()
     elif args.mode == 'cx1':

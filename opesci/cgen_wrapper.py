@@ -16,7 +16,7 @@ def replace_in_code(code, str_from, str_to):
         return code
     for code_element in code:
         if isinstance(code_element, Statement) or isinstance(code_element, Line):
-            code_element.text.replace(str_from, str_to)
+            code_element.text = code_element.text.replace(str_from, str_to)
         if isinstance(code_element, Block):
             replace_in_code(code_element.contents, str_from, str_to)
         if isinstance(code_element, Loop):

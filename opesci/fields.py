@@ -1,10 +1,8 @@
-from compilation import get_package_dir
 from sympy import Indexed, IndexedBase, solve, Eq
 from util import *
 from derivative import *
-from codeprinter import ccode, render
-from mako.lookup import TemplateLookup
-from os import path
+from codeprinter import ccode
+from templates import staggered3d_tmpl
 
 __all__ = ['SField', 'VField', 'Media', 'RegularField']
 
@@ -24,9 +22,6 @@ class Field(IndexedBase):
         return obj
 
     def __init__(self, *args, **kwargs):
-        template_dir = path.join(get_package_dir(), "templates")
-        staggered_dir = path.join(get_package_dir(), "templates/staggered")
-        self.lookup = TemplateLookup(directories=[template_dir, staggered_dir])
         super(Field, self).__init__()
 
         # Pass additional arguments to self.set()
@@ -159,14 +154,8 @@ class Field(IndexedBase):
         """
         generate code to output this field with vtk
         uses Mako template
-        returns the generated code as string
         """
-        tmpl = self.lookup.get_template('save_field.txt')
-        result = ''
-        dict1 = {'filename': ccode(self.label)+'_', 'field': ccode(self.label)}
-        result = render(tmpl, dict1)
-
-        return result
+        return staggered3d_tmpl.save_field_block(ccode(self.label)+"_", ccode(self.label))
 
     def set_dt(self, dt):
         """

@@ -65,6 +65,8 @@ class StaggeredGrid(RegularGrid):
             self.set_stress_fields(stress_fields)
         if velocity_fields:
             self.set_velocity_fields(velocity_fields)
+
+    def initialize_template(self):
         self.cgen_template = staggered3d_tmpl.Staggered3DTemplate(self)
 
     @property
@@ -872,8 +874,9 @@ class StaggeredGrid(RegularGrid):
         replace array indices [t] with [0]
         - return generated code as string
         """
-        t1 = "'["+str(self.t)+"1]'"
-        rep = "'[0]'"
+        # self.t already has a _ in the front so no need to place one here
+        t1 = "["+str(self.t)+"1]"
+        rep = "[0]"
         result = [cgen.replace_in_code(self.stress_bc_getter(init=True), t1, rep)]
         result += [cgen.replace_in_code(self.velocity_bc, t1, rep)]
         return cgen.Module(result)
