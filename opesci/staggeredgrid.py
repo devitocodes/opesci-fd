@@ -29,7 +29,6 @@ class StaggeredGrid(RegularGrid):
     - solve_fd()
     - set boundary conditions
     - use functions such as grid.stress_loop() to generate code fragments
-    - insert the fragments into Mako templates
 
     Switches can also be set with set_switches(switch1=va1, switch2=val2, ...).
     Supported switches are:
@@ -42,7 +41,7 @@ class StaggeredGrid(RegularGrid):
     * expand: expand kernel fully (no factorisation), default True
     * eval_const: evaluate all constants in kernel in generated code default True
     * output_vts: Output solution fields at every timestep
-    * converge: Generate code for computing analutical solution and L2 norms
+    * converge: Generate code for computing analytical solution and L2 norms
     * profiling: Generate code for gathering profiling information via PAPI
     * pluto: Define scop for pluto optimisation
     * fission: Define loop fission optimisation
@@ -53,11 +52,9 @@ class StaggeredGrid(RegularGrid):
 
     _papi_events = []
 
-    def __init__(self, stress_fields=None, velocity_fields=None, output_vts=False,
-                 converge=False, **kwargs):
+    def __init__(self, stress_fields=None, velocity_fields=None, converge=False, **kwargs):
         self.sfields = []
         self.vfields = []
-        self.output_vts = output_vts
         super(StaggeredGrid, self).__init__(**kwargs)
         self.converge = converge
         # Optional further grid settings
@@ -889,22 +886,8 @@ class StaggeredGrid(RegularGrid):
         - return generated code as string
         """
         if self.output_vts:
-            return self.vfields[0].vtk_save_field()
+            return self.save_field_block(ccode(self.vfields[0].label)+"_", ccode(self.vfields[0].label))
         return None
-
-    @property
-    def define_convergence(self):
-        """Code fragment that defines convergence norms"""
-        result = []
-        for f in self.fields:
-            result.append(cgen.Value(self.real_t, '%s_l2' % ccode(f.label)))
-        return cgen.Module(result)
-
-    @property
-    def print_convergence(self):
-        """Code fragment that prints convergence norms"""
-        statements = [cgen.Statement('printf("%s %s\\n", conv.%s_l2)' % (ccode(f.label), '\t%.10f', ccode(f.label))) for f in self.fields]
-        return cgen.Module(statements)
 
     @property
     def converge_test(self):
@@ -926,7 +909,7 @@ class StaggeredGrid(RegularGrid):
         for i in range(len(self.spacing)):
             result.append(cgen.Statement('printf("%d\\n")' % self.spacing[i].value))
 
-        for field in self.sfields+self.vfields:
+        for field in self.fields:
             body = []
             l2 = ccode(field.label)+'_l2'
             idx = [ti] + loop
@@ -959,5 +942,4 @@ class StaggeredGrid(RegularGrid):
                 volume *= self.spacing[i].value
             l2_value = 'pow(' + l2 + '*' + ccode(volume) + ', 0.5)'
             result.append(cgen.Statement('conv->%s = %s' % (l2, l2_value)))
-
         return cgen.Module(result)

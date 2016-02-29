@@ -1,8 +1,6 @@
 from sympy.printing.ccode import CCodePrinter
 from sympy import Eq
 from mpmath.libmp import to_str, prec_to_dps
-from mako.runtime import Context
-from StringIO import StringIO
 
 
 class CodePrinter(CCodePrinter):
@@ -82,14 +80,3 @@ def ccode_eq(eq, **settings):
     """
     return CodePrinter(settings).doprint(eq.lhs, None) \
         + ' = ' + CodePrinter(settings).doprint(eq.rhs, None)
-
-
-def render(tmpl, dict1):
-    """
-    render Mako template using dictionary dict1
-    returns the result as string
-    """
-    buf = StringIO()
-    ctx = Context(buf, **dict1)
-    tmpl.render_context(ctx)
-    return buf.getvalue()

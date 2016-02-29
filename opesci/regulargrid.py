@@ -20,7 +20,7 @@ class RegularGrid(Grid):
     _params = ['c', 'v']
 
     def __init__(self, dimension, index=None, fields=None, double=False, profiling=False, pluto=False, fission=False, omp=True, ivdep=True, simd=False, io=False,
-                 expand=True, eval_const=True, grid_size=(10, 10, 10), domain_size=None):
+                 expand=True, eval_const=True, grid_size=(10, 10, 10), domain_size=None, output_vts=False):
         super(RegularGrid, self).__init__()
 
         self.dimension = dimension
@@ -67,6 +67,7 @@ class RegularGrid(Grid):
         self.omp = omp
         self.ivdep = ivdep
         self.simd = simd
+        self.output_vts = output_vts
 
         self.expand = expand
         self.eval_const = eval_const
@@ -128,6 +129,10 @@ class RegularGrid(Grid):
         self.set_grid_size(self.grid_size)
         self.update_field_order()
         self._update_spacing()
+
+    def get_time_step_limit(self):
+        h = min([sp.value for sp in self.spacing])
+        return h/(3**0.5 * self.c)
 
     def set_domain_size(self, size):
         """
@@ -378,7 +383,7 @@ class RegularGrid(Grid):
     @property
     def io(self):
         """Flag whether to include I/O headers"""
-        return False
+        return self.output_vts
 
     # ------------------- sub-routines for output -------------------- #
 
@@ -512,9 +517,6 @@ class RegularGrid(Grid):
                     # first time step
                     t0 = 0
                     sol = field.sol.subs(self.t, t0)
-                    if self.read:
-                        sol = sol.subs(self.media_dict)
-                        sol = self.resolve_media_params(sol)
                     for idx in self.index:
                         sol = sol.subs(idx, '_'+idx.name)
                     body = [cgen.Assign(ccode(field[[0]+loop]), ccode(sol))]
@@ -630,3 +632,88 @@ class RegularGrid(Grid):
             statements.append(ifdef)
 
         return cgen.Module(statements)
+
+    @property
+    def define_convergence(self):
+        """Code fragment that defines convergence norms"""
+        result = []
+        for f in self.fields:
+            result.append(cgen.Value(self.real_t, '%s_l2' % ccode(f.label)))
+        return cgen.Module(result)
+
+    @property
+    def print_convergence(self):
+        """Code fragment that prints convergence norms"""
+        statements = [cgen.Statement('printf("%s %s\\n", conv.%s_l2)' % (ccode(f.label), '\t%.10f', ccode(f.label))) for f in self.fields]
+        return cgen.Module(statements)
+
+    @property
+    def converge_test(self):
+        """
+        - generate code for convergence test
+        - convergence test implemented by calculating L2 norm
+        of the simulation against analytical solution
+        - L2 norm of each field is calculated and output with printf()
+        - return generated code as string
+        """
+        result = []
+        if not self.converge:
+            return cgen.Module(result)
+
+        m = self.margin.value
+        ti = self.ntsteps.value % 2  # last updated grid
+        loop = [Symbol('_'+x.name) for x in self.index]  # symbols for loop
+
+        for i in range(len(self.spacing)):
+            result.append(cgen.Statement('printf("%d\\n")' % self.spacing[i].value))
+
+        for field in self.fields:
+            body = []
+            l2 = ccode(field.label)+'_l2'
+            idx = [ti] + loop
+            result.append(cgen.Initializer(cgen.Value(self.real_t, l2), 0.0))
+            # populate xvalue, yvalue zvalue code
+            for d in range(self.dimension-1, -1, -1):
+                i = loop[d]
+                i0 = m
+                i1 = ccode(self.dim[d]-m)
+                expr = self.spacing[d]*(loop[d] - self.margin.value)
+                pre = [cgen.Initializer(cgen.Value(self.real_t, self.index[d].name), ccode(expr))]
+
+                if d == self.dimension-1:
+                    # inner loop
+                    tn = self.dt.value*self.ntsteps.value \
+                        if not field.staggered[0] \
+                        else self.dt.value*self.ntsteps.value \
+                        + self.dt.value/2.0
+                    body = [cgen.Statement('%s += %s' % (l2, ccode((field[idx] - (field.sol.subs(self.t, tn)))**2.0)))]
+                body = pre+body
+                body = [cgen.For(cgen.InlineInitializer(cgen.Value('int', i), i0), cgen.Line('%s<%s' % (i, i1)), cgen.Line('++%s' % i), cgen.Block(body))]
+
+            result += body
+            volume = 1.0
+            for i in range(len(self.spacing)):
+                volume *= self.spacing[i].value
+            l2_value = 'pow(' + l2 + '*' + ccode(volume) + ', 0.5)'
+            result.append(cgen.Statement('conv->%s = %s' % (l2, l2_value)))
+
+        return cgen.Module(result)
+
+    @property
+    def output_step(self):
+        """
+        - generate code for output at each time step
+        - typically output selected fields in vtk format
+        - return generated code as string
+        """
+        if self.output_vts:
+            return self.save_field_block(ccode(self.fields[0].label)+"_", ccode(self.fields[0].label))
+        return None
+
+    def save_field_block(self, filename, field):
+        statements = []
+        statements.append(cgen.Initializer(cgen.Value("int", "dims[]"), "{dim1, dim1, dim1}"))
+        statements.append(cgen.Initializer(cgen.Value("float", "spacing[]"), "{dx1, dx2, dx3}"))
+        statements.append(cgen.Assign("std::string vtkfile", "\""+filename+"\" + std::to_string(_ti)"))
+        statements.append(cgen.Statement("opesci_dump_field_vts_3d(vtkfile, dims, spacing, 2, &"+field+"["+ccode(self.time[len(self.time)-1])+"][0][0][0])"))
+        return cgen.Module([cgen.Pragma("omp single"), cgen.Block(statements)])

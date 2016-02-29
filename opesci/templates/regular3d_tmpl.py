@@ -4,9 +4,10 @@ import cgen
 
 class Regular3DTemplate(object):
     # Order of names in the following list is important. The resulting code blocks would be placed in the same order as they appear here
-    _template_methods = ['includes', 'grid_structure', 'profiling_function', 'execute', 'freemem', 'main']
+    _template_methods = ['includes', 'grid_structure', 'convergence_structure', 'profiling_function', 'execute', 'convergence_function', 'freemem', 'main']
     _grid_structure_name = 'OpesciGrid'
     _profiling_structure_name = 'OpesciProfiling'
+    __convergence_structure_name = 'OpesciConvergence'
 
     def __init__(self, grid):
         self.io = grid.io
@@ -18,9 +19,12 @@ class Regular3DTemplate(object):
     def grid_structure(self):
         return cgen.Extern("C", cgen.Struct(self._grid_structure_name, [self.grid.define_fields]))
 
+    def convergence_structure(self):
+        return cgen.Extern("C", cgen.Struct(self.__convergence_structure_name, [self.grid.define_convergence]))
+
     def includes(self):
         statements = includes.copyright()
-        statements += [cgen.IfDef('_MSC_VER', [cgen.Define('M_PI', '3.14159265358979323846')], [])]
+        statements += [cgen.Define('M_PI', '3.14159265358979323846')]
         statements += includes.common_include()
         if self.io:
             statements += includes.io_include()
@@ -93,8 +97,19 @@ class Regular3DTemplate(object):
         statements.append(self.grid.primary_loop)
         if self.pluto:
             statements.append(cgen.Pragma("endscop"))
+        output_step = self.grid.output_step
+        if output_step:
+            statements.append(output_step)
         result = cgen.For(cgen.InlineInitializer(cgen.Value("int", "_ti"), 0), "_ti < ntsteps", "_ti++", cgen.Block(statements))
         return result
+
+    def convergence_function(self):
+        statements = []
+        statements.append(self.grid.define_constants)
+        statements.append(self.grid.load_fields)
+        statements.append(self.grid.converge_test)
+        statements.append(cgen.Statement("return 0"))
+        return cgen.FunctionBody(cgen.Extern("C", cgen.FunctionDeclaration(cgen.Value('int', 'opesci_convergence'), [cgen.Pointer(cgen.Value(self._grid_structure_name, "grid")), cgen.Pointer(cgen.Value(self.__convergence_structure_name, "conv"))])), cgen.Block(statements))
 
     def freemem(self):
         statements = []
@@ -105,9 +120,12 @@ class Regular3DTemplate(object):
     def main(self):
         statements = []
         statements.append(cgen.Value(self._grid_structure_name, "grid"))
+        statements.append(cgen.Value(self.__convergence_structure_name, "conv"))
         statements.append(cgen.Value(self._profiling_structure_name, "profiling"))
         statements.append(cgen.Statement("opesci_execute(&grid, &profiling)"))
+        statements.append(cgen.Statement("opesci_convergence(&grid, &conv)"))
         statements.append(cgen.Statement("opesci_free(&grid)"))
+        statements.append(self.grid.print_convergence)
         if self.profiling:
             statements.append(cgen.Statement('printf("PAPI:: Max real_time: %f (sec)\\n", profiling.g_rtime)'))
             statements.append(cgen.Statement('printf("PAPI:: Max proc_time: %f (sec)\\n", profiling.g_ptime)'))

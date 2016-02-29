@@ -5,10 +5,6 @@ import cgen
 class Staggered3DTemplate(Regular3DTemplate):
     # Order of names in the following list is important. The resulting code blocks would be placed in the same order as they appear here
     _template_methods = ['includes', 'grid_structure', 'convergence_structure', 'profiling_function', 'execute', 'convergence_function', 'freemem', 'main']
-    __convergence_structure_name = 'OpesciConvergence'
-
-    def convergence_structure(self):
-        return cgen.Extern("C", cgen.Struct(self.__convergence_structure_name, [self.grid.define_convergence]))
 
     def execute_parallel_block(self):
         statements = []
@@ -60,36 +56,3 @@ class Staggered3DTemplate(Regular3DTemplate):
             statements.append(output_step)
         result = cgen.For(cgen.InlineInitializer(cgen.Value("int", "_ti"), 0), "_ti < ntsteps", "_ti++", cgen.Block(statements))
         return result
-
-    def convergence_function(self):
-        statements = []
-        statements.append(self.grid.define_constants)
-        statements.append(self.grid.load_fields)
-        statements.append(self.grid.converge_test)
-        statements.append(cgen.Statement("return 0"))
-        return cgen.FunctionBody(cgen.Extern("C", cgen.FunctionDeclaration(cgen.Value('int', 'opesci_convergence'), [cgen.Pointer(cgen.Value(self._grid_structure_name, "grid")), cgen.Pointer(cgen.Value(self.__convergence_structure_name, "conv"))])), cgen.Block(statements))
-
-    def main(self):
-        statements = []
-        statements.append(cgen.Value(self._grid_structure_name, "grid"))
-        statements.append(cgen.Value(self.__convergence_structure_name, "conv"))
-        statements.append(cgen.Value(self._profiling_structure_name, "profiling"))
-        statements.append(cgen.Statement("opesci_execute(&grid, &profiling)"))
-        statements.append(cgen.Statement("opesci_convergence(&grid, &conv)"))
-        statements.append(cgen.Statement("opesci_free(&grid)"))
-        statements.append(self.grid.print_convergence)
-        if self.profiling:
-            statements.append(cgen.Statement('printf("PAPI:: Max real_time: %f (sec)\\n", profiling.g_rtime)'))
-            statements.append(cgen.Statement('printf("PAPI:: Max proc_time: %f (sec)\\n", profiling.g_ptime)'))
-            statements.append(cgen.Statement('printf("PAPI:: Total MFlops/s: %f\\n", profiling.g_mflops)'))
-        statements.append(cgen.Statement('return 0'))
-        return cgen.FunctionBody(cgen.FunctionDeclaration(cgen.Value('int', 'main'), []), cgen.Block(statements))
-
-
-def save_field_block(filename, field):
-    statements = []
-    statements.append(cgen.Initializer(cgen.Value("int", "dims[]"), "{dim1, dim1, dim1}"))
-    statements.append(cgen.Initializer(cgen.Value("float", "spacing[]"), "{dx1, dx2, dx3}"))
-    statements.append(cgen.Assign("std::string vtkfile", "\""+filename+"\" + std::to_string(_ti)"))
-    statements.append(cgen.Statement("opesci_dump_field_vts_3d(vtkfile, dims, spacing, 2, &"+field+"[_t1][0][0][0])"))
-    return cgen.Module([cgen.Pragma("omp single"), cgen.Block(statements)])

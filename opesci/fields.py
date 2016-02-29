@@ -1,8 +1,6 @@
 from sympy import Indexed, IndexedBase, solve, Eq
 from util import *
 from derivative import *
-from codeprinter import ccode
-from templates import staggered3d_tmpl
 
 __all__ = ['SField', 'VField', 'Media', 'RegularField']
 
@@ -149,13 +147,6 @@ class Field(IndexedBase):
         self.kernel = kernel
         tmp = self.align(kernel)
         self.kernel_aligned = tmp
-
-    def vtk_save_field(self):
-        """
-        generate code to output this field with vtk
-        uses Mako template
-        """
-        return staggered3d_tmpl.save_field_block(ccode(self.label)+"_", ccode(self.label))
 
     def set_dt(self, dt):
         """

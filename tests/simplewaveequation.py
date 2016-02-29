@@ -55,18 +55,17 @@ def simplewave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=
                       output_vts=output_vts, converge=o_converge)
     # define parameters
     # const_c: The constant from the wave equation
-    x, y, z, const_c = symbols('x y z c')
+    t, x, y, z, const_c = symbols('_t x y z c')
     grid.set_index([x, y, z])
     # Set the values of the constant C from the wave equation, and the initial velocity (single scalar value for all dimensions=0)
     grid.set_params(c=2, v=1)
 
-    # Check if its possible to calculate a limit for the simple case
-    # print 'require dt < ' + str(grid.get_time_step_limit())
-
-    # Initial wave displacements
-    # In the cube for t=0, the initial displacement values are accepted as a function of x, y and z.
-    # Here we use sin(x+y+z) to populate the initial displacements
-    MAIN_GRID_init_func = sin(x+y+z)
+    print 'require dt < ' + str(grid.get_time_step_limit())
+    mu = 10
+    beta = 0.5
+    Omega = pi*sqrt(2*mu*beta)
+    A = sqrt(2*mu/beta)
+    MAIN_GRID_init_func = -A*sin(pi*x)*(sin(pi*y)-sin(pi*z))*sin(Omega*t)
     MAIN_GRID.set_analytic_solution(MAIN_GRID_init_func)
     grid.set_order(accuracy_order)
 
@@ -77,7 +76,6 @@ def simplewave3d(domain_size, grid_size, dt, tmax, output_vts=False, o_converge=
     eq0 = Eq(MAIN_GRID.d[0][2], (const_c**2)*(MAIN_GRID.d[1][2] + MAIN_GRID.d[2][2] + MAIN_GRID.d[2][2]))
 
     grid.solve_fd([eq0])
-    # print 'kernel Weighted AI: ' + '%.2f' % grid.get_overall_kernel_ai()[1]
     print 'Kernel AI'
     print '%.2f, %.2f (weighted), %d ADD, %d MUL, %d LOAD, %d STORE' % grid.get_kernel_ai()
     return grid
@@ -131,6 +129,7 @@ def default(compiler=None, execute=False, nthreads=1,
     if execute:
         # Test Python-based execution for the base test
         grid.execute(filename_p, compiler=compiler, nthreads=nthreads)
+        grid.convergence()
     return out
 
 
