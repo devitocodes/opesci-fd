@@ -94,8 +94,8 @@ def Taylor(dx, n):
     returns Maxtrix object M
     """
     l = []
-    for i in range(-n+1, n):
-        ll = [tc((i*dx), j) for j in range(2*n-1)]
+    for i in range(-n/2, n/2+1):
+        ll = [tc((i*dx), j) for j in range(n+1)]
         l.append(ll)
     return Matrix(l)
 
@@ -156,22 +156,21 @@ def Deriv(U, index, k, d, n):
     s[k] = 1  # switch on kth dimension
     # generate matrix of RHS, i.e. [ ... U[x-1], U[x], U[x+1] ... ]
     if len(index) == 1:
-        RX = Matrix([U[index[0]+s[0]*x] for x in range(-n+1, n)])
+        RX = Matrix([U[index[0]+s[0]*x] for x in range(-n/2, n/2+1)])
     elif len(index) == 2:
-        RX = Matrix([U[index[0]+s[0]*x, index[1]+s[1]*x] for x in range(-n+1, n)])
+        RX = Matrix([U[index[0]+s[0]*x, index[1]+s[1]*x] for x in range(-n/2, n/2+1)])
     elif len(index) == 3:
         RX = Matrix([U[index[0]+s[0]*x,
                     index[1]+s[1]*x,
-                    index[2]+s[2]*x] for x in range(-n+1, n)])
+                    index[2]+s[2]*x] for x in range(-n/2, n/2+1)])
     elif len(index) == 4:
         RX = Matrix([U[index[0]+s[0]*x,
                     index[1]+s[1]*x,
                     index[2]+s[2]*x,
-                    index[3]+s[3]*x] for x in range(-n+1, n)])
+                    index[3]+s[3]*x] for x in range(-n/2, n/2+1)])
     else:
         raise NotImplementedError(">4 dimensions, need to fix")
-
-    return M.inv('LU') * RX
+    return M.inv() * RX
 
 
 def Deriv_generic(U, index, dimension, delta, left, right, half=False):

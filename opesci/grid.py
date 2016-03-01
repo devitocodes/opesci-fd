@@ -1,8 +1,6 @@
 from compilation import GNUCompiler, IntelCompiler, ClangCompiler
 from codeprinter import ccode
 import subprocess
-from StringIO import StringIO
-from mako.runtime import Context
 from ctypes import cdll, Structure, POINTER, c_float, pointer, c_longlong
 from os import environ
 
@@ -34,11 +32,6 @@ class Grid(object):
     _arg_grid = None
     _arg_conv = None
 
-    def __del__(self):
-        # Correctly close compiled kernel library
-        if self._library is not None:
-            cdll.LoadLibrary('libdl.so').dlclose(self._library._handle)
-
     def _load_library(self, src_lib):
         """Load a compiled dynamic binary using ctypes.cdll"""
         libname = src_lib or self.src_lib
@@ -67,16 +60,7 @@ class Grid(object):
         if compiler:
             self.compiler = compiler
 
-        # Generate a dictionary that maps template keys to code fragments
-        template = self.lookup.get_template(self.template_base)
-        template_keys = dict([(k, getattr(self, k)) for k in self.template_keys])
-
-        # Render code from provided template
-        buf = StringIO()
-        ctx = Context(buf, **template_keys)
-        template.render_context(ctx)
-        self.src_code = buf.getvalue()
-
+        self.src_code = str(self.cgen_template.generate())
         # Generate compilable source code
         self.src_file = filename
         with file(self.src_file, 'w') as f:
@@ -114,7 +98,6 @@ class Grid(object):
         # Compile code if this hasn't been done yet
         if self.src_lib is None:
             self.compile(filename, compiler=compiler, shared=True)
-
         # Load compiled binary
         self._load_library(src_lib=self.src_lib)
 
@@ -137,7 +120,6 @@ class Grid(object):
 
         print "Executing with %d threads (affinity=%s)" % (nthreads, affinity)
         opesci_execute(pointer(self._arg_grid), pointer(self._arg_profiling))
-
         if self.profiling:
             if len(self._papi_events) > 0:
                 for ev in self._papi_events:
