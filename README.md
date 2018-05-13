@@ -1,3 +1,5 @@
+# This repo is DECREPIT - see https://github.com/opesci/devito instead
+
 # Opesci-FD
 
 [![Build Status](https://travis-ci.org/opesci/opesci-fd.svg?branch=master)](https://travis-ci.org/opesci/opesci-fd)
